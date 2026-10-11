@@ -166,12 +166,23 @@ function switchProvider(newProvider) {
 
 function updateModelDescription() {
   const config = PROVIDER_CONFIG[currentProvider];
-  const modelSelect = document.getElementById("model-select");
-  const selectedModelId = modelSelect.value || "auto";
-  const desc = config.descriptions[selectedModelId] || config.descriptions["auto"];
+  if (!config) return;
 
-  document.getElementById("model-desc-title").textContent = desc.title;
-  document.getElementById("model-desc-text").textContent = desc.text;
+  const modelSelect = document.getElementById("model-select");
+  const selectedModelId = modelSelect ? (modelSelect.value || "auto") : "auto";
+  const desc = (config.descriptions && config.descriptions[selectedModelId]) || 
+               (config.descriptions && config.descriptions["auto"]) || 
+               { title: "智慧自動判定", text: "系統自動判定投影片長度與排版複雜度。" };
+
+  const titleEl = document.getElementById("model-desc-title");
+  const textEl = document.getElementById("model-desc-text");
+  const summaryEl = document.getElementById("summary-model-text");
+
+  if (titleEl) titleEl.textContent = desc.title;
+  if (textEl) textEl.textContent = desc.text;
+  if (summaryEl && desc.text) {
+    summaryEl.textContent = desc.text;
+  }
 }
 
 function initProviderAndModels() {
@@ -180,39 +191,45 @@ function initProviderAndModels() {
 
 // === 2. 事件監聽設置 ===
 function setupEventListeners() {
+  const on = (id, event, handler) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(event, handler);
+    return el;
+  };
+
   const modalApiKey = document.getElementById("modal-apikey");
   const modalTutorial = document.getElementById("modal-tutorial");
   const modalSecurity = document.getElementById("modal-security");
 
   // 頂部導航按鈕
-  document.getElementById("btn-apikey-modal").addEventListener("click", () => {
+  on("btn-apikey-modal", "click", () => {
     openApiKeyModal(currentProvider);
   });
-  document.getElementById("btn-close-apikey-modal").addEventListener("click", () => {
-    modalApiKey.classList.add("hidden");
+  on("btn-close-apikey-modal", "click", () => {
+    if (modalApiKey) modalApiKey.classList.add("hidden");
   });
 
-  document.getElementById("btn-tutorial").addEventListener("click", () => {
-    modalTutorial.classList.remove("hidden");
+  on("btn-tutorial", "click", () => {
+    if (modalTutorial) modalTutorial.classList.remove("hidden");
   });
-  document.getElementById("btn-close-tutorial").addEventListener("click", () => {
-    modalTutorial.classList.add("hidden");
+  on("btn-close-tutorial", "click", () => {
+    if (modalTutorial) modalTutorial.classList.add("hidden");
   });
-  document.getElementById("btn-tutorial-got-it").addEventListener("click", () => {
-    modalTutorial.classList.add("hidden");
+  on("btn-tutorial-got-it", "click", () => {
+    if (modalTutorial) modalTutorial.classList.add("hidden");
     if (!getApiKey(currentProvider)) {
       openApiKeyModal(currentProvider);
     }
   });
 
-  document.getElementById("btn-security").addEventListener("click", () => {
-    modalSecurity.classList.remove("hidden");
+  on("btn-security", "click", () => {
+    if (modalSecurity) modalSecurity.classList.remove("hidden");
   });
-  document.getElementById("btn-close-security").addEventListener("click", () => {
-    modalSecurity.classList.add("hidden");
+  on("btn-close-security", "click", () => {
+    if (modalSecurity) modalSecurity.classList.add("hidden");
   });
-  document.getElementById("btn-close-security-confirm").addEventListener("click", () => {
-    modalSecurity.classList.add("hidden");
+  on("btn-close-security-confirm", "click", () => {
+    if (modalSecurity) modalSecurity.classList.add("hidden");
   });
 
   // 主面板供應商切換
@@ -224,7 +241,7 @@ function setupEventListeners() {
   });
 
   // 模型切換
-  document.getElementById("model-select").addEventListener("change", updateModelDescription);
+  on("model-select", "change", updateModelDescription);
 
   // 金鑰設定彈窗內供應商切換
   document.querySelectorAll("#modal-provider-selector .modal-provider-btn").forEach(btn => {
@@ -235,14 +252,15 @@ function setupEventListeners() {
   });
 
   // 儲存金鑰
-  document.getElementById("btn-save-key").addEventListener("click", () => {
-    const key = document.getElementById("input-api-key").value.trim();
+  on("btn-save-key", "click", () => {
+    const inputKey = document.getElementById("input-api-key");
+    const key = inputKey ? inputKey.value.trim() : "";
     if (!key) {
       showToast("請輸入有效金鑰，或點擊清除", "warning");
       return;
     }
     setApiKey(modalSelectedProvider, key);
-    modalApiKey.classList.add("hidden");
+    if (modalApiKey) modalApiKey.classList.add("hidden");
     showToast(`${PROVIDER_CONFIG[modalSelectedProvider].name} 金鑰已安全保存！`, "success");
     if (modalSelectedProvider !== currentProvider) {
       switchProvider(modalSelectedProvider);
@@ -250,25 +268,28 @@ function setupEventListeners() {
   });
 
   // 清除金鑰
-  document.getElementById("btn-clear-key").addEventListener("click", () => {
+  on("btn-clear-key", "click", () => {
     setApiKey(modalSelectedProvider, "");
-    document.getElementById("input-api-key").value = "";
+    const inputKey = document.getElementById("input-api-key");
+    if (inputKey) inputKey.value = "";
     showToast(`已清除 ${PROVIDER_CONFIG[modalSelectedProvider].name} 本地金鑰`, "info");
   });
 
   // 密碼顯隱切換
   const toggleBtn = document.getElementById("btn-toggle-key-visibility");
   const keyInput = document.getElementById("input-api-key");
-  toggleBtn.addEventListener("click", () => {
-    if (keyInput.type === "password") {
-      keyInput.type = "text";
-      toggleBtn.innerHTML = '<i data-lucide="eye-off" class="w-4 h-4"></i>';
-    } else {
-      keyInput.type = "password";
-      toggleBtn.innerHTML = '<i data-lucide="eye" class="w-4 h-4"></i>';
-    }
-    lucide.createIcons();
-  });
+  if (toggleBtn && keyInput) {
+    toggleBtn.addEventListener("click", () => {
+      if (keyInput.type === "password") {
+        keyInput.type = "text";
+        toggleBtn.innerHTML = '<i data-lucide="eye-off" class="w-4 h-4"></i>';
+      } else {
+        keyInput.type = "password";
+        toggleBtn.innerHTML = '<i data-lucide="eye" class="w-4 h-4"></i>';
+      }
+      lucide.createIcons();
+    });
+  }
 
   // 教學頁籤切換
   document.querySelectorAll(".tut-tab-btn").forEach(btn => {
@@ -279,10 +300,15 @@ function setupEventListeners() {
       });
       btn.className = "tut-tab-btn py-2 border-b-2 border-sky-400 text-sky-400 font-bold cursor-pointer";
 
-      document.getElementById("tut-content-gemini").classList.add("hidden");
-      document.getElementById("tut-content-openai").classList.add("hidden");
-      document.getElementById("tut-content-anthropic").classList.add("hidden");
-      document.getElementById(`tut-content-${tut}`).classList.remove("hidden");
+      const tutGemini = document.getElementById("tut-content-gemini");
+      const tutOpenai = document.getElementById("tut-content-openai");
+      const tutClaude = document.getElementById("tut-content-anthropic");
+      const targetTut = document.getElementById(`tut-content-${tut}`);
+
+      if (tutGemini) tutGemini.classList.add("hidden");
+      if (tutOpenai) tutOpenai.classList.add("hidden");
+      if (tutClaude) tutClaude.classList.add("hidden");
+      if (targetTut) targetTut.classList.remove("hidden");
       lucide.createIcons();
     });
   });
@@ -309,38 +335,55 @@ function setupEventListeners() {
   const dropZone = document.getElementById("drop-zone");
   const fileInput = document.getElementById("file-input");
 
-  dropZone.addEventListener("click", () => fileInput.click());
+  if (fileInput) {
+    fileInput.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
 
-  dropZone.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    dropZone.classList.add("border-sky-400", "bg-slate-800/60");
-  });
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleFilesAdded(Array.from(e.target.files));
+      }
+    });
+  }
 
-  dropZone.addEventListener("dragleave", () => {
-    dropZone.classList.remove("border-sky-400", "bg-slate-800/60");
-  });
+  if (dropZone && fileInput) {
+    dropZone.addEventListener("click", () => {
+      fileInput.value = "";
+      fileInput.click();
+    });
 
-  dropZone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    dropZone.classList.remove("border-sky-400", "bg-slate-800/60");
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFilesAdded(Array.from(e.dataTransfer.files));
-    }
-  });
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.add("border-sky-400", "bg-slate-800/80");
+    });
 
-  fileInput.addEventListener("change", (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleFilesAdded(Array.from(e.target.files));
-    }
-  });
+    dropZone.addEventListener("dragleave", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove("border-sky-400", "bg-slate-800/80");
+    });
 
-  document.getElementById("btn-clear-files").addEventListener("click", () => {
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove("border-sky-400", "bg-slate-800/80");
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFilesAdded(Array.from(e.dataTransfer.files));
+      }
+    });
+  }
+
+  on("btn-clear-files", "click", () => {
     selectedFiles = [];
     uploadedSlidePages = [];
     currentComparisonPage = 0;
-    document.getElementById("thumbnail-gallery").innerHTML = "";
-    document.getElementById("file-preview-section").classList.add("hidden");
-    fileInput.value = "";
+    const gallery = document.getElementById("thumbnail-gallery");
+    const previewSec = document.getElementById("file-preview-section");
+    if (gallery) gallery.innerHTML = "";
+    if (previewSec) previewSec.classList.add("hidden");
+    if (fileInput) fileInput.value = "";
     showToast("已清空選擇檔案", "info");
   });
 
@@ -353,18 +396,18 @@ function setupEventListeners() {
   });
 
   // 檢視模式切換 (並排 / 僅看還原 / 僅看原檔)
-  document.getElementById("mode-btn-split").addEventListener("click", () => setComparisonMode("split"));
-  document.getElementById("mode-btn-reconstruct").addEventListener("click", () => setComparisonMode("reconstruct"));
-  document.getElementById("mode-btn-original").addEventListener("click", () => setComparisonMode("original"));
+  on("mode-btn-split", "click", () => setComparisonMode("split"));
+  on("mode-btn-reconstruct", "click", () => setComparisonMode("reconstruct"));
+  on("mode-btn-original", "click", () => setComparisonMode("original"));
 
   // 投影片翻頁監聽
-  document.getElementById("btn-prev-slide").addEventListener("click", () => {
+  on("btn-prev-slide", "click", () => {
     if (currentComparisonPage > 0) {
       currentComparisonPage--;
       updateComparisonView();
     }
   });
-  document.getElementById("btn-next-slide").addEventListener("click", () => {
+  on("btn-next-slide", "click", () => {
     if (currentComparisonPage < uploadedSlidePages.length - 1) {
       currentComparisonPage++;
       updateComparisonView();
@@ -372,105 +415,98 @@ function setupEventListeners() {
   });
 
   // 開始分析按鈕
-  document.getElementById("btn-start-analyze").addEventListener("click", handleStartAnalyze);
+  on("btn-start-analyze", "click", handleStartAnalyze);
 
   // 複製按鈕
-  document.getElementById("btn-copy-nblm").addEventListener("click", () => {
+  on("btn-copy-nblm", "click", () => {
     if (!generatedNblmPrompt) return;
     navigator.clipboard.writeText(generatedNblmPrompt).then(() => {
       const label = document.getElementById("copy-btn-label");
-      const originalText = label.textContent;
-      label.textContent = "已複製！";
+      if (label) {
+        const originalText = label.textContent;
+        label.textContent = "已複製！";
+        setTimeout(() => label.textContent = originalText, 2000);
+      }
       showToast("已複製 NotebookLM 專用提示詞！可至 NBLM 貼上", "success");
-      setTimeout(() => label.textContent = originalText, 2000);
     });
   });
 
-  const copyGammaBtn = document.getElementById("btn-copy-gamma");
-  if (copyGammaBtn) {
-    copyGammaBtn.addEventListener("click", () => {
-      if (!generatedGammaPrompt) return;
-      navigator.clipboard.writeText(generatedGammaPrompt).then(() => {
-        const label = document.getElementById("copy-gamma-label");
+  on("btn-copy-gamma", "click", () => {
+    if (!generatedGammaPrompt) return;
+    navigator.clipboard.writeText(generatedGammaPrompt).then(() => {
+      const label = document.getElementById("copy-gamma-label");
+      if (label) {
         const originalText = label.textContent;
         label.textContent = "已複製！";
-        showToast("已複製 Gamma AI 簡報風格指令！", "success");
         setTimeout(() => label.textContent = originalText, 2000);
-      });
+      }
+      showToast("已複製 Gamma AI 簡報風格指令！", "success");
     });
-  }
+  });
 
   // 直達工作流按鈕：複製並開啟 NotebookLM
-  const copyAndOpenNblmBtn = document.getElementById("btn-copy-and-open-nblm");
-  if (copyAndOpenNblmBtn) {
-    copyAndOpenNblmBtn.addEventListener("click", () => {
-      if (!generatedNblmPrompt) {
-        showToast("尚未產生提示詞，請先上傳簡報進行分析", "warning");
-        return;
-      }
-      navigator.clipboard.writeText(generatedNblmPrompt).then(() => {
-        showToast("已複製提示詞！正在為您開啟 NotebookLM...", "success");
-        window.open("https://notebooklm.google.com/", "_blank");
-      });
-    });
-  }
-
-  // 直達工作流按鈕：複製並開啟 Gamma
-  const copyAndOpenGammaBtn = document.getElementById("btn-copy-and-open-gamma");
-  if (copyAndOpenGammaBtn) {
-    copyAndOpenGammaBtn.addEventListener("click", () => {
-      if (!generatedGammaPrompt) {
-        showToast("尚未產生 Gamma 指令，請先上傳簡報進行分析", "warning");
-        return;
-      }
-      navigator.clipboard.writeText(generatedGammaPrompt).then(() => {
-        showToast("已複製 Gamma 風格指令！正在為您開啟 Gamma...", "success");
-        window.open("https://gamma.app/", "_blank");
-      });
-    });
-  }
-
-  const copyHtmlBtn = document.getElementById("btn-copy-html-code");
-  if (copyHtmlBtn) {
-    copyHtmlBtn.addEventListener("click", () => {
-      if (!generatedSlideHtml) return;
-      navigator.clipboard.writeText(generatedSlideHtml).then(() => {
-        const label = document.getElementById("copy-html-label");
-        const originalText = label.textContent;
-        label.textContent = "已複製！";
-        showToast("已複製 1:1 還原之 HTML / Tailwind 投影片代碼！", "success");
-        setTimeout(() => label.textContent = originalText, 2000);
-      });
-    });
-  }
-
-  const openWindowBtn = document.getElementById("btn-open-preview-window");
-  if (openWindowBtn) {
-    openWindowBtn.addEventListener("click", () => {
-      if (!generatedSlideHtml) {
-        showToast("尚未產生投影片代碼", "warning");
-        return;
-      }
-      const win = window.open("", "_blank");
-      win.document.write(buildFullSlideHtml(generatedSlideHtml));
-      win.document.close();
-    });
-  }
-
-  document.getElementById("btn-copy-all-report").addEventListener("click", () => {
-    if (!generatedReportMarkdown) return;
-    navigator.clipboard.writeText(generatedReportMarkdown).then(() => {
-      showToast("已複製整份風格逆向工程報告！", "success");
+  on("btn-copy-and-open-nblm", "click", () => {
+    if (!generatedNblmPrompt) {
+      showToast("尚未產生提示詞，請先上傳簡報進行分析", "warning");
+      return;
+    }
+    navigator.clipboard.writeText(generatedNblmPrompt).then(() => {
+      showToast("已複製提示詞！正在為您開啟 NotebookLM...", "success");
+      window.open("https://notebooklm.google.com/", "_blank");
     });
   });
 
-  document.getElementById("btn-export-markdown").addEventListener("click", () => {
+  // 直達工作流按鈕：複製並開啟 Gamma
+  on("btn-copy-and-open-gamma", "click", () => {
+    if (!generatedGammaPrompt) {
+      showToast("尚未產生 Gamma 指令，請先上傳簡報進行分析", "warning");
+      return;
+    }
+    navigator.clipboard.writeText(generatedGammaPrompt).then(() => {
+      showToast("已複製 Gamma 風格指令！正在為您開啟 Gamma...", "success");
+      window.open("https://gamma.app/", "_blank");
+    });
+  });
+
+  on("btn-copy-html-code", "click", () => {
+    if (!generatedSlideHtml) return;
+    navigator.clipboard.writeText(generatedSlideHtml).then(() => {
+      const label = document.getElementById("copy-html-label");
+      if (label) {
+        const originalText = label.textContent;
+        label.textContent = "已複製！";
+        setTimeout(() => label.textContent = originalText, 2000);
+      }
+      showToast("已複製 1:1 還原之 HTML / Tailwind 投影片代碼！", "success");
+    });
+  });
+
+  on("btn-open-preview-window", "click", () => {
+    if (!generatedSlideHtml) {
+      showToast("尚未產生投影片代碼", "warning");
+      return;
+    }
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(buildFullSlideHtml(generatedSlideHtml));
+      win.document.close();
+    }
+  });
+
+  on("btn-copy-all-report", "click", () => {
+    if (!generatedReportMarkdown) return;
+    navigator.clipboard.writeText(generatedReportMarkdown).then(() => {
+      showToast("已複製整份排版分析報告！", "success");
+    });
+  });
+
+  on("btn-export-markdown", "click", () => {
     if (!generatedReportMarkdown) return;
     const blob = new Blob([generatedReportMarkdown], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `NBLM-簡報風格逆向報告-${new Date().toISOString().slice(0, 10)}.md`;
+    a.download = `簡報同款排版報告-${new Date().toISOString().slice(0, 10)}.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -695,14 +731,16 @@ function renderAnalysisResult(data) {
   document.getElementById("result-style-name").textContent = meta.style_name || "簡報視覺風格解析報告";
 
   const autoBadge = document.getElementById("result-auto-badge");
-  if (data.auto_reason) {
-    autoBadge.textContent = data.auto_reason;
-    autoBadge.classList.remove("hidden");
-  } else if (data.model_used) {
-    autoBadge.textContent = `模型: ${data.model_used}`;
-    autoBadge.classList.remove("hidden");
-  } else {
-    autoBadge.classList.add("hidden");
+  if (autoBadge) {
+    if (data.auto_reason) {
+      autoBadge.textContent = data.auto_reason;
+      autoBadge.classList.remove("hidden");
+    } else if (data.model_used) {
+      autoBadge.textContent = `模型: ${data.model_used}`;
+      autoBadge.classList.remove("hidden");
+    } else {
+      autoBadge.classList.add("hidden");
+    }
   }
 
   const tagsContainer = document.getElementById("result-tags-container");

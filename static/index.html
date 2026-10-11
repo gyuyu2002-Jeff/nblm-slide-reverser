@@ -27,7 +27,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Marked.js for Markdown Rendering -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2.2">
 </head>
 <body class="bg-[#0B0F19] text-slate-100 min-h-screen flex flex-col font-sans selection:bg-blue-600 selection:text-white">
 
@@ -89,9 +89,11 @@
           <span class="text-[11px] text-slate-400 font-medium">PPTX / PDF / 圖片</span>
         </div>
 
+        <!-- 檔案上傳原生 Input (與拖曳區同級，避免事件冒泡衝突) -->
+        <input type="file" id="file-input" class="hidden" multiple accept=".pptx,.pdf,.png,.jpg,.jpeg,.webp">
+
         <!-- 拖曳區域 -->
         <div id="drop-zone" class="border-2 border-dashed border-slate-700 hover:border-sky-400 bg-[#0F172A]/70 hover:bg-[#0F172A] rounded-xl p-6 text-center cursor-pointer transition-all duration-200 group">
-          <input type="file" id="file-input" class="hidden" multiple accept=".pptx,.pdf,.png,.jpg,.jpeg,.webp">
           <div class="flex flex-col items-center justify-center space-y-2 pointer-events-none">
             <div class="w-12 h-12 rounded-full bg-slate-800 text-slate-300 group-hover:text-sky-300 group-hover:scale-105 shadow-sm border border-slate-700 flex items-center justify-center transition-all">
               <i data-lucide="file-up" class="w-6 h-6"></i>
@@ -162,6 +164,11 @@
             <select id="model-select" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-sky-400 cursor-pointer font-medium">
               <!-- 動態載入 -->
             </select>
+          </div>
+
+          <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+            <div class="font-bold text-slate-200" id="model-desc-title">模型特性</div>
+            <p class="leading-relaxed" id="model-desc-text">系統自動判定頁數與排版難度</p>
           </div>
         </div>
 
@@ -248,6 +255,7 @@
                 <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-950/60 text-emerald-300 font-bold border border-emerald-800">
                   排版 100% 對齊
                 </span>
+                <span id="result-auto-badge" class="hidden text-[11px] px-2.5 py-0.5 rounded-full bg-slate-800 text-sky-300 font-medium border border-slate-700"></span>
               </div>
               <h2 id="result-style-name" class="text-lg font-bold text-slate-100 mt-1">簡報風格名稱</h2>
             </div>
@@ -696,7 +704,7 @@
     <span id="toast-text">通知內容</span>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=2.2"></script>
   <script>
     lucide.createIcons();
   </script>
