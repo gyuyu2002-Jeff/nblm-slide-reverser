@@ -35,7 +35,7 @@
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
   </script>
-  <link rel="stylesheet" href="style.css?v=6.0.0">
+  <link rel="stylesheet" href="style.css?v=6.1.0">
 </head>
 <body class="bg-[#0B0C0E] text-zinc-200 min-h-screen flex flex-col font-sans selection:bg-zinc-700 selection:text-white antialiased">
 
@@ -67,6 +67,11 @@
         <button id="btn-security" class="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] rounded-lg border border-white/[0.08] transition-colors cursor-pointer">
           <i data-lucide="shield-check" class="w-3.5 h-3.5 text-zinc-400"></i>
           <span>隱私保證</span>
+        </button>
+
+        <button id="btn-disclaimer" class="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] rounded-lg border border-white/[0.08] transition-colors cursor-pointer">
+          <i data-lucide="scale" class="w-3.5 h-3.5 text-zinc-400"></i>
+          <span>免責聲明</span>
         </button>
 
         <!-- AI 金鑰狀態按鈕 -->
@@ -113,6 +118,17 @@
               </p>
             </div>
           </div>
+        </div>
+
+        <!-- 免責與授權提示小字 -->
+        <div class="flex items-center justify-between text-[11px] text-zinc-500 px-0.5 pt-0.5">
+          <span class="flex items-center gap-1">
+            <i data-lucide="shield-alert" class="w-3 h-3 text-zinc-500"></i>
+            僅供排版學習，上傳即確認具合法授權
+          </span>
+          <button id="btn-open-disclaimer-link" type="button" class="text-zinc-400 hover:text-zinc-200 underline cursor-pointer transition-colors">
+            免責聲明
+          </button>
         </div>
 
         <!-- 檔案列表與縮圖預覽 -->
@@ -479,6 +495,33 @@
 
   </main>
 
+  <!-- 頁尾 (法規與版權宣告) -->
+  <footer class="border-t border-white/[0.06] bg-[#0E1013]/60 py-4 mt-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs text-zinc-500">
+      <div class="flex items-center gap-2">
+        <span>© 2026 簡報風格逆向解析 (NBLM Slide Reverser)</span>
+        <span class="text-zinc-700 hidden sm:inline">·</span>
+        <span class="text-zinc-400">非 Google 或 NotebookLM 官方專案</span>
+      </div>
+      <div class="flex items-center space-x-3 sm:space-x-4">
+        <button id="btn-footer-disclaimer" class="hover:text-zinc-300 transition-colors cursor-pointer flex items-center gap-1">
+          <i data-lucide="scale" class="w-3 h-3 text-zinc-500"></i>
+          <span>服務條款與免責聲明</span>
+        </button>
+        <span class="text-zinc-700">·</span>
+        <button id="btn-footer-security" class="hover:text-zinc-300 transition-colors cursor-pointer flex items-center gap-1">
+          <i data-lucide="shield-check" class="w-3 h-3 text-zinc-500"></i>
+          <span>隱私保證</span>
+        </button>
+        <span class="text-zinc-700">·</span>
+        <a href="https://github.com/gyuyu2002-Jeff/nblm-slide-reverser" target="_blank" rel="noopener noreferrer" class="hover:text-zinc-300 transition-colors inline-flex items-center gap-1">
+          <span>GitHub</span>
+          <i data-lucide="arrow-up-right" class="w-3 h-3 text-zinc-600"></i>
+        </a>
+      </div>
+    </div>
+  </footer>
+
   <!-- 彈窗 0：首次造訪迎賓與 API 申請導引 (Precision Graphite Onboarding) -->
   <div id="modal-onboarding" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
     <div class="bg-[#13151A] rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 border border-white/[0.12] relative animate-in fade-in zoom-in-95 duration-200">
@@ -576,6 +619,9 @@
           <button id="btn-onboarding-switch-other" class="hover:text-zinc-300 transition-colors cursor-pointer underline">
             使用 OpenAI 或 Claude
           </button>
+        </div>
+        <div class="text-[10px] text-zinc-500 text-center pt-1 border-t border-white/[0.04]">
+          使用本服務即代表您同意本站之 <button id="btn-onboarding-disclaimer" type="button" class="underline text-zinc-400 hover:text-zinc-200 cursor-pointer">服務條款與免責聲明</button>
         </div>
       </div>
 
@@ -761,13 +807,88 @@
     </div>
   </div>
 
+  <!-- 彈窗 4：服務條款與免責聲明彈窗 (精密石墨黑) -->
+  <div id="modal-disclaimer" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#13151A] rounded-xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 border border-white/[0.1] max-h-[88vh] flex flex-col animate-scale-up">
+      <div class="flex items-center justify-between border-b border-white/[0.06] pb-3 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-white/[0.06] text-zinc-200 flex items-center justify-center border border-white/[0.08]">
+            <i data-lucide="scale" class="w-4 h-4 text-zinc-300"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-zinc-100">服務條款與免責聲明</h3>
+            <p class="text-[11px] text-zinc-400">Terms of Service & Disclaimer</p>
+          </div>
+        </div>
+        <button id="btn-close-disclaimer" class="text-zinc-400 hover:text-white cursor-pointer transition-colors p-1 rounded-md hover:bg-white/[0.05]">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- 條款主內容區 (可滾動) -->
+      <div class="space-y-3 text-xs text-zinc-300 leading-relaxed overflow-y-auto pr-1.5 custom-scrollbar">
+        <!-- 條款 1 -->
+        <div class="bg-[#0E1013] p-3 rounded-lg border border-white/[0.06] space-y-1">
+          <div class="flex items-center gap-2 font-semibold text-zinc-100 text-xs">
+            <span class="w-4 h-4 rounded bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">1</span>
+            <h4>第三方獨立開發與品牌非關聯宣告</h4>
+          </div>
+          <p class="text-zinc-400 pl-6 text-[11px]">
+            本網站（「簡報風格逆向解析」）為獨立開發之開源研究輔助工具，旨在解析投影片視覺拓撲與版型轉譯結構。<strong>本專案與 Google LLC、Alphabet Inc.、NotebookLM 或其任何關係企業無任何官方隸屬、贊助、背書或商業合作關係。</strong> 本站提及之所有商標與品牌名稱均歸屬其各自之法定權利人所有。
+          </p>
+        </div>
+
+        <!-- 條款 2 -->
+        <div class="bg-[#0E1013] p-3 rounded-lg border border-white/[0.06] space-y-1">
+          <div class="flex items-center gap-2 font-semibold text-zinc-100 text-xs">
+            <span class="w-4 h-4 rounded bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">2</span>
+            <h4>使用者上傳內容與智慧財產權授權</h4>
+          </div>
+          <p class="text-zinc-400 pl-6 text-[11px]">
+            本工具僅供使用者進行投影片排版結構學習、版面拓撲研究及個人非商業用途之合理使用。使用者上傳之簡報檔案、投影片截圖或圖片，<strong>應自行確保擁有該內容之完整合法著作權或已取得適當合法授權。</strong> 嚴禁未經授權上傳機密商業文件或侵害第三方版權之付費模板。若因使用者之不當使用衍生侵權或任何法律糾紛，由使用者自行承擔完全法律責任，本服務概不負責。
+          </p>
+        </div>
+
+        <!-- 條款 3 -->
+        <div class="bg-[#0E1013] p-3 rounded-lg border border-white/[0.06] space-y-1">
+          <div class="flex items-center gap-2 font-semibold text-zinc-100 text-xs">
+            <span class="w-4 h-4 rounded bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">3</span>
+            <h4>AI 生成內容「現況交付」與責任限制</h4>
+          </div>
+          <p class="text-zinc-400 pl-6 text-[11px]">
+            本系統所提煉之視覺手冊、提示詞、色碼與結構語法均經由大型語言模型（LLM）自動辨識產出。AI 生成可能存在模型幻覺、排版落差或辨識誤差。<strong>本工具依「現況（AS IS）」基礎提供</strong>，不對產出內容之準確性、完整性或商業適用性提供任何明示或暗示之保證，亦不對因使用本工具或生成結果所衍生之任何直接、間接或商業損失承擔賠償責任。
+          </p>
+        </div>
+
+        <!-- 條款 4 -->
+        <div class="bg-[#0E1013] p-3 rounded-lg border border-white/[0.06] space-y-1">
+          <div class="flex items-center gap-2 font-semibold text-zinc-100 text-xs">
+            <span class="w-4 h-4 rounded bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">4</span>
+            <h4>本機金鑰儲存與隱私保證</h4>
+          </div>
+          <p class="text-zinc-400 pl-6 text-[11px]">
+            本工具採純前端安全通訊架構，使用者輸入之 API Key 僅儲存於使用者本機瀏覽器 LocalStorage 中，無任何中間伺服器進行側錄或保存。所有 API 請求直接由使用者瀏覽器發送至相應之模型供應商官方端點，並遵守各模型供應商之服務與隱私條款。
+          </p>
+        </div>
+      </div>
+
+      <!-- 底部確認按鈕 -->
+      <div class="border-t border-white/[0.06] pt-3 shrink-0 flex items-center justify-between">
+        <span class="text-[11px] text-zinc-500">最後修訂日期：2026 年 10 月</span>
+        <button id="btn-close-disclaimer-confirm" class="px-4 py-1.5 bg-zinc-100 hover:bg-white text-zinc-950 text-xs rounded-lg font-medium cursor-pointer transition-colors shadow-sm">
+          我已閱讀並理解
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 全局 Toast 提示 -->
   <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-200 flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-[#181A20] border border-white/[0.1] text-xs shadow-2xl text-zinc-100">
     <i data-lucide="info" id="toast-icon" class="w-3.5 h-3.5 text-zinc-400"></i>
     <span id="toast-text">通知內容</span>
   </div>
 
-  <script src="app.js?v=6.0.0"></script>
+  <script src="app.js?v=6.1.0"></script>
   <script>
     lucide.createIcons();
   </script>

@@ -154,6 +154,7 @@ function setupEventListeners() {
   const modalApiKey = document.getElementById("modal-apikey");
   const modalTutorial = document.getElementById("modal-tutorial");
   const modalSecurity = document.getElementById("modal-security");
+  const modalDisclaimer = document.getElementById("modal-disclaimer");
 
   // 頂部導航按鈕
   on("btn-apikey-modal", "click", () => {
@@ -218,7 +219,27 @@ function setupEventListeners() {
     });
   }
 
+  const openDisclaimerModal = () => {
+    if (modalDisclaimer) {
+      modalDisclaimer.classList.remove("hidden");
+      if (window.lucide) window.lucide.createIcons();
+    }
+  };
+  const closeDisclaimerModal = () => {
+    if (modalDisclaimer) modalDisclaimer.classList.add("hidden");
+  };
+
+  on("btn-disclaimer", "click", openDisclaimerModal);
+  on("btn-close-disclaimer", "click", closeDisclaimerModal);
+  on("btn-close-disclaimer-confirm", "click", closeDisclaimerModal);
+  on("btn-open-disclaimer-link", "click", openDisclaimerModal);
+  on("btn-onboarding-disclaimer", "click", openDisclaimerModal);
+  on("btn-footer-disclaimer", "click", openDisclaimerModal);
+
   on("btn-security", "click", () => {
+    if (modalSecurity) modalSecurity.classList.remove("hidden");
+  });
+  on("btn-footer-security", "click", () => {
     if (modalSecurity) modalSecurity.classList.remove("hidden");
   });
   on("btn-close-security", "click", () => {
@@ -226,6 +247,15 @@ function setupEventListeners() {
   });
   on("btn-close-security-confirm", "click", () => {
     if (modalSecurity) modalSecurity.classList.add("hidden");
+  });
+
+  // 點選遮罩背景自動關閉彈窗
+  [modalDisclaimer, modalSecurity, modalApiKey].forEach(m => {
+    if (m) {
+      m.addEventListener("click", (e) => {
+        if (e.target === m) m.classList.add("hidden");
+      });
+    }
   });
 
   // 金鑰設定彈窗內供應商切換
