@@ -35,7 +35,7 @@
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
   </script>
-  <link rel="stylesheet" href="style.css?v=5.6.0">
+  <link rel="stylesheet" href="style.css?v=5.7.0">
 </head>
 <body class="bg-[#0B0C0E] text-zinc-200 min-h-screen flex flex-col font-sans selection:bg-zinc-700 selection:text-white antialiased">
 
@@ -133,6 +133,29 @@
 
       <!-- 2. 操作卡片：開始解析按鈕與狀態 (Solid Precision Button) -->
       <div class="bg-[#13151A] rounded-xl p-4 card-soft-shadow border border-white/[0.08] space-y-3">
+        <!-- 提示詞模式選擇 (二選一) -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-xs font-medium text-zinc-300">
+            <span>提示詞輸出模式：</span>
+            <span class="text-[10px] text-zinc-500 font-mono">一次生成兩種模式</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2" id="prompt-mode-selector">
+            <button type="button" data-prompt-mode="global" class="prompt-mode-btn active p-2 rounded-lg border text-left transition-all cursor-pointer bg-white/10 text-white border-white/20">
+              <div class="flex items-center justify-between mb-0.5">
+                <span class="text-xs font-semibold">模式 1：全域風格</span>
+                <span class="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">推薦</span>
+              </div>
+              <p class="text-[10px] text-zinc-400 leading-tight">不限頁數，提取整份色彩、字型與版型庫，任意筆記皆可直接套用。</p>
+            </button>
+            <button type="button" data-prompt-mode="slide" class="prompt-mode-btn p-2 rounded-lg border text-left transition-all cursor-pointer bg-white/[0.03] text-zinc-400 border-white/[0.08] hover:bg-white/[0.06]">
+              <div class="flex items-center justify-between mb-0.5">
+                <span class="text-xs font-semibold text-zinc-300">模式 2：逐頁 1:1</span>
+              </div>
+              <p class="text-[10px] text-zinc-500 leading-tight">100% 像素級還原特定投影片，逐頁嚴格對應填寫結構。</p>
+            </button>
+          </div>
+        </div>
+
         <!-- 主按鈕：純粹高對比曜黑白按鈕，無俗氣漸層與彩色大光暈 -->
         <button id="btn-start-analyze" class="w-full py-2.5 px-4 rounded-lg font-medium text-xs text-zinc-950 bg-zinc-100 hover:bg-white shadow-sm flex items-center justify-center space-x-2 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-[0.99]">
           <span>開始解析風格</span>
@@ -378,12 +401,35 @@
 
             <!-- 頁籤 1：NotebookLM 專用提示詞 -->
             <div id="tab-pane-nblm" class="result-tab-pane space-y-3">
-              <div class="flex flex-wrap items-center justify-between gap-2">
+              <!-- 雙模式切換導航列 -->
+              <div class="flex items-center p-1 bg-[#0E1013] rounded-lg border border-white/[0.08] gap-1">
+                <button type="button" id="btn-subtab-global" class="subtab-mode-btn flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 bg-white/10 text-white shadow-sm border border-white/10 cursor-pointer">
+                  <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+                  <span>模式 1：全域風格架構（推薦）</span>
+                </button>
+                <button type="button" id="btn-subtab-slide" class="subtab-mode-btn flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent cursor-pointer">
+                  <i data-lucide="copy-check" class="w-3.5 h-3.5"></i>
+                  <span>模式 2：逐頁 1:1 對比</span>
+                </button>
+              </div>
+
+              <!-- 模式說明與操作列 -->
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5">
                 <div>
-                  <h3 class="text-xs font-semibold text-zinc-100 flex items-center gap-1.5">
-                    NotebookLM 簡報風格與排版提示詞（全域版型語法庫）
-                  </h3>
-                  <p class="text-[11px] text-zinc-400 mt-0.5">提煉全域視覺手冊與幾何版型字典，讓 NotebookLM 依據筆記內容自由規劃頁數（不限頁數），兼顧視覺美學與精煉文案。</p>
+                  <div id="desc-mode-global" class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                    <h3 class="text-xs font-semibold text-zinc-100">
+                      模式 1：全域風格架構（推薦）
+                    </h3>
+                    <span class="text-[10px] text-zinc-400 ml-1">不限頁數，提取整份色彩、字型與版型庫，任意筆記皆可直接套用。</span>
+                  </div>
+                  <div id="desc-mode-slide" class="hidden flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
+                    <h3 class="text-xs font-semibold text-zinc-100">
+                      模式 2：逐頁 1:1 對比
+                    </h3>
+                    <span class="text-[10px] text-zinc-400 ml-1">適合想要 100% 像素級還原特定投影片的嚴格填空。</span>
+                  </div>
                 </div>
                 <div class="flex items-center gap-1.5">
                   <a href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 text-xs font-medium bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 rounded border border-white/[0.08] flex items-center gap-1 transition-colors">
@@ -721,7 +767,7 @@
     <span id="toast-text">通知內容</span>
   </div>
 
-  <script src="app.js?v=5.6.0"></script>
+  <script src="app.js?v=5.7.0"></script>
   <script>
     lucide.createIcons();
   </script>

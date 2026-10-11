@@ -5,6 +5,9 @@ let currentComparisonPage = 0;
 let currentComparisonMode = "split"; // "split", "reconstruct", "original"
 let generatedReportMarkdown = "";
 let generatedNblmPrompt = "";
+let generatedPromptGlobal = "";
+let generatedPromptSlide = "";
+let currentPromptMode = "global"; // "global" | "slide"
 let generatedSlideHtml = "";
 let currentProvider = localStorage.getItem("active_provider") || "gemini";
 let modalSelectedProvider = currentProvider;
@@ -46,9 +49,10 @@ const CLIENT_SYSTEM_INSTRUCTION = `你是一位世界頂級的簡報視覺逆向
 - **字型與排印層級**：標題字重、卡片標題字級、內文字距與對齊方式
 - **幾何圖解語法**：同心圓弧規格、垂直色塊柱、卡片邊框粗細與圖示風格
 
-## 3. 📋 NotebookLM 專用簡報風格與排版提示詞 (Presentation Style & Layout Guide)
-> 複製以下指令貼入 NotebookLM。本提示詞提煉整份簡報的【全域視覺風格手冊與版型語法庫】，適用於任意頁數（3~10 頁皆可），讓 NotebookLM 依據筆記內容自由規劃頁數，同時 100% 傳承原圖的美學靈魂：
+## 3. 📋 NotebookLM 專用簡報提示詞 (二合一雙模式輸出)
+> 請同時提供以下兩種模式的完整 Markdown 代碼區塊，讓使用者在前端一鍵自由切換：
 
+### 模式 1：全域風格架構（推薦：不限頁數，提取整份色彩、字型、標誌裝飾與版型庫，任意筆記皆可直接套用）
 \`\`\`markdown
 【任務宣告】：
 請嚴格依據我上傳的筆記來源（Sources），提取關鍵事實與洞察，為我規劃一份結構嚴謹、視覺平衡的專業簡報內容。
@@ -84,6 +88,32 @@ const CLIENT_SYSTEM_INSTRUCTION = `你是一位世界頂級的簡報視覺逆向
 - 【📝 簡報文案內容】：
   - 主標題：...
   - 核心重點：（依選定版型填寫卡片/時間軸/條列要點，嚴格遵守字數限制）
+\`\`\`
+
+### 模式 2：逐頁 1:1 對比（適合想要 100% 像素級還原特定投影片的嚴格填寫）
+\`\`\`markdown
+【任務宣告】：
+請嚴格依據我上傳的筆記來源（Sources），提取關鍵事實與洞察，將筆記內容忠實填寫入下列【逐頁 1:1 投影片排版與文案架構】中。
+
+【簡報文字密度防爆預算】：
+1. 嚴格溯源：所有內容必須 100% 源自來源筆記，嚴禁添加外部推論。
+2. 嚴格字數限制：主標題限定 8~14 字、副標題限定 15~25 字、卡片標題限定 4~8 字、條列限定 12~20 字。
+3. 🚫 負向排除：嚴禁無中生有編造巨型 KPI 統計大數字。
+
+【逐頁 1:1 簡報排版與文案架構（對應各頁投影片）】：
+(請嚴格根據實際辨識到的各頁真實視覺特徵逐頁輸出，範例如下：)
+
+---
+### 投影片 1：[頁面類型，如：封面頁]
+【🎨 視覺風格與版面配置】：
+- 畫布背景：[填入該頁底色與材質，如：深海軍藍 (#0E2A38) 照片漸層遮罩]
+- 核心裝飾：[填入該頁幾何元素，如：左側垂直粗亮橘標柱、右上角同心圓弧切角環]
+- 字體排印：[如：特大無襯線超粗體，純白全大寫]
+【📝 簡報文案內容區】：
+- 主標題：（提取筆記核心主題，結論先行，<14字）
+- 導言摘要：（提取 2-3 行簡報核心定位，<25字）
+
+(若原簡報有多頁，請依序對應原簡報的第 2、3... 頁逐頁精準輸出包含視覺配置與文案內容區的架構)
 \`\`\`
 
 ## 4. 💻 1:1 還原之 HTML / Tailwind 投影片結構碼 (可直接複製使用)
@@ -447,31 +477,47 @@ function setupEventListeners() {
     }
   });
 
+  // 提示詞模式選擇（左側操作卡片）
+  document.querySelectorAll("#prompt-mode-selector .prompt-mode-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const mode = btn.getAttribute("data-prompt-mode");
+      if (mode) switchPromptMode(mode);
+    });
+  });
+
+  // 提示詞模式切換（右側結果頁子導航）
+  on("btn-subtab-global", "click", () => switchPromptMode("global"));
+  on("btn-subtab-slide", "click", () => switchPromptMode("slide"));
+
   // 開始分析按鈕
   on("btn-start-analyze", "click", handleStartAnalyze);
 
-  // 複製按鈕
+  // 複製按鈕（動態對應當前所選模式）
   on("btn-copy-nblm", "click", () => {
-    if (!generatedNblmPrompt) return;
-    navigator.clipboard.writeText(generatedNblmPrompt).then(() => {
+    const promptToCopy = currentPromptMode === "global" ? (generatedPromptGlobal || generatedNblmPrompt) : (generatedPromptSlide || generatedNblmPrompt);
+    if (!promptToCopy) return;
+    navigator.clipboard.writeText(promptToCopy).then(() => {
       const label = document.getElementById("copy-btn-label");
       if (label) {
         const originalText = label.textContent;
         label.textContent = "已複製！";
         setTimeout(() => label.textContent = originalText, 2000);
       }
-      showToast("已複製 NotebookLM 專用提示詞！可至 NBLM 貼上", "success");
+      const modeName = currentPromptMode === "global" ? "【模式 1：全域風格架構】" : "【模式 2：逐頁 1:1 對比】";
+      showToast(`已成功複製 ${modeName} 提示詞！可至 NotebookLM 貼上`, "success");
     });
   });
 
   // 直達工作流按鈕：複製並開啟 NotebookLM
   on("btn-copy-and-open-nblm", "click", () => {
-    if (!generatedNblmPrompt) {
+    const promptToCopy = currentPromptMode === "global" ? (generatedPromptGlobal || generatedNblmPrompt) : (generatedPromptSlide || generatedNblmPrompt);
+    if (!promptToCopy) {
       showToast("尚未產生提示詞，請先上傳簡報進行分析", "warning");
       return;
     }
-    navigator.clipboard.writeText(generatedNblmPrompt).then(() => {
-      showToast("已複製提示詞！正在為您開啟 NotebookLM...", "success");
+    navigator.clipboard.writeText(promptToCopy).then(() => {
+      const modeName = currentPromptMode === "global" ? "【模式 1：全域風格】" : "【模式 2：逐頁 1:1】";
+      showToast(`已複製 ${modeName} 提示詞！正在為您開啟 NotebookLM...`, "success");
       window.open("https://notebooklm.google.com/", "_blank");
     });
   });
@@ -1072,7 +1118,9 @@ async function handleStartAnalyze() {
       const promptText = "請詳細審視我上傳的簡報投影片，執行深度視覺與幾何拓撲逆向工程。\n" +
         "【核心使命】：\n" +
         "1. 必須逐頁精確拆解投影片的真實骨架（如：深色照片遮罩底、標題左側垂直實心粗色塊標柱、右上角外擴亮橘同心圓弧環、超粗無襯線字體、N 欄線框卡片等真實視覺特徵），100% 忠於原稿！\n" +
-        "2. 產出的 NotebookLM 提示詞必須採用【全域視覺風格手冊與版型語法庫】架構：提煉真實底色 Hex 碼、照片暗色遮罩、幾何圓弧、垂直粗色柱、字體字重與版型庫，設定字數防爆預算（主標題<14字、條列<20字），使 NotebookLM 能夠依據筆記內容自由規劃頁數（不限頁數）並產出兼具視覺靈魂與結構化文案的簡報！\n" +
+        "2. 產出的第 3 節 NotebookLM 提示詞必須同時完整輸出兩種模式代碼區塊：\n" +
+        "   - 【模式 1：全域風格架構（推薦）】：提取全域視覺手冊與版型語法庫，不限頁數，適合任意筆記靈活套用。\n" +
+        "   - 【模式 2：逐頁 1:1 對比】：嚴格對應原投影片各頁，輸出包含視覺配置與文案內容區的逐頁精確結構。\n" +
         "3. 產出一份可直接獨立運行的 HTML/Tailwind 1:1 還原投影片結構代碼。\n" +
         "4. 請嚴格依照 SYSTEM INSTRUCTION 規定的章節與 JSON 格式輸出。";
 
@@ -1090,7 +1138,7 @@ async function handleStartAnalyze() {
     await new Promise(resolve => setTimeout(resolve, 350));
 
     renderAnalysisResult(data);
-    showToast("風格逆向分析完成！已為您產生 1:1 幾何對比與提示詞", "success");
+    showToast("風格逆向分析完成！已為您產生 1:1 幾何對比與雙模式提示詞", "success");
 
   } catch (err) {
     stopProgressPipeline();
@@ -1113,11 +1161,15 @@ function renderAnalysisResult(data) {
   document.getElementById("panel-loading").classList.add("hidden");
   document.getElementById("panel-result").classList.remove("hidden");
 
-  // 萃取各項產出
-  generatedNblmPrompt = extractNblmPrompt(generatedReportMarkdown);
+  // 萃取各項產出 (模式 1 與 模式 2)
+  const extracted = extractNblmPromptModes(generatedReportMarkdown);
+  generatedPromptGlobal = extracted.globalPrompt;
+  generatedPromptSlide = extracted.slidePrompt;
+  generatedNblmPrompt = currentPromptMode === "global" ? generatedPromptGlobal : generatedPromptSlide;
   generatedSlideHtml = extractSlideHtml(generatedReportMarkdown);
 
-  document.getElementById("nblm-prompt-code").textContent = generatedNblmPrompt || "未能擷取到特定提示詞區塊，請參閱下方全文報告。";
+  // 渲染當前模式提示詞
+  switchPromptMode(currentPromptMode);
 
   // 更新投影片預覽視窗
   currentComparisonPage = 0;
@@ -1224,20 +1276,100 @@ function switchResultTab(tabName) {
   lucide.createIcons();
 }
 
-function extractNblmPrompt(markdown) {
-  if (markdown.includes("## 3. 📋 NotebookLM 專用") || markdown.includes("NotebookLM 專用")) {
+function switchPromptMode(mode) {
+  currentPromptMode = mode;
+
+  // 更新左側按鈕樣式
+  document.querySelectorAll("#prompt-mode-selector .prompt-mode-btn").forEach(btn => {
+    const m = btn.getAttribute("data-prompt-mode");
+    if (m === mode) {
+      btn.className = "prompt-mode-btn active p-2 rounded-lg border text-left transition-all cursor-pointer bg-white/10 text-white border-white/20";
+    } else {
+      btn.className = "prompt-mode-btn p-2 rounded-lg border text-left transition-all cursor-pointer bg-white/[0.03] text-zinc-400 border-white/[0.08] hover:bg-white/[0.06]";
+    }
+  });
+
+  // 更新右側結果頁子頁籤樣式
+  const btnGlobal = document.getElementById("btn-subtab-global");
+  const btnSlide = document.getElementById("btn-subtab-slide");
+  const descGlobal = document.getElementById("desc-mode-global");
+  const descSlide = document.getElementById("desc-mode-slide");
+  const codeEl = document.getElementById("nblm-prompt-code");
+
+  if (btnGlobal && btnSlide) {
+    if (mode === "global") {
+      btnGlobal.className = "subtab-mode-btn flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 bg-white/10 text-white shadow-sm border border-white/10 cursor-pointer";
+      btnSlide.className = "subtab-mode-btn flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent cursor-pointer";
+      if (descGlobal) descGlobal.classList.remove("hidden");
+      if (descSlide) descSlide.classList.add("hidden");
+      if (codeEl) codeEl.textContent = generatedPromptGlobal || generatedNblmPrompt || "未擷取到全域風格提示詞，請查看完整報告。";
+    } else {
+      btnSlide.className = "subtab-mode-btn flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 bg-white/10 text-white shadow-sm border border-white/10 cursor-pointer";
+      btnGlobal.className = "subtab-mode-btn flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent cursor-pointer";
+      if (descSlide) descSlide.classList.remove("hidden");
+      if (descGlobal) descGlobal.classList.add("hidden");
+      if (codeEl) codeEl.textContent = generatedPromptSlide || generatedNblmPrompt || "未擷取到逐頁 1:1 提示詞，請查看完整報告。";
+    }
+  }
+  if (window.lucide) window.lucide.createIcons();
+}
+window.switchPromptMode = switchPromptMode;
+
+function extractNblmPromptModes(markdown) {
+  let globalPrompt = "";
+  let slidePrompt = "";
+
+  if (markdown.includes("## 3. 📋") || markdown.includes("NotebookLM 專用") || markdown.includes("NotebookLM")) {
     const parts = markdown.split(/## 3\..*?NotebookLM.*?/i);
     if (parts.length > 1) {
       const section = parts[1].split(/## 4\./)[0];
-      const codeMatch = section.match(/```(?:markdown)?([\s\S]*?)```/);
-      if (codeMatch && codeMatch[1]) {
-        return codeMatch[1].trim();
+
+      // 嘗試按標題切分模式 1 與模式 2
+      if (section.includes("模式 1") || section.includes("全域風格")) {
+        const m1Part = section.split(/### 模式 2|模式 2/i)[0];
+        const m1Match = m1Part.match(/```(?:markdown)?([\s\S]*?)```/i);
+        if (m1Match && m1Match[1]) {
+          globalPrompt = m1Match[1].trim();
+        }
       }
-      return section.trim();
+
+      if (section.includes("模式 2") || section.includes("逐頁 1:1")) {
+        const m2Part = section.split(/### 模式 2|模式 2/i)[1] || "";
+        const m2Match = m2Part.match(/```(?:markdown)?([\s\S]*?)```/i);
+        if (m2Match && m2Match[1]) {
+          slidePrompt = m2Match[1].trim();
+        }
+      }
+
+      // 若未分段匹配到，提取 section 內所有的 code blocks
+      if (!globalPrompt || !slidePrompt) {
+        const blocks = [...section.matchAll(/```(?:markdown)?([\s\S]*?)```/gi)];
+        if (blocks.length >= 2) {
+          if (!globalPrompt) globalPrompt = blocks[0][1].trim();
+          if (!slidePrompt) slidePrompt = blocks[1][1].trim();
+        } else if (blocks.length === 1) {
+          if (!globalPrompt) globalPrompt = blocks[0][1].trim();
+          if (!slidePrompt) slidePrompt = blocks[0][1].trim();
+        }
+      }
     }
   }
-  const firstBlock = markdown.match(/```(?:markdown)?([\s\S]*?)```/);
-  return firstBlock ? firstBlock[1].trim() : markdown;
+
+  // 全文通用備援
+  if (!globalPrompt) {
+    const firstBlock = markdown.match(/```(?:markdown)?([\s\S]*?)```/i);
+    globalPrompt = firstBlock ? firstBlock[1].trim() : markdown;
+  }
+  if (!slidePrompt) {
+    slidePrompt = globalPrompt;
+  }
+
+  return { globalPrompt, slidePrompt };
+}
+
+function extractNblmPrompt(markdown) {
+  const res = extractNblmPromptModes(markdown);
+  return currentPromptMode === "global" ? res.globalPrompt : res.slidePrompt;
 }
 
 function extractSlideHtml(markdown) {
