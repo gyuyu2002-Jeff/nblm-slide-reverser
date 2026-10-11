@@ -155,6 +155,7 @@ function setupEventListeners() {
   const modalTutorial = document.getElementById("modal-tutorial");
   const modalSecurity = document.getElementById("modal-security");
   const modalDisclaimer = document.getElementById("modal-disclaimer");
+  const modalNblmTutorial = document.getElementById("modal-nblm-tutorial");
 
   // 頂部導航按鈕
   on("btn-apikey-modal", "click", () => {
@@ -164,7 +165,7 @@ function setupEventListeners() {
     if (modalApiKey) modalApiKey.classList.add("hidden");
   });
 
-  // 點擊「免費金鑰教學」開啟迎賓教學彈窗（直達三步驟與一鍵儲存）
+  // 點擊「通行證申請教學」開啟迎賓教學彈窗（直達三步驟與一鍵儲存）
   on("btn-tutorial", "click", () => {
     openOnboardingModal();
   });
@@ -194,14 +195,22 @@ function setupEventListeners() {
     const input = document.getElementById("input-onboarding-key");
     const key = input ? input.value.trim() : "";
     if (!key) {
-      showToast("請先貼上有效的 Google Gemini API Key，或點擊跳過", "warning");
+      showToast("請先貼上有效的 Google 官方免費通行證 (API Key)，或點擊跳過", "warning");
       return;
     }
     setApiKey("gemini", key);
     switchProvider("gemini");
     closeOnboardingModal(true);
-    showToast("Google Gemini 金鑰已就緒！請拖入投影片開始分析", "success");
+    showToast("Google 通行證已就緒！請拖入投影片開始分析", "success");
   });
+
+  // 免金鑰體驗實例按鈕監聽
+  on("btn-load-demo", "click", loadDemoPresentation);
+  on("btn-onboarding-try-demo", "click", loadDemoPresentation);
+
+  // 一鍵貼上剪貼簿監聽
+  on("btn-paste-onboarding-key", "click", () => pasteClipboardToInput("input-onboarding-key"));
+  on("btn-paste-modal-key", "click", () => pasteClipboardToInput("input-api-key"));
 
   // 迎賓彈窗密碼顯隱切換
   const toggleOnboardingBtn = document.getElementById("btn-toggle-onboarding-key");
@@ -219,6 +228,7 @@ function setupEventListeners() {
     });
   }
 
+  // 免責聲明彈窗
   const openDisclaimerModal = () => {
     if (modalDisclaimer) {
       modalDisclaimer.classList.remove("hidden");
@@ -236,6 +246,23 @@ function setupEventListeners() {
   on("btn-onboarding-disclaimer", "click", openDisclaimerModal);
   on("btn-footer-disclaimer", "click", openDisclaimerModal);
 
+  // NotebookLM 操作 SOP 彈窗
+  const openNblmTutorialModal = () => {
+    if (modalNblmTutorial) {
+      modalNblmTutorial.classList.remove("hidden");
+      if (window.lucide) window.lucide.createIcons();
+    }
+  };
+  const closeNblmTutorialModal = () => {
+    if (modalNblmTutorial) modalNblmTutorial.classList.add("hidden");
+  };
+
+  on("btn-open-nblm-tutorial", "click", openNblmTutorialModal);
+  on("btn-nblm-header-guide", "click", openNblmTutorialModal);
+  on("btn-close-nblm-tutorial", "click", closeNblmTutorialModal);
+  on("btn-close-nblm-tutorial-confirm", "click", closeNblmTutorialModal);
+
+  // 隱私保證彈窗
   on("btn-security", "click", () => {
     if (modalSecurity) modalSecurity.classList.remove("hidden");
   });
@@ -250,7 +277,7 @@ function setupEventListeners() {
   });
 
   // 點選遮罩背景自動關閉彈窗
-  [modalDisclaimer, modalSecurity, modalApiKey].forEach(m => {
+  [modalDisclaimer, modalSecurity, modalApiKey, modalNblmTutorial].forEach(m => {
     if (m) {
       m.addEventListener("click", (e) => {
         if (e.target === m) m.classList.add("hidden");
@@ -367,12 +394,9 @@ function setupEventListeners() {
     selectedFiles = [];
     uploadedSlidePages = [];
     currentComparisonPage = 0;
-    const gallery = document.getElementById("thumbnail-gallery");
-    const previewSec = document.getElementById("file-preview-section");
-    if (gallery) gallery.innerHTML = "";
-    if (previewSec) previewSec.classList.add("hidden");
+    renderThumbnails();
     if (fileInput) fileInput.value = "";
-    showToast("已清空選擇檔案", "info");
+    showToast("已清空所有選取的投影片", "info");
   });
 
   // 結果頁籤切換監聽
@@ -567,7 +591,307 @@ async function parsePdfClientSide(file) {
   return { total_pages: totalPages, preview_pages: pages };
 }
 
-// === 3. 檔案處理與縮圖收集 ===
+// === 3. 縮圖渲染與逐頁刪除管理 ===
+function renderThumbnails() {
+  const gallery = document.getElementById("thumbnail-gallery");
+  const previewSec = document.getElementById("file-preview-section");
+  const countLabel = document.getElementById("file-count-label");
+
+  if (!gallery) return;
+  gallery.innerHTML = "";
+
+  if (!uploadedSlidePages || uploadedSlidePages.length === 0) {
+    if (previewSec) previewSec.classList.add("hidden");
+    if (countLabel) countLabel.textContent = "已選取 0 頁投影片";
+    return;
+  }
+
+  if (previewSec) previewSec.classList.remove("hidden");
+  if (countLabel) countLabel.textContent = `已選取 ${uploadedSlidePages.length} 頁投影片`;
+
+  uploadedSlidePages.forEach((slide, idx) => {
+    const card = document.createElement("div");
+    card.className = "relative group rounded-xl border border-white/[0.08] bg-[#0E1013] p-1 flex flex-col items-center shadow-sm hover:border-white/20 transition-all";
+
+    card.innerHTML = `
+      <div class="relative w-full h-20 overflow-hidden rounded-lg bg-black border border-white/[0.06]">
+        <img src="${slide.image}" class="w-full h-full object-cover" alt="第 ${idx + 1} 頁">
+        <span class="absolute bottom-1 left-1 bg-black/80 backdrop-blur-sm text-[9px] px-1.5 py-0.2 rounded text-zinc-300 font-mono border border-white/10">
+          P.${idx + 1}
+        </span>
+        <button type="button" class="btn-delete-slide absolute top-1 right-1 w-5 h-5 rounded-full bg-black/80 hover:bg-rose-600 text-zinc-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-sm border border-white/20" title="移除第 ${idx + 1} 頁" data-slide-index="${idx}">
+          <i data-lucide="x" class="w-3 h-3 pointer-events-none"></i>
+        </button>
+      </div>
+      <span class="truncate max-w-[90px] text-[10px] text-zinc-400 mt-1 font-mono">${slide.name || `第 ${idx + 1} 頁`}</span>
+    `;
+
+    const delBtn = card.querySelector(".btn-delete-slide");
+    if (delBtn) {
+      delBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeSlideAtIndex(idx);
+      });
+    }
+
+    gallery.appendChild(card);
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function removeSlideAtIndex(index) {
+  if (index < 0 || index >= uploadedSlidePages.length) return;
+  const removedName = uploadedSlidePages[index].name || `第 ${index + 1} 頁`;
+  uploadedSlidePages.splice(index, 1);
+  uploadedSlidePages.forEach((item, i) => {
+    item.page = i + 1;
+  });
+
+  if (currentComparisonPage >= uploadedSlidePages.length) {
+    currentComparisonPage = Math.max(0, uploadedSlidePages.length - 1);
+  }
+
+  renderThumbnails();
+  updateComparisonView();
+  showToast(`已移除投影片：${removedName}`, "info");
+}
+
+// 剪貼簿一鍵貼上金鑰
+async function pasteClipboardToInput(inputId) {
+  try {
+    const text = await navigator.clipboard.readText();
+    const input = document.getElementById(inputId);
+    if (input && text && text.trim()) {
+      input.value = text.trim();
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      showToast("已從剪貼簿貼上通行證金鑰！", "success");
+    } else {
+      showToast("剪貼簿為空或尚未複製金鑰", "warning");
+    }
+  } catch (err) {
+    console.warn("無法存取剪貼簿:", err);
+    showToast("瀏覽器權限限制，請直接在輸入框按 Ctrl+V (或 ⌘+V) 貼上", "info");
+  }
+}
+
+// === 示範資料：手繪筆記塗鴉風 (Sketchnote) 完整逆向成果 ===
+const DEMO_ANALYSIS_DATA = {
+  status: "success",
+  auto_reason: "免金鑰實例示範 · 5 頁手繪筆記塗鴉風",
+  model_used: "Gemini 2.5 Flash (手繪筆記拓撲提煉實例)",
+  structured_meta: {
+    style_name: "企業手繪筆記塗鴉風 (Sketchnote & Doodle System)",
+    tags: [
+      "手繪筆記風",
+      "橫線信紙底",
+      "墨水炭黑線條",
+      "螢光黃重點塗抹",
+      "5色功能標籤色譜",
+      "齒輪垂直階梯流程",
+      "橫向時程檢驗門檻",
+      "中樞盾牌六向輻射",
+      "16:9 筆記留白"
+    ],
+    white_space_ratio: "65% 舒適筆記留白",
+    palette: [
+      { role: "信紙基底米白 (Paper)", hex: "#FAF8F5", name: "Paper Cream" },
+      { role: "墨水炭黑手繪線 (Ink)", hex: "#181A1B", name: "Charcoal Black" },
+      { role: "螢光筆核心強調 (Highlight)", hex: "#FEE054", name: "Marker Yellow" },
+      { role: "功能標籤：戰略規劃 (Strategy)", hex: "#BAE6FD", name: "Sky Blue" },
+      { role: "功能標籤：資安警示 (Alert)", hex: "#FED7AA", name: "Peach Orange" },
+      { role: "功能標籤：執行流程 (Process)", hex: "#FEF08A", name: "Lemon Yellow" },
+      { role: "功能標籤：成效產出 (Output)", hex: "#BBF7D0", name: "Mint Green" },
+      { role: "功能標籤：治理風控 (Governance)", hex: "#E9D5FF", name: "Lavender Purple" }
+    ]
+  },
+  markdown_report: `## 1. 視覺語言與排版拓撲風格總結
+- **核心設計風格**：手繪筆記塗鴉風（Sketchnote & Corporate Doodle System），打破傳統商務簡報冰冷、死板的條列式感，透過擬真墨水線條、螢光筆手塗重點與多色手繪標籤，大幅降低認知摩擦，極度適合高階策略說明、跨部門流程落地與教育賦能。
+- **畫布比例與幾何骨架**：16:9 寬螢幕，模擬米黃色橫線筆記信紙（水平淺灰間距橫線），左側或頂部可具備手繪筆記本線圈/圖釘點綴。
+- **邊框與視覺組件語彙**：手繪非絕對筆直的不規則墨水邊框（線寬 1.5px~2.5px），轉角帶有微圓弧與手繪回筆重疊特徵；核心組件採用手繪圖示（燈泡小人、大齒輪、里程碑三角旗、中樞安全盾牌、資料庫硬碟）。
+- **留白比率**：約 65% 開闊留白，所有模組邊距充裕，絕無資訊過載與文字牆。
+
+---
+
+## 2. 色彩系統與多維標籤色譜規範 (8色精確調色盤)
+> **💡 色彩系統真相解密**：傳統商務簡報常將色彩簡化為「4 色」，然而真實且專業的簡報排版是 **「基底雙色 + 核心螢光強調 + 5 大維度功能色標籤色譜」** 的立體色彩架構：
+
+1. **畫布背景色**：\`#FAF8F5\`（溫暖米白信紙底色，護眼且具備手工紙張溫潤質感）
+2. **手繪線條與主文色**：\`#181A1B\`（高對比墨水炭黑，非生硬純黑，具手寫鋼筆沉穩感）
+3. **螢光核心強調色**：\`#FEE054\`（螢光筆半透明塗抹黃，用於標題底部粗塗抹、關鍵數字打底）
+4. **功能標籤色譜（5 大維度彩色標籤）**：
+   - 策略規劃標籤：\`#BAE6FD\`（水藍色手繪卡片 / 標籤膠帶）
+   - 資安警示標籤：\`#FED7AA\`（珊瑚橘手繪警告標籤）
+   - 流程執行標籤：\`#FEF08A\`（檸檬黃階段推進標籤）
+   - 成效產出標籤：\`#BBF7D0\`（薄荷綠達成指標標籤）
+   - 治理風控標籤：\`#E9D5FF\`（丁香紫合規架構標籤）
+
+---
+
+## 3. 📋 NotebookLM 專用結構指令 (Prompt)
+
+### 模式 1：全域風格架構提示詞（任意筆記皆可直接套用）
+
+\`\`\`markdown
+你是一位具備「手繪筆記塗鴉風（Sketchnote System）」專長的頂級簡報視覺設計師與商業顧問。
+請依據我提供的來源資料（Sources），將內容轉譯為 3~10 頁極具親和力、排版生動的手繪筆記風投影片大綱。
+
+【視覺風格與排版約束】：
+1. 視覺語彙：手繪筆記塗鴉風（Sketchnote），模擬米黃信紙橫線筆記本（底色 #FAF8F5、墨黑線條 #181A1B、螢光黃強調 #FEE054）。
+2. 配色系統：嚴格使用「5色多維標籤色譜」（策略水藍 #BAE6FD、資安粉橘 #FED7AA、流程檸檬黃 #FEF08A、成效薄荷綠 #BBF7D0、治理淡紫 #E9D5FF）區分不同業務模組。
+3. 拓撲版型庫（依據各頁內容量動態挑選）：
+   - 【封面頁】：手繪燈泡/思考小人 + 螢光塗抹大標題 + 副標籤。
+   - 【策略卡片】：2~4 欄不規則手繪卡片，上方帶有手繪圖釘或紙膠帶。
+   - 【流程進程】：齒輪/階梯垂直上升流程，以手繪粗箭頭串接。
+   - 【橫向時程】：4 階段橫向時間軸，每階段包含里程碑旗幟與檢查勾選框。
+   - 【治理與生態】：中樞盾牌/核心大腦，6 向手繪輻射線環繞架構。
+4. 文案結構規範：每頁控制 1 個核心洞察標題，卡片內文字不超過 3 點，每點不超過 18 字，嚴禁文字牆。
+
+請依序輸出各頁：[頁碼與標題] ➔ [建議手繪拓撲版型] ➔ [色彩標籤分配] ➔ [插槽文案內容] ➔ [手繪圖示塗鴉描述]。
+\`\`\`
+
+### 模式 2：逐頁 1:1 精確對照提示詞（5 頁完整還原）
+
+\`\`\`markdown
+請嚴格依據我上傳的來源資料，依照下方 5 頁「企業 AI 導入九十天方案」手繪筆記投影片之像素級拓撲骨架，1:1 還原填入相應業務內容：
+
+---
+### 投影片 1：封面（燈泡小人與思考啟發）
+- 版面拓撲：居中橫向佈局，左上角標籤膠帶，右側手繪燈泡思考小人（線條發散光芒）。
+- 配色：信紙米白 #FAF8F5，大標題底下帶有螢光黃 #FEE054 筆刷塗抹底色。
+- [主標題插槽]：企業 AI 導入九十天方案（或您的主題）
+- [副標題/目標]：從痛點探索、原型驗證到全面落地與合規治理
+- [作者/團隊插槽]：專案推動小組 · 2026
+
+---
+### 投影片 2：四欄策略分析卡片（問題意識與痛點解構）
+- 版面拓撲：4 欄手繪並列方框，每個方框頂部有手繪彩色標籤膠帶，框內包含手繪 Icon。
+- [卡片 1 - 策略水藍 #BAE6FD]：問題意識（員工重複耗時工作、資訊孤島）
+- [卡片 2 - 資安粉橘 #FED7AA]：痛點解構（內部資料外洩疑慮、合規法規風險）
+- [卡片 3 - 流程檸檬黃 #FEF08A]：資源評估（算力預算限制、缺乏專業Prompt人才）
+- [卡片 4 - 成效薄荷綠 #BBF7D0]：價值錨定（縮短50%流程時間、標準化知識庫）
+
+---
+### 投影片 3：齒輪垂直階梯流程（落地推進三部曲）
+- 版面拓撲：左側為由小到大、由下至上的「手繪推動大齒輪與齒痕」；右側為 3 階垂直上升階梯卡片。
+- [第一階（底層啟動）]：第 1~30 天 · 盤點探索期（篩選 3 個高頻業務場景）
+- [第二階（核心落地）]：第 31~60 天 · 原型驗證期（部署內部專屬小規模試點）
+- [第三階（成果擴散）]：第 61~90 天 · 全員賦能期（制度建立、成效評估與規模化）
+
+---
+### 投影片 4：橫向時程檢驗門檻（Milestones & 檢驗清單）
+- 版面拓撲：水平橫向時間軸貫穿全頁，上方標註 4 個手繪三角旗幟，下方為手繪打勾方框清單。
+- [第 1 站 - 需求確認]：業務場景優先級評分表完成 [✔]
+- [第 2 站 - 模型選型]：開源與商用 API 成本隱私評估通過 [✔]
+- [第 3 站 - 試點成果]：關鍵指標（KPI）節省工時達 35% 以上 [✔]
+- [第 4 站 - 全面移交]：各部門指派 AI 負責人並完成 SOP 交接 [✔]
+
+---
+### 投影片 5：中樞盾牌六向輻射（資安與合規治理架構）
+- 版面拓撲：中央為巨大手繪防護盾牌（墨水線條 + 內部淡灰微填色），周圍以 6 條手繪虛線箭頭輻射連結 6 個手繪圓形標籤卡。
+- [中央盾牌核心]：企業級安全防護與可信 AI 治理架構
+- [輻射 1 - #FED7AA]：資料去識別化與隱私隔離
+- [輻射 2 - #BAE6FD]：存取權限控管與 RBAC 驗證
+- [輻射 3 - #BBF7D0]：幻覺監控與輸出審計日誌
+- [輻射 4 - #FEF08A]：智慧財產權與商用授權邊界
+- [輻射 5 - #E9D5FF]：模型漂移與回滾備援機制
+- [輻射 6 - #FAF8F5]：全員倫理準則培訓認證
+\`\`\`
+
+---
+
+## 4. 💻 HTML / Tailwind 像素級還原程式碼
+
+\`\`\`html
+<div class="w-full h-full bg-[#FAF8F5] text-[#181A1B] p-8 flex flex-col justify-between font-sans border-4 border-[#181A1B] rounded-2xl relative shadow-xl overflow-hidden" style="background-image: repeating-linear-gradient(#FAF8F5 0px, #FAF8F5 27px, #E5E0D8 28px);">
+  <!-- 頂部手繪筆記抬頭 -->
+  <div class="flex items-center justify-between border-b-2 border-dashed border-[#181A1B] pb-3">
+    <div class="flex items-center gap-3">
+      <span class="px-3 py-1 bg-[#FEE054] text-[#181A1B] font-bold text-xs rounded-md border border-[#181A1B] shadow-sm transform -rotate-1">
+        📌 STRATEGY SKETCHNOTE
+      </span>
+      <h1 class="text-xl font-extrabold tracking-tight">企業 AI 導入九十天方案 · 全域視覺拓撲</h1>
+    </div>
+    <div class="flex items-center gap-2 text-xs font-mono font-semibold">
+      <span class="w-2.5 h-2.5 rounded-full bg-[#BBF7D0] border border-[#181A1B]"></span>
+      <span>16:9 HAND-DRAWN SPEC</span>
+    </div>
+  </div>
+
+  <!-- 主內容 4 欄手繪卡片 -->
+  <div class="grid grid-cols-4 gap-4 my-auto">
+    <div class="bg-[#BAE6FD]/40 border-2 border-[#181A1B] rounded-xl p-4 shadow-[3px_3px_0px_#181A1B] transform hover:-translate-y-1 transition-transform">
+      <div class="text-xs font-bold text-[#181A1B] bg-[#BAE6FD] px-2 py-0.5 rounded border border-[#181A1B] inline-block mb-2">01. 痛點解構</div>
+      <h3 class="font-bold text-sm mb-1.5">重塑工作流</h3>
+      <p class="text-xs text-[#181A1B]/80 leading-relaxed">消除 50% 跨系統人工作業，將繁瑣資料轉為結構化知識庫。</p>
+    </div>
+
+    <div class="bg-[#FED7AA]/40 border-2 border-[#181A1B] rounded-xl p-4 shadow-[3px_3px_0px_#181A1B] transform hover:-translate-y-1 transition-transform">
+      <div class="text-xs font-bold text-[#181A1B] bg-[#FED7AA] px-2 py-0.5 rounded border border-[#181A1B] inline-block mb-2">02. 資安防護</div>
+      <h3 class="font-bold text-sm mb-1.5">資料不出境</h3>
+      <p class="text-xs text-[#181A1B]/80 leading-relaxed">落實嚴密隔離與去識別化機制，杜絕商業機密外流風險。</p>
+    </div>
+
+    <div class="bg-[#FEF08A]/40 border-2 border-[#181A1B] rounded-xl p-4 shadow-[3px_3px_0px_#181A1B] transform hover:-translate-y-1 transition-transform">
+      <div class="text-xs font-bold text-[#181A1B] bg-[#FEF08A] px-2 py-0.5 rounded border border-[#181A1B] inline-block mb-2">03. 階梯落地</div>
+      <h3 class="font-bold text-sm mb-1.5">三階段擴散</h3>
+      <p class="text-xs text-[#181A1B]/80 leading-relaxed">從探索、原型驗證到全員賦能，以齒輪齒痕穩步推進。</p>
+    </div>
+
+    <div class="bg-[#BBF7D0]/40 border-2 border-[#181A1B] rounded-xl p-4 shadow-[3px_3px_0px_#181A1B] transform hover:-translate-y-1 transition-transform">
+      <div class="text-xs font-bold text-[#181A1B] bg-[#BBF7D0] px-2 py-0.5 rounded border border-[#181A1B] inline-block mb-2">04. 成效治理</div>
+      <h3 class="font-bold text-sm mb-1.5">六向輻射盾</h3>
+      <p class="text-xs text-[#181A1B]/80 leading-relaxed">建立可驗證的 KPI 門檻與模型日誌，保障組織數位資產。</p>
+    </div>
+  </div>
+
+  <!-- 底部筆記註記與色票摘要 -->
+  <div class="flex items-center justify-between text-xs font-mono pt-3 border-t-2 border-[#181A1B]">
+    <div class="flex items-center gap-2">
+      <span class="font-bold">PALETTE TOKENS:</span>
+      <span class="inline-block w-4 h-4 rounded bg-[#FAF8F5] border border-[#181A1B]" title="#FAF8F5"></span>
+      <span class="inline-block w-4 h-4 rounded bg-[#181A1B] border border-[#181A1B]" title="#181A1B"></span>
+      <span class="inline-block w-4 h-4 rounded bg-[#FEE054] border border-[#181A1B]" title="#FEE054"></span>
+      <span class="inline-block w-4 h-4 rounded bg-[#BAE6FD] border border-[#181A1B]" title="#BAE6FD"></span>
+      <span class="inline-block w-4 h-4 rounded bg-[#FED7AA] border border-[#181A1B]" title="#FED7AA"></span>
+      <span class="inline-block w-4 h-4 rounded bg-[#BBF7D0] border border-[#181A1B]" title="#BBF7D0"></span>
+      <span class="inline-block w-4 h-4 rounded bg-[#E9D5FF] border border-[#181A1B]" title="#E9D5FF"></span>
+    </div>
+    <div class="text-zinc-600 font-sans">
+      NotebookLM 專用拓撲轉譯器 · 逆向工程規範
+    </div>
+  </div>
+</div>
+\`\`\`
+`
+};
+
+// 載入示範投影片
+function loadDemoPresentation() {
+  uploadedSlidePages = [
+    { page: 1, image: "demo/slide_1.jpg", name: "01_封面_企業AI導入90天.jpg" },
+    { page: 2, image: "demo/slide_2.jpg", name: "02_策略卡片_痛點解構.jpg" },
+    { page: 3, image: "demo/slide_3.jpg", name: "03_齒輪垂直流程_落地三階段.jpg" },
+    { page: 4, image: "demo/slide_4.jpg", name: "04_時間軸門檻_里程碑檢驗.jpg" },
+    { page: 5, image: "demo/slide_5.jpg", name: "05_治理盾牌_六向輻射環繞.jpg" }
+  ];
+  selectedFiles = [];
+  currentComparisonPage = 0;
+
+  renderThumbnails();
+  closeOnboardingModal(true);
+  renderAnalysisResult(DEMO_ANALYSIS_DATA);
+
+  const resultSec = document.getElementById("panel-result");
+  if (resultSec) {
+    resultSec.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  showToast("✨ 已載入「企業 AI 導入 90 天手繪筆記風」實例！可切換 5 頁對照並複製 NotebookLM 提示詞。", "success");
+}
+
+// === 檔案處理與縮圖收集 ===
 async function handleFilesAdded(files) {
   const validExtensions = [".pptx", ".pdf", ".png", ".jpg", ".jpeg", ".webp"];
   const newFiles = files.filter(f => {
@@ -581,30 +905,14 @@ async function handleFilesAdded(files) {
   }
 
   selectedFiles.push(...newFiles);
-  document.getElementById("file-preview-section").classList.remove("hidden");
-  document.getElementById("file-count-label").textContent = `已選取 ${selectedFiles.length} 個檔案`;
-
-  const gallery = document.getElementById("thumbnail-gallery");
 
   for (const file of newFiles) {
     const ext = "." + file.name.split(".").pop().toLowerCase();
     
     if (ext === ".pdf") {
-      const previewCard = document.createElement("div");
-      previewCard.className = "relative rounded-xl border border-slate-700 bg-slate-900/80 p-2 flex flex-col items-center justify-center text-center text-xs text-slate-300 shadow-sm";
-      previewCard.innerHTML = `
-        <div class="animate-pulse flex flex-col items-center py-3">
-          <i data-lucide="file-text" class="w-6 h-6 text-sky-400 mb-1"></i>
-          <span class="truncate max-w-[85px] font-mono text-[10px] text-slate-300">${file.name}</span>
-          <span class="text-[9px] text-slate-500 mt-0.5">解析 PDF 頁面...</span>
-        </div>
-      `;
-      gallery.appendChild(previewCard);
-      lucide.createIcons();
-
+      showToast(`正在解析 PDF：${file.name}...`, "info");
       try {
         let pdfData = null;
-        // 優先使用純前端快速解析
         if (typeof pdfjsLib !== "undefined") {
           try {
             pdfData = await parsePdfClientSide(file);
@@ -612,7 +920,6 @@ async function handleFilesAdded(files) {
             console.warn("前端 PDF 渲染異常，嘗試後端:", e);
           }
         }
-        // 若純前端無法解析且為本地環境，嘗試調用後端
         if (!pdfData && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
           const formData = new FormData();
           formData.append("file", file);
@@ -624,43 +931,23 @@ async function handleFilesAdded(files) {
         }
 
         if (pdfData && pdfData.preview_pages && pdfData.preview_pages.length > 0) {
-          uploadedSlidePages.push(...pdfData.preview_pages);
-          previewCard.innerHTML = `
-            <div class="relative w-full h-20 overflow-hidden rounded-lg bg-slate-800 border border-slate-700">
-              <img src="${pdfData.preview_pages[0].image}" class="w-full h-full object-cover">
-              <span class="absolute bottom-1 right-1 bg-black/75 text-[9px] px-1 py-0.2 rounded text-white font-mono">
-                ${pdfData.total_pages} 頁
-              </span>
-            </div>
-            <span class="truncate max-w-[90px] text-[10px] text-slate-300 mt-1 font-medium">${file.name}</span>
-          `;
+          const pagesToAdd = pdfData.preview_pages.map(p => ({
+            page: uploadedSlidePages.length + p.page,
+            image: p.image,
+            name: `${file.name} (P.${p.page})`
+          }));
+          uploadedSlidePages.push(...pagesToAdd);
+          renderThumbnails();
+          showToast(`已成功載入 ${file.name}（共 ${pdfData.preview_pages.length} 頁）`, "success");
         } else {
-          previewCard.innerHTML = `
-            <div class="flex flex-col items-center py-3 text-amber-400">
-              <i data-lucide="alert-triangle" class="w-6 h-6 mb-1"></i>
-              <span class="truncate max-w-[85px] text-[10px]">${file.name}</span>
-              <span class="text-[9px] text-slate-400">請改傳圖片</span>
-            </div>
-          `;
-          lucide.createIcons();
+          showToast(`無法擷取 ${file.name} 預覽，建議改傳投影片圖片`, "warning");
         }
       } catch (err) {
         console.warn("無法取得縮圖:", err);
       }
 
     } else if (ext === ".pptx") {
-      const previewCard = document.createElement("div");
-      previewCard.className = "relative rounded-xl border border-slate-700 bg-slate-900/80 p-2 flex flex-col items-center justify-center text-center text-xs text-slate-300 shadow-sm";
-      previewCard.innerHTML = `
-        <div class="animate-pulse flex flex-col items-center py-3">
-          <i data-lucide="presentation" class="w-6 h-6 text-sky-400 mb-1"></i>
-          <span class="truncate max-w-[85px] font-mono text-[10px] text-slate-300">${file.name}</span>
-          <span class="text-[9px] text-slate-500 mt-0.5">解析 PPTX...</span>
-        </div>
-      `;
-      gallery.appendChild(previewCard);
-      lucide.createIcons();
-
+      showToast(`正在解析 PPTX：${file.name}...`, "info");
       try {
         let pptxSuccess = false;
         if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
@@ -670,30 +957,20 @@ async function handleFilesAdded(files) {
           if (resp.ok) {
             const data = await resp.json();
             if (data.status === "success" && data.preview_pages && data.preview_pages.length > 0) {
-              uploadedSlidePages.push(...data.preview_pages);
+              const pagesToAdd = data.preview_pages.map(p => ({
+                page: uploadedSlidePages.length + p.page,
+                image: p.image,
+                name: `${file.name} (P.${p.page})`
+              }));
+              uploadedSlidePages.push(...pagesToAdd);
+              renderThumbnails();
               pptxSuccess = true;
-              previewCard.innerHTML = `
-                <div class="relative w-full h-20 overflow-hidden rounded-lg bg-slate-800 border border-slate-700">
-                  <img src="${data.preview_pages[0].image}" class="w-full h-full object-cover">
-                  <span class="absolute bottom-1 right-1 bg-black/75 text-[9px] px-1 py-0.2 rounded text-white font-mono">
-                    ${data.total_pages} 頁
-                  </span>
-                </div>
-                <span class="truncate max-w-[90px] text-[10px] text-slate-300 mt-1 font-medium">${file.name}</span>
-              `;
+              showToast(`已成功載入 ${file.name}（共 ${data.preview_pages.length} 頁）`, "success");
             }
           }
         }
         if (!pptxSuccess) {
-          previewCard.innerHTML = `
-            <div class="flex flex-col items-center py-3 text-sky-300">
-              <i data-lucide="presentation" class="w-6 h-6 mb-1"></i>
-              <span class="truncate max-w-[85px] text-[10px]">${file.name}</span>
-              <span class="text-[9px] text-slate-400">已加入待分析</span>
-            </div>
-          `;
-          lucide.createIcons();
-          showToast("💡 提示：在線上版本，建議將 PPT 匯出為 PDF 或直接截圖上傳，效果最為即時精準！", "info");
+          showToast("💡 提示：在純靜態環境，建議將 PPT 匯出為 PDF 或直接截圖上傳！", "info");
         }
       } catch (err) {
         console.warn("無法取得 PPTX 縮圖:", err);
@@ -704,18 +981,10 @@ async function handleFilesAdded(files) {
       reader.onload = (e) => {
         uploadedSlidePages.push({
           page: uploadedSlidePages.length + 1,
-          image: e.target.result
+          image: e.target.result,
+          name: file.name
         });
-
-        const card = document.createElement("div");
-        card.className = "relative rounded-xl border border-slate-700 bg-slate-900/80 p-1 flex flex-col items-center shadow-sm";
-        card.innerHTML = `
-          <div class="w-full h-20 overflow-hidden rounded-lg bg-slate-800 border border-slate-700">
-            <img src="${e.target.result}" class="w-full h-full object-cover">
-          </div>
-          <span class="truncate max-w-[90px] text-[10px] text-slate-300 mt-1 font-medium">${file.name}</span>
-        `;
-        gallery.appendChild(card);
+        renderThumbnails();
       };
       reader.readAsDataURL(file);
     }
@@ -912,7 +1181,7 @@ function startProgressPipeline() {
     // 階段 3：16 ~ 32 秒（62% ~ 82%），提取色票與視覺手冊
     else if (elapsed < 32000) {
       currentPercent = Math.min(82, 62 + Math.floor(((elapsed - 16000) / 16000) * 20));
-      updatePipelineUi(currentPercent, 3, "正在提煉 4 色 Hex 色票代碼與層級排版規範...", elapsedSec);
+      updatePipelineUi(currentPercent, 3, "正在提煉色彩系統與多維標籤色譜規範...", elapsedSec);
     } 
     // 階段 4：32 ~ 55 秒（82% ~ 93%），提示詞與還原代碼深度生成
     else if (elapsed < 55000) {
@@ -1006,14 +1275,41 @@ function updatePipelineUi(percent, activeStep, taskDescription, elapsedSec = 0) 
 
 // === 5. 開始發起分析流程 ===
 async function handleStartAnalyze() {
-  if (selectedFiles.length === 0) {
+  if (uploadedSlidePages.length === 0 && selectedFiles.length === 0) {
     showToast("請先上傳簡報 PDF 或投影片圖片！", "warning");
     return;
   }
 
   const apiKey = getApiKey(currentProvider);
+
+  // 若尚未設定通行證金鑰，但使用者已載入示範投影片，提供流暢的免金鑰示範解析體驗
+  const isDemoActive = uploadedSlidePages.length > 0 && uploadedSlidePages[0].image && uploadedSlidePages[0].image.includes("demo/slide_");
+  if (!apiKey && isDemoActive) {
+    document.getElementById("panel-idle").classList.add("hidden");
+    document.getElementById("panel-result").classList.add("hidden");
+    document.getElementById("panel-loading").classList.remove("hidden");
+    startProgressPipeline();
+
+    const startBtn = document.getElementById("btn-start-analyze");
+    startBtn.disabled = true;
+    startBtn.classList.add("opacity-50");
+
+    setTimeout(() => {
+      completeProgressPipeline();
+      setTimeout(() => {
+        renderAnalysisResult(DEMO_ANALYSIS_DATA);
+        stopProgressPipeline();
+        document.getElementById("panel-loading").classList.add("hidden");
+        startBtn.disabled = false;
+        startBtn.classList.remove("opacity-50");
+        showToast("✨ 已為您呈現「手繪筆記塗鴉風」示範解析成果！", "success");
+      }, 400);
+    }, 1200);
+    return;
+  }
+
   if (!apiKey) {
-    showToast(`請先輸入您的 ${PROVIDER_CONFIG[currentProvider].name} API Key`, "warning");
+    showToast(`請先輸入您的 ${PROVIDER_CONFIG[currentProvider].name} 官方免費通行證 (API Key)`, "warning");
     openApiKeyModal(currentProvider);
     return;
   }
@@ -1390,17 +1686,17 @@ function renderColorPalette(palette) {
 }
 
 function fallbackExtractMeta(markdown) {
-  const hexMatches = markdown.match(/#[0-9a-fA-F]{6}/g) || ["#FFFFFF", "#0E3B5D", "#C59B27", "#F3F4F6"];
-  const uniqueHex = Array.from(new Set(hexMatches)).slice(0, 4);
+  const hexMatches = markdown.match(/#[0-9a-fA-F]{6}/g) || ["#FAF8F5", "#181A1B", "#FEE054", "#BAE6FD", "#FED7AA", "#FEF08A", "#BBF7D0", "#E9D5FF"];
+  const uniqueHex = Array.from(new Set(hexMatches)).slice(0, 8);
   return {
-    style_name: "高階商業顧問排版",
-    tags: ["版面骨架", "三欄卡片", "同心圓模型", "純2D扁平"],
+    style_name: "簡報視覺色彩與排版拓撲",
+    tags: ["版面骨架", "色彩系統", "幾何插槽", "NotebookLM對齊"],
     palette: uniqueHex.map((hex, idx) => ({
-      role: idx === 0 ? "畫布底色" : idx === 1 ? "主標題與邊框" : idx === 2 ? "核心強調色" : "輔助色塊",
+      role: idx === 0 ? "畫布底色" : idx === 1 ? "線條與主文" : idx === 2 ? "核心強調色" : `功能標籤 ${idx - 2}`,
       hex: hex,
       name: "提取色"
     })),
-    white_space_ratio: "70%"
+    white_space_ratio: "65%"
   };
 }
 

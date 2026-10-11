@@ -65,9 +65,14 @@
 
       <!-- 右側控制組 -->
       <div class="flex items-center space-x-2 sm:space-x-2.5">
+        <button id="btn-nblm-header-guide" class="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:text-white bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg border border-emerald-500/30 transition-colors cursor-pointer">
+          <i data-lucide="book-open" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span>NotebookLM 操作 SOP</span>
+        </button>
+
         <button id="btn-tutorial" class="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] rounded-lg border border-white/[0.08] transition-colors cursor-pointer">
           <i data-lucide="help-circle" class="w-3.5 h-3.5 text-zinc-400"></i>
-          <span>免費金鑰教學</span>
+          <span>通行證申請教學</span>
         </button>
 
         <button id="btn-security" class="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] rounded-lg border border-white/[0.08] transition-colors cursor-pointer">
@@ -108,6 +113,17 @@
 
         <!-- 檔案上傳原生 Input -->
         <input type="file" id="file-input" class="hidden" multiple accept=".pptx,.pdf,.png,.jpg,.jpeg,.webp">
+
+        <!-- 免金鑰·快速體驗按鈕 (體驗先行) -->
+        <button id="btn-load-demo" type="button" class="w-full py-2 px-3 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center justify-between cursor-pointer transition-all shadow-sm group">
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-md bg-amber-400/20 text-amber-300 flex items-center justify-center text-[11px]">✨</span>
+            <span class="font-medium">免金鑰體驗：載入「手繪筆記風」實例</span>
+          </div>
+          <span class="text-[10px] text-amber-400/80 font-mono group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+            5 頁簡報 <i data-lucide="chevron-right" class="w-3 h-3"></i>
+          </span>
+        </button>
 
         <!-- 拖曳區域 (精確現代線條) -->
         <div id="drop-zone" class="border border-dashed border-white/15 hover:border-zinc-400 bg-white/[0.02] hover:bg-white/[0.04] rounded-lg p-6 text-center cursor-pointer transition-colors duration-150 group">
@@ -218,7 +234,7 @@
         </div>
         <h3 class="text-sm font-semibold text-zinc-100 mb-1">尚未上傳參考投影片</h3>
         <p class="text-xs text-zinc-500 max-w-sm leading-relaxed mb-5">
-          在左側拖放您欣賞的簡報 PDF 或截圖，點擊開始解析後，系統將在此處呈現版面骨架、4 色色票與直接套用指令。
+          在左側拖放您欣賞的簡報 PDF 或截圖，或直接點選「免金鑰體驗」，系統將在此處呈現版型拓撲、色彩系統與直接套用指令。
         </p>
         <div class="flex flex-wrap gap-2 justify-center text-[11px]">
           <span class="px-2.5 py-1 rounded-md bg-white/[0.03] text-zinc-400 border border-white/[0.06]">版面骨架拓撲</span>
@@ -291,10 +307,10 @@
             </div>
             <div class="min-w-0 flex-1">
               <div class="flex items-center justify-between gap-1">
-                <span class="text-xs font-semibold text-zinc-300 truncate">3. 提取 4 色 Hex 色票</span>
+                <span class="text-xs font-semibold text-zinc-300 truncate">3. 提煉色彩系統與標籤色譜</span>
                 <span id="step-pipe-badge-3" class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-500 border border-white/[0.06]">等待中</span>
               </div>
-              <p class="text-[11px] text-zinc-400 mt-0.5 leading-tight">計算畫布底色、主文字與核心強調色</p>
+              <p class="text-[11px] text-zinc-400 mt-0.5 leading-tight">提煉畫布底色、墨黑文字與多維功能標籤色彩</p>
             </div>
           </div>
 
@@ -463,6 +479,10 @@
                   </div>
                 </div>
                 <div class="flex items-center gap-1.5">
+                  <button id="btn-open-nblm-tutorial" type="button" class="px-2.5 py-1 text-xs font-medium bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30 flex items-center gap-1 transition-colors cursor-pointer">
+                    <i data-lucide="book-open" class="w-3 h-3 text-emerald-400"></i>
+                    <span>實戰操作 SOP</span>
+                  </button>
                   <a href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 text-xs font-medium bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 rounded border border-white/[0.08] flex items-center gap-1 transition-colors">
                     <span>開啟 NotebookLM</span>
                     <i data-lucide="arrow-up-right" class="w-3 h-3"></i>
@@ -560,6 +580,27 @@
         </button>
       </div>
 
+      <!-- 體驗先行：免金鑰一鍵試用 -->
+      <div class="bg-gradient-to-r from-amber-500/10 via-amber-500/15 to-amber-500/10 rounded-xl p-3 border border-amber-500/30 flex items-center justify-between gap-3 shadow-sm">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="w-8 h-8 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0 text-base">🎨</span>
+          <div class="min-w-0">
+            <div class="text-xs font-semibold text-amber-200">免金鑰體驗：先看「手繪筆記風」實例解析</div>
+            <div class="text-[10px] text-amber-400/80 truncate">親眼見證 5 頁手繪投影片 ➔ 提煉 NotebookLM 提示詞</div>
+          </div>
+        </div>
+        <button id="btn-onboarding-try-demo" type="button" class="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-amber-950 font-semibold text-xs rounded-lg shrink-0 cursor-pointer transition-all shadow-sm flex items-center gap-1">
+          <span>立即體驗</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2 py-0.5">
+        <div class="h-px bg-white/[0.08] flex-1"></div>
+        <span class="text-[10px] text-zinc-500 font-mono">或取得個人免費通行證（解析自訂簡報）</span>
+        <div class="h-px bg-white/[0.08] flex-1"></div>
+      </div>
+
       <!-- 三大保證徽章 (建立極高信任度) -->
       <div class="grid grid-cols-3 gap-2 py-0.5">
         <div class="bg-[#0E1013] border border-white/[0.06] rounded-lg p-2.5 text-center space-y-1">
@@ -579,40 +620,66 @@
         </div>
       </div>
 
-      <!-- 快速三步驟教學引導 -->
+      <!-- 圖解防呆 3 步驟卡片流 -->
       <div class="space-y-2 text-xs">
-        <div class="font-medium text-zinc-300 flex items-center gap-1.5 text-xs">
-          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-zinc-400"></i>
-          <span>簡單 3 步驟取得 Google Gemini 金鑰：</span>
+        <div class="font-medium text-zinc-300 flex items-center justify-between text-xs">
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-zinc-400"></i>
+            <span>30 秒免費取得 Google 官方推論通行證：</span>
+          </span>
+          <span class="text-[10px] text-zinc-500 font-mono">免寫程式 · 免費永久</span>
         </div>
         
-        <div class="bg-[#0E1013] rounded-xl p-3 border border-white/[0.06] space-y-2.5 font-sans">
-          <div class="flex items-start gap-2.5">
-            <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 mt-0.5 font-bold">1</span>
-            <div class="flex-1 flex items-center justify-between gap-2">
-              <span class="text-zinc-300 text-[11px]">前往 Google AI Studio 官方網站登入</span>
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 text-[11px] font-medium bg-white/[0.08] hover:bg-white/[0.15] text-white rounded-md border border-white/[0.1] inline-flex items-center gap-1 shrink-0 transition-colors">
-                <span>前往取得</span>
-                <i data-lucide="arrow-up-right" class="w-3 h-3 text-zinc-400"></i>
-              </a>
+        <div class="space-y-2 font-sans">
+          <!-- 卡片 1 -->
+          <div class="bg-[#0E1013] rounded-xl p-2.5 border border-white/[0.08] flex items-center justify-between gap-3 hover:border-white/20 transition-colors">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">1</span>
+              <div class="min-w-0">
+                <div class="text-xs text-zinc-200 font-medium">進入 Google AI Studio 官方入口</div>
+                <div class="text-[10px] text-zinc-400">點擊頁面藍色按鈕 <span class="text-sky-300 bg-sky-950/60 px-1 py-0.5 rounded border border-sky-500/30 font-mono font-bold">+ Create API key</span></div>
+              </div>
+            </div>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 text-[11px] font-semibold bg-white/[0.08] hover:bg-white/[0.15] text-white rounded-md border border-white/[0.1] inline-flex items-center gap-1 shrink-0 transition-colors">
+              <span>前往申請</span>
+              <i data-lucide="arrow-up-right" class="w-3 h-3 text-zinc-400"></i>
+            </a>
+          </div>
+
+          <!-- 卡片 2 -->
+          <div class="bg-[#0E1013] rounded-xl p-2.5 border border-white/[0.08] flex items-center gap-2.5 hover:border-white/20 transition-colors">
+            <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">2</span>
+            <div class="min-w-0">
+              <div class="text-xs text-zinc-200 font-medium">彈窗出現時，直接點選第一項</div>
+              <div class="text-[10px] text-emerald-400 flex items-center gap-1">
+                <span class="bg-emerald-950/50 px-1 py-0.5 rounded border border-emerald-500/30 font-mono">Create API key in new project</span>
+                <span class="text-zinc-500">（免選專案直接點）</span>
+              </div>
             </div>
           </div>
-          <div class="flex items-start gap-2.5">
-            <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 mt-0.5 font-bold">2</span>
-            <span class="text-zinc-300 text-[11px] leading-relaxed">點擊頁面上的 <strong class="text-white bg-white/[0.08] px-1.5 py-0.5 rounded font-mono">Create API key</strong> 按鈕</span>
-          </div>
-          <div class="flex items-start gap-2.5">
-            <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 mt-0.5 font-bold">3</span>
-            <span class="text-zinc-300 text-[11px] leading-relaxed">複製產生的金鑰（以 <code class="text-emerald-400 font-mono">AIzaSy...</code> 開頭），直接貼在下方</span>
+
+          <!-- 卡片 3 -->
+          <div class="bg-[#0E1013] rounded-xl p-2.5 border border-white/[0.08] flex items-center gap-2.5 hover:border-white/20 transition-colors">
+            <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">3</span>
+            <div class="min-w-0">
+              <div class="text-xs text-zinc-200 font-medium">複製生成的通行證並貼回下方</div>
+              <div class="text-[10px] text-zinc-400">以 <code class="text-emerald-400 font-mono">AIzaSy...</code> 開頭，點旁邊的 <span class="text-zinc-300 bg-white/[0.06] px-1 py-0.5 rounded border border-white/[0.1]">📋 Copy</span> 即可！</div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- 一鍵直接貼上並啟用輸入框 -->
       <div class="space-y-1.5 pt-1">
-        <label class="block text-xs font-medium text-zinc-200">
-          貼上您的 Google Gemini API Key：
-        </label>
+        <div class="flex items-center justify-between text-xs">
+          <label class="font-medium text-zinc-200">
+            貼上您的 Google 官方免費通行證 (API Key)：
+          </label>
+          <button id="btn-paste-onboarding-key" type="button" class="text-[11px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-mono cursor-pointer transition-colors">
+            <i data-lucide="clipboard-paste" class="w-3.5 h-3.5"></i>
+            <span>一鍵貼上剪貼簿</span>
+          </button>
+        </div>
         <div class="relative">
           <input type="password" id="input-onboarding-key" placeholder="貼上 AIzaSy 開頭的金鑰..." class="w-full bg-[#0E1013] border border-white/[0.12] rounded-lg px-3 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-white/40 font-mono pr-9">
           <button id="btn-toggle-onboarding-key" type="button" class="absolute right-2.5 top-2.5 text-zinc-500 hover:text-zinc-300 cursor-pointer">
@@ -625,7 +692,7 @@
       <div class="space-y-2 pt-1">
         <button id="btn-save-onboarding-key" class="w-full py-2.5 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs rounded-lg shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5">
           <i data-lucide="check" class="w-3.5 h-3.5"></i>
-          <span>儲存金鑰並開始使用</span>
+          <span>儲存通行證並開始使用</span>
         </button>
         <div class="flex items-center justify-between text-[11px] px-1 text-zinc-500">
           <button id="btn-skip-onboarding" class="hover:text-zinc-300 transition-colors cursor-pointer">
@@ -679,7 +746,13 @@
 
       <div class="space-y-2.5 text-xs text-zinc-300">
         <div>
-          <label class="block text-xs font-medium text-zinc-200 mb-1" id="modal-key-label">Google Gemini API Key：</label>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-medium text-zinc-200" id="modal-key-label">Google 官方免費通行證 (API Key)：</label>
+            <button id="btn-paste-modal-key" type="button" class="text-[11px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-mono cursor-pointer transition-colors">
+              <i data-lucide="clipboard-paste" class="w-3 h-3"></i>
+              <span>一鍵貼上</span>
+            </button>
+          </div>
           <div class="relative">
             <input type="password" id="input-api-key" placeholder="貼上 AIzaSy 開頭的金鑰..." class="w-full bg-[#0E1013] border border-white/[0.1] rounded-lg px-3 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-white/30 font-mono pr-9">
             <button id="btn-toggle-key-visibility" type="button" class="absolute right-2.5 top-2.5 text-zinc-500 hover:text-zinc-300 cursor-pointer">
@@ -746,17 +819,39 @@
         </div>
 
         <div class="space-y-2">
-          <div class="flex gap-2.5 bg-[#0E1013] p-2.5 rounded-lg border border-white/[0.06]">
-            <span class="w-4 h-4 rounded bg-white/[0.1] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0">1</span>
-            <p>前往 <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-zinc-100 underline font-medium">Google AI Studio</a>，使用任意 Google 帳號登入。</p>
+          <!-- 卡片 1 -->
+          <div class="bg-[#0E1013] rounded-xl p-2.5 border border-white/[0.06] flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">1</span>
+              <div class="min-w-0">
+                <div class="text-xs text-zinc-200 font-medium">前往 Google AI Studio 登入</div>
+                <div class="text-[10px] text-zinc-400">點擊頁面藍色按鈕 <span class="text-sky-300 bg-sky-950/60 px-1 py-0.5 rounded border border-sky-500/30 font-mono font-bold">+ Create API key</span></div>
+              </div>
+            </div>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="px-2 py-0.5 text-[11px] font-medium bg-white/[0.08] hover:bg-white/[0.15] text-white rounded border border-white/[0.1] inline-flex items-center gap-1 shrink-0 transition-colors">
+              開啟 <i data-lucide="arrow-up-right" class="w-3 h-3 text-zinc-400"></i>
+            </a>
           </div>
-          <div class="flex gap-2.5 bg-[#0E1013] p-2.5 rounded-lg border border-white/[0.06]">
-            <span class="w-4 h-4 rounded bg-white/[0.1] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0">2</span>
-            <p>點擊 <strong>「Create API key」</strong> ➔ 點選 <strong>「Create API key in new project」</strong>。</p>
+
+          <!-- 卡片 2 -->
+          <div class="bg-[#0E1013] rounded-xl p-2.5 border border-white/[0.06] flex items-center gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">2</span>
+            <div class="min-w-0">
+              <div class="text-xs text-zinc-200 font-medium">彈窗出現時，直接點選第一項</div>
+              <div class="text-[10px] text-emerald-400 flex items-center gap-1">
+                <span class="bg-emerald-950/50 px-1 py-0.5 rounded border border-emerald-500/30 font-mono">Create API key in new project</span>
+                <span class="text-zinc-500">（免建專案直接點）</span>
+              </div>
+            </div>
           </div>
-          <div class="flex gap-2.5 bg-[#0E1013] p-2.5 rounded-lg border border-white/[0.06]">
-            <span class="w-4 h-4 rounded bg-white/[0.1] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0">3</span>
-            <p>複製生成的金鑰（<code>AIzaSy...</code> 開頭），回本站貼上即可永久使用！</p>
+
+          <!-- 卡片 3 -->
+          <div class="bg-[#0E1013] rounded-xl p-2.5 border border-white/[0.06] flex items-center gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">3</span>
+            <div class="min-w-0">
+              <div class="text-xs text-zinc-200 font-medium">複製產生的金鑰並貼回本站</div>
+              <div class="text-[10px] text-zinc-400">以 <code class="text-emerald-400 font-mono">AIzaSy...</code> 開頭，點旁邊的 <span class="text-zinc-300 bg-white/[0.06] px-1 py-0.5 rounded border border-white/[0.1]">📋 Copy</span> 即可！</div>
+            </div>
           </div>
         </div>
       </div>
@@ -897,13 +992,119 @@
     </div>
   </div>
 
+  <!-- 彈窗 5：NotebookLM 實戰生成教學彈窗 (精密石墨黑) -->
+  <div id="modal-nblm-tutorial" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#13151A] rounded-xl max-w-xl w-full p-5 sm:p-6 shadow-2xl space-y-4 border border-white/[0.1] max-h-[90vh] flex flex-col animate-scale-up">
+      <div class="flex items-center justify-between border-b border-white/[0.06] pb-3 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-zinc-100">NotebookLM 實戰生成整套流程</h3>
+            <p class="text-[11px] text-zinc-400">從逆向提示詞到 1:1 精確簡報生成的 5 步閉環 SOP</p>
+          </div>
+        </div>
+        <button id="btn-close-nblm-tutorial" class="text-zinc-400 hover:text-white cursor-pointer transition-colors p-1 rounded-md hover:bg-white/[0.05]">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- 步驟列表 (可滾動) -->
+      <div class="space-y-3 text-xs text-zinc-300 leading-relaxed overflow-y-auto pr-1.5 custom-scrollbar">
+        <!-- 步驟 1 -->
+        <div class="bg-[#0E1013] p-3 rounded-xl border border-white/[0.06] space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 font-semibold text-zinc-100">
+              <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">1</span>
+              <h4>複製本站逆向產出的 NotebookLM 提示詞</h4>
+            </div>
+            <span class="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">本站操作</span>
+          </div>
+          <p class="text-zinc-400 pl-7 text-[11px]">
+            在成果頁選擇 <strong class="text-zinc-200">「模式 1：全域風格架構」</strong>（適用任意筆記）或 <strong class="text-zinc-200">「模式 2：逐頁 1:1 對比」</strong>，點擊「複製指令」按鈕，提示詞已鎖定配色系統、留白比例與排版插槽。
+          </p>
+        </div>
+
+        <!-- 步驟 2 -->
+        <div class="bg-[#0E1013] p-3 rounded-xl border border-white/[0.06] space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 font-semibold text-zinc-100">
+              <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">2</span>
+              <h4>開啟 NotebookLM 並建立專屬筆記本</h4>
+            </div>
+            <a href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer" class="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-0.5 underline">
+              開啟官網 <i data-lucide="arrow-up-right" class="w-2.5 h-2.5"></i>
+            </a>
+          </div>
+          <p class="text-zinc-400 pl-7 text-[11px]">
+            前往 Google NotebookLM（notebooklm.google.com），點擊 <span class="text-zinc-200 font-medium">「+ 新增筆記本」</span>，建議將筆記本命名為您的專案名稱（例如：企業導入簡報專案）。
+          </p>
+        </div>
+
+        <!-- 步驟 3 -->
+        <div class="bg-[#0E1013] p-3 rounded-xl border border-white/[0.06] space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 font-semibold text-zinc-100">
+              <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">3</span>
+              <h4>上傳您的核心業務資料（來源 Source）</h4>
+            </div>
+            <span class="text-[10px] text-zinc-500 font-mono">支援 PDF · Docs · 網址</span>
+          </div>
+          <p class="text-zinc-400 pl-7 text-[11px]">
+            在左側「新增來源」上傳您希望轉化成投影片的企劃案、會議逐字稿、研報或文檔。NotebookLM 會完全以該內容為事實基礎，杜絕 AI 瞎掰。
+          </p>
+        </div>
+
+        <!-- 步驟 4 -->
+        <div class="bg-[#0E1013] p-3 rounded-xl border border-white/[0.06] space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 font-semibold text-zinc-100">
+              <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">4</span>
+              <h4>在交談對話框 (Chat) 貼上提示詞並發送</h4>
+            </div>
+            <span class="text-[10px] text-amber-400/90 bg-amber-950/40 border border-amber-500/20 px-1.5 py-0.5 rounded">關鍵動作</span>
+          </div>
+          <p class="text-zinc-400 pl-7 text-[11px]">
+            在 NotebookLM 下方聊天對話框中，直接貼上剛才複製的提示詞。如果需要特定頁數，可在提示詞末尾加上：<code class="text-emerald-400 bg-white/[0.05] px-1 py-0.5 rounded font-mono">「請生成 5 頁完整簡報」</code>，然後按下發送！
+          </p>
+        </div>
+
+        <!-- 步驟 5 -->
+        <div class="bg-[#0E1013] p-3 rounded-xl border border-white/[0.06] space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 font-semibold text-zinc-100">
+              <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">5</span>
+              <h4>一鍵「📌 儲存至筆記」或貼回 PowerPoint / Slides</h4>
+            </div>
+            <span class="text-[10px] text-emerald-400 font-mono">產出落地</span>
+          </div>
+          <p class="text-zinc-400 pl-7 text-[11px]">
+            NotebookLM 將輸出對齊排版拓撲與色彩規範的各頁精確文案架構。點擊回覆右上角的 <span class="text-zinc-200 bg-white/[0.06] px-1 py-0.5 rounded border border-white/[0.1]">📌 儲存至筆記</span> 即可永遠保存，或直接複製各頁插槽內容貼入簡報軟體中快速成形！
+          </p>
+        </div>
+      </div>
+
+      <!-- 底部操作列 -->
+      <div class="border-t border-white/[0.06] pt-3 shrink-0 flex items-center justify-between">
+        <a href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs rounded-lg font-medium border border-emerald-500/40 flex items-center gap-1.5 transition-colors">
+          <span>開啟 NotebookLM 實戰</span>
+          <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+        </a>
+        <button id="btn-close-nblm-tutorial-confirm" class="px-4 py-1.5 bg-zinc-100 hover:bg-white text-zinc-950 text-xs rounded-lg font-medium cursor-pointer transition-colors shadow-sm">
+          我知道了
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 全局 Toast 提示 -->
   <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-200 flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-[#181A20] border border-white/[0.1] text-xs shadow-2xl text-zinc-100">
     <i data-lucide="info" id="toast-icon" class="w-3.5 h-3.5 text-zinc-400"></i>
     <span id="toast-text">通知內容</span>
   </div>
 
-  <script src="app.js?v=6.4.0"></script>
+  <script src="app.js?v=6.5.0"></script>
   <script>
     lucide.createIcons();
   </script>
