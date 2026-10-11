@@ -288,16 +288,12 @@ async def analyze_style(
 
         # === 供應商 1: Google Gemini ===
         if provider == "gemini":
-            if model == "auto":
-                if is_complex:
-                    selected_model = "gemini-1.5-pro"
-                    auto_reason = f"⚡ 智慧判定：簡報頁數較多（約 {total_detected_pages} 頁），自動選用深度推論模型 Gemini 1.5 Pro。"
-                else:
-                    selected_model = "gemini-2.5-flash"
-                    auto_reason = "⚡ 智慧判定：精選投影片截圖（少於 10 頁），自動選用極速高精準的 Gemini 2.5 Flash（3秒完成）。"
-            else:
-                supported = ["gemini-2.5-flash", "gemini-1.5-pro", "gemini-2.5-pro", "gemini-2.0-flash"]
-                selected_model = model if model in supported else "gemini-2.5-flash"
+            candidate_models = []
+            if model and model != "auto":
+                candidate_models.append(model)
+            for m in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+                if m not in candidate_models:
+                    candidate_models.append(m)
 
             client = genai.Client(api_key=api_key)
             gemini_parts = []
@@ -305,15 +301,31 @@ async def analyze_style(
                 gemini_parts.append(types.Part.from_bytes(data=img_bytes, mime_type=mime))
             gemini_parts.append(types.Part.from_text(text=user_prompt_text))
 
-            response = client.models.generate_content(
-                model=selected_model,
-                contents=gemini_parts,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_INSTRUCTION,
-                    temperature=0.4,
-                )
-            )
-            analysis_text = response.text or ""
+            selected_model = candidate_models[0]
+            last_err = None
+            for candidate in candidate_models:
+                try:
+                    response = client.models.generate_content(
+                        model=candidate,
+                        contents=gemini_parts,
+                        config=types.GenerateContentConfig(
+                            system_instruction=SYSTEM_INSTRUCTION,
+                            temperature=0.4,
+                        )
+                    )
+                    analysis_text = response.text or ""
+                    selected_model = candidate
+                    break
+                except Exception as g_err:
+                    err_str = str(g_err)
+                    if "not found" in err_str.lower() or "404" in err_str or "not supported" in err_str.lower():
+                        logger.warning(f"模型 {candidate} 暫不可用，正在自動切換至下一個備援模型...")
+                        last_err = g_err
+                        continue
+                    raise g_err
+            
+            if not analysis_text and last_err:
+                raise last_err
 
         # === 供應商 2: OpenAI (GPT-4o) ===
         elif provider == "openai":

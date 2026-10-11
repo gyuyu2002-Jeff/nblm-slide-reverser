@@ -752,12 +752,18 @@ async function handleFilesAdded(files) {
 
 // === 4. 純瀏覽器端 AI 直連呼叫引擎 (支援 GitHub Pages Serverless) ===
 async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText) {
-  let modelName = selectedModel || "auto";
-  if (modelName === "auto") {
-    modelName = slideImages.length >= 5 ? "gemini-1.5-pro" : "gemini-2.5-flash";
+  // 建立高穩定性模型候選清單（最新 2.5 Flash 優先，具備 1M context 與極高多模態視覺精度）
+  const candidateModels = [];
+  if (selectedModel && selectedModel !== "auto") {
+    candidateModels.push(selectedModel);
   }
-
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+  // 候選優先級：gemini-2.5-flash ➔ gemini-2.0-flash ➔ gemini-1.5-flash
+  const defaultList = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+  for (const m of defaultList) {
+    if (!candidateModels.includes(m)) {
+      candidateModels.push(m);
+    }
+  }
 
   const parts = [];
   // 取出最多 6 頁投影片縮圖
@@ -794,30 +800,52 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
     }
   };
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
+  let lastError = null;
 
-  const resJson = await response.json();
-  if (!response.ok) {
-    const msg = resJson.error ? resJson.error.message : "Gemini API 請求失敗";
-    throw new Error(`Google Gemini API 錯誤: ${msg}`);
+  // 自動依序嘗試候選模型（遇到個別模型未開放或 404 自動切換）
+  for (const modelName of candidateModels) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const resJson = await response.json();
+      if (!response.ok) {
+        const msg = resJson.error ? resJson.error.message : "Gemini API 請求失敗";
+        // 若該模型在該 API key 或版本下不存在或不支援，無縫嘗試下一個備援模型
+        if (response.status === 404 || msg.includes("not found") || msg.includes("is not supported") || msg.includes("Call ModelService.ListModels")) {
+          console.warn(`模型 ${modelName} 暫不可用，正在自動平滑切換至下一個備援模型...`, msg);
+          lastError = new Error(`Google Gemini API 錯誤: ${msg}`);
+          continue;
+        }
+        throw new Error(`Google Gemini API 錯誤: ${msg}`);
+      }
+
+      const text = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        throw new Error("Gemini 未返回分析文字，請確認 API Key 是否有效。");
+      }
+
+      return {
+        status: "success",
+        provider: "Google Gemini",
+        model_used: modelName,
+        markdown_report: text,
+        structured_meta: fallbackExtractMeta(text)
+      };
+    } catch (err) {
+      if (err.message && (err.message.includes("not found") || err.message.includes("is not supported") || err.message.includes("ListModels"))) {
+        lastError = err;
+        continue;
+      }
+      throw err;
+    }
   }
 
-  const text = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error("Gemini 未返回分析文字，請確認 API Key 是否有效。");
-  }
-
-  return {
-    status: "success",
-    provider: "Google Gemini",
-    model_used: modelName,
-    markdown_report: text,
-    structured_meta: fallbackExtractMeta(text)
-  };
+  throw lastError || new Error("Google Gemini API 無法調用任何可用模型，請檢查 API Key 是否正確。");
 }
 
 async function callOpenAiDirectly(apiKey, selectedModel, slideImages, promptText) {
