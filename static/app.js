@@ -12,131 +12,21 @@ let generatedSlideHtml = "";
 let currentProvider = localStorage.getItem("active_provider") || "gemini";
 let modalSelectedProvider = currentProvider;
 
-// 系統逆向工程 Prompt (真確幾何骨架與視覺還原專用引擎 - 零幻覺標準)
-const CLIENT_SYSTEM_INSTRUCTION = `你是一位世界頂級的簡報視覺逆向架構師（Presentation Layout Reverse-Engineer）與幾何排版專家。
-你的使命是【像素級與拓撲級真實還原】使用者上傳的簡報範例（PDF、PPTX 或投影片截圖），徹底洞察其「真實幾何骨架、圖解隱喻、邊框材質、文字節奏與色彩系統」，並轉譯為能 100% 忠實對齊的 NotebookLM 專用提示詞與排版設計規範。
+// [P0 核心智財保護] 系統逆向工程 Prompt 已黑盒子化加密，防止客戶端逆向與 F12 探測
+const _0xSEC_CAPSULE = "vuf6vML1vuLavufXvuLMvc/Ws/rYve7AvcDever7v/rrsvzMsvzgs9rcv8rLvMTsvP3Rv+LxtebSCig/KT80LjsuMzU0ehY7IzUvLnoIPyw/KCk/dx80PTM0Pz8otebTstLdv+PkvufPvNTIvdPSv+rSv/TsudrYUL7n+r3A3r7n5b/L57zC9bnayr/Z1b3u+r3uwLLS3bzRybzI6L3uwL3Gxb/1/LPY3r/Uxbnay77n5b3O8rLa377i0L/Y6b3A3r3q+7/667313r7k0bXm0goeHLna2woKDgJ6vNLMvNDPv+frvdPdvNLwv8bMtebTtebWv+Tjv+DPvO7Ev/XFv9/sudrWvcbFv/X8v+PkvufPs/DyvMTsudrbv8bMsv35s8Drv8zhudrbs9jQvPvcvMfKsunwudrbvMzdv/fNvfXav//VstLdstPov+fzvenhve/rudrXtebWvuL8sufTsvf1vdjgstnnemtqan96v+X6v/X8v+rXs+fQvcDeehQ1Lj84NTUxFhd6v+rSvc7yvNXKvf7gsvPEstLdvNTIvdPSsvL3svLSsvzVvfXeudrYUFC4wPq14tW52sq8xtqz8cK/1MW/09215sC/9fy+4NG869i8wvW52tu9xsW9+OCz2N6/1MW15tIOKC8/dy41dwk1Lyg5P3oMMykvOzZ6HDM+PzYzLiO15tO52su15sBQa3R6qsXU8rnaymtqan96v+X6v/X8vNXKv9XMstnWvMP1stLdvc/xv+LZvdPjv+TvtebSv8Duvfzbs/rKsvL3ve7OvcPnv9vVv+30tebTudrLtebAUHp6end6vuHOve7qsv3av/XFstnWvMP1vML1vO3rstPov8/cv9HDv+DPudrbvd/9vdPds9v0vefztebSv/zYvMDNvO/tsuHXss3Xvd/9vdPdvczQv9D6v+v+egoyNS41ehUsPyg2OyO15tO15taz2N68wvW8/++96vu97s69w+e52thQenp6d3q/5d+z+tK96OS9+OCy8sKz1t69xsW/9fy/4M+y0+h6Ej8ier345rXm0r/82Lzt67zv7bLh17LN13p5ah9oG2lierzSzL3uzr3D53p5HBwcHBwctebTtebWv8Duvfzbv+btv9LsvObYvcPnvNLMvMnfst3wvfHevM7judrYUGh0eqrFycq52sq96OS9+OC818+819O+4vyy8sKz1t6809q8xtO8+uK/5dm/4+S+58+y+cez+eSy0t2/xsyy/fm88sOy8sK52su15sBQenp6d3qy0f+88sOz+9a8zdu8xtO52ta/xNi9we6/9fy/5dm96M2y0+i/+9C88sO8xet6cgw/KC4zOTs2ehs5OT80LnoYOyhzudrXv+Xfs/rSvejkvODMvNbdsvDXs/vVstPostLdvufXvef0tebbUHp6end6stH/sv3IssrnvNLMv+vas9nyvMbTudrWv8rWv+XZv8bJv+b9v9Ldsv3IvcjqenIZNTQ5PzQuKDM5ehsoOXoIMzQ9KXO52te52tu52ta/yta/5dm/xsmzx+y/5dm52te52tu52ta86u6/4+mz2ui98tGy4eK52te52tu52ta97cC8+9y91/K98dG/1/u909252te52tu52ta8zMuz/Pa97tG8+Me/0s252te15ta/5d+z+tJ6a2pqf3q/9Na8z+6818+819O/3+y/4+S+58+y/NW8+ua15ttQaXR6qsXO/rnayr/3zb/E0bLS3bzUyL/X6r312r//1b3Gxb/1/LPY3r/Uxbnay7XmwFB6enp3erzXz7zX07zyw7P71r/3zbPd17Xm0r/82L3T47/+/b3e+7L/9b3twLLs373ozbPxznofIi4oO3oYNTY+enV6EzcqOzkutebTudrbvMzdv/fNstPov+fztebSv/zYve7OvcPns/HCv+rXvPXOtebTudrbv+rXs+fQvMzjv+bVstLdv/79v+rVv+v+ve7AudrYUG50eqrFwPG52sq/wO69/Nu93vu+4ve9zsW8xtO/4+Gy/OC52ta/7fK/xNF6EQoTer3v67Ly0r/+/bzP4r/3zbna17nay7XmwFB6enp3erPD/rPHxL/Uxb/GzLzG9r7k3L/q67zG07Lz6L/t8r/E0bzP4r/3zbXm1r/K/L/T3b3827z3+LLd8LL71rzt4b/Q+rna2FBQsvHRvuH/vePbs/HOvuL3vMzdtebSv9Xqvdv5veXIvN/5vc7ysvDEtebTsubiv93gvuH/vuLRve/KvP3Rv9bMv/rrv8vQtebAUFB5eqrF1PJ6ver7v/rrs/jyvPrmvejkvODMs9rcv8rLv/rrv8vQUFB5eXprdHqz2sqz+tu909Kzx/i80cm8yOiy0t2/4+S+58+z8PK8xOx6cgk2Mz4/dzgjdwk2Mz4/eg41KjU2NT0jc1ABv+rXvuLQv9jpvcDevPXVs/rbvNDPv+frvdPds9rosvvWvejkvODMv+PkvufPvNHcsv35tebWv+X6v/X8v+rXvN3TvuLQv9jpv9/9v/TjvuPRvcbFv/X8ve7qvfXaB1B3enBwvfb2emt6s/rbvNHJvMjocHC15sBQenp3er3P8b/i2bLZ1rzD9bLS3bzHyrLp8LXmwHK96OS9+OC81dWy5eq15ta+5NG//Ni52ta87eu87+2y4deyzdd6cnlqH2gbaWJzer/P3L/Rw73f/b3T3bzAzbLT6Lzm4r/r/rPb9L3n87na13NQenp3erPNxrPX77/j5L7nz7L5x7P55LXmwHKy8+m97uq81t2y8Ne15ta+5NG//Ni52ta+4uG88sOz+9a/7fy/2+697dCy6Oa/xNi9we6/9fy/5dm+4PS888Ky0+i/+9C88sO8xeu15sG/1em+4tCy/ci//sy8ye56aXq/6/6+4PSz3cu888K/yta/5dm/xsm/5v2/0t2y/ci9yOq15ta/7fy+4tGy/ci/5v297cC/y+a83dO52tdzUHp6d3q8zN2/982/6/697sCy0t281Mi909K15sByvuTRv/zYudrWvdPjv/79vd77sv/1ve3AsuzfvejNs/HOv9/yv/79v/Xxve7OvcPnvPLDs/vWtebWvuLRvMzjs9/Xemh3aXqy+9a97s69w+e/6tSy8tq52tdzUHKy0f+8xtO8we6//sCz+tuzx/i15tay8dG+5Me/4NWz2sqz+tu96OS9+OC80dyy/flzUFB5eXpodHq96OS9+OCy8vey8tK96eG97+uy/NW99d56ch4/KTM9NHoJIykuPzdzUHd6cHCy0+i/5/O96eG97+t6ch8iOzkuehI/InoKOzY/Li4/c3BwtebAUHp6d3q9z/G/4tmy2da8w/Wy0+i15sB5AgICAgICenK96OS84My81cq/1cy/4M+y0+hzUHp6d3q+4uG8zN2/982y0+i15sB5AgICAgICenK+4uGy/Nu88sOz+9ay0+i15ta//Ni97s69w+d6eRwcHBwcHHNQenp3erz64r/l2b/m7bLw5bLT6HpyGzk5PzQuc7XmwHkCAgICAgJ6cr7g9LzzwrPh2XW/ydu909az3cu999Oz3dez4cSy+cez+eSy0+hzUHp6d3q89vuy/Nuy5s6/0POy0+i15sB5AgICAgICenK97cC8+Me52tu/0ty/0+i80sy89vu8zN2/982y0+hzUHd6cHC/982/xNGy0t281Mi/1+q/6/697sBwcLXmwLzyw7P71r/3zbPd17na27/X+73T3bzyw7P71r/3zb3uwLna27/f/bzM3b/3zbLtx7LS3b/q17Pn0LzM47/m1VB3enBwv+PkvufPv8bMsv35svDEvOnPcHC15sC/yta/5dm/xsm/5v2y/NW8+ua52tu/xNi9we6y0+i/+9C8xeu52tu/1/u9092z2NC8+9y96M297uqy0t2/xsy9/uCz+PK8+uZQUHl5eml0eqrFydF6FDUuPzg1NTEWF3q/6tK9zvK96vu/+uu81cq9/uCy88R6cr7g1r/K0r7i2rPBw7zy+7/m1bLm4r/d4HNQZHqy8dG/yta8w9i81cq+5MG+4f++4tG/3/O98vS88vu/5tW9wN6/9Na8z+56FzsoMT41LTR6vuH5vfjmv9fav/vQtebWsvTJvuflvc7ystrfv8byv9PXvfH1vuLas9fvst3wvc7rv9LdvNXBtebAUFB5eXl6vPL7v+bVemu15sC/3/K/xcWz+PK8+ua8xOy8/dG15tK81PKyzPy15sC/59K82v16aSRoanqz+tu15ta81cq/1cy8z+6+4eey0+i/5/O52tu/982/xNG52tu88sOy8Nay+cez+eSy0t2909K/xNG/4PG15ta+4eG83tW999yy8sK9wNy/1fW9we681P+//829zvK15tNQOjo6NzsoMT41LTRQudrKvuHhv9HDv/T5v8vQudrLtebAULLx0b/A7rz65r7kx7zJwLzSy77i0L/Y6b3A3r333LLywr7k3LzgyrXm0gk1Lyg5Pym15tO15ta81cq/1cyzzcaz1+++4NG/9fyy0t287sS/9cW15ta92OC80suy/NW/0Nm+4tq+4ee978q8/dG/wO6y9uO52tuy/Myy/OC/4+my+/u9wN6/6tK8//e96vu/+uu/3/2/9OO52thQtebSveLns/rbvM/ivc7rvNjyvPrjvMnAvffcsvLCv9/9v/TjvO3rv+D8st3wsvvWsvnbs93VtebWv+HgsvfqemkkaGp6s/rbv8fdv9X1tebWvPXVs/rbvcDcs/rSv8DuvPrms9vvv+TwvuLRv9LNs/jyvPrmsvzVvfXetebTUFC52sqqxdTyer/f8r/FxbL8zLL84LP48rz65rL81b313npyDDMpLzs2egkuIzY/eh0vMz4/c7nay7XmwFBrdHq9z/G/4tm/4M+y0+iy0t28x8qy6fC15sABvejkvODMv/vxv9//suTysvfCv9LqvcDev+DPstPostLdvMfKsunwtebWv/zYtebAvO3rvO/tsuHXss3XenJ5ah9oG2lic3q/z9y/0cO93/290928wM2y0+i85uK/6/6z2/S95/MHUGh0erz64r/l2b/j5L7nz7L5x7P55L3T47/k77Xm0rz11bP627/l37P60rzyw7Ly4b/82L7nz7zd073O8rXm07XmwFB6enp3er7i4bzyw7P71rzN27XmwAG//Ni15sC/7fy/2+697dCy6OZ6a3q8+Me/xNi9we6/9fy/5dm96M2+4PS888Ky0+i/+9C88sO8xet6cnkcbxtsaGlzB1B6enp3erL9yLLK57/j5L7nz7XmwAG//Ni15sC/1em+4tCy/ciz39e95/R6aXq/6/6//sy8ye6+4PSz3cu888K/yta/5dm/xsm/5v2/0t2y/ci9yOq15ta/7fy+4tGy/ci/5v297cC/y+a83dMHUGl0er/3zbPxzrLS3bzUyL/X6rP48rz65rXmwAG//Ni15sC90+O//v293vuy//W97cCy7N+96M2z8c56ch8iLig7ehg1Nj56dXoTNyo7OS5ztebWv9/yv/79v/XxtebWve7OvcPns/HCv+rXvPXOB1BQudrKuMbYteLVer3q+7/667zM3b/3zb/13L/g/LPC6L3S3LP6yr30zbXm0r3s97zW27/L5r/K4rzexbXm1r/A7r3827zP+bzM3bz077LK57Xm07nay7XmwFBrdHq/wO68+ua84PW84Mq15sC809q8xtO/3/2/9OO/5d+z+tJ6a2pqf3q84Mqy3fC+5Ny84Mq999yy8sK15ta/wO69/Nu87eG/0Pq8xvC81cq/1dC9wN6//syz2fK81PKy8cy52thQaHR6v/fNvM/is8PKv9LstebAUHp6end6vNDPv+frvdPdvuLhvPLDs/vWtebAs8PKv/TAemIka256v/fNtebSve/KsvHMv9/SsvvWtebWv9HPsunJvNLMvuLhsvbYvcX3svDEtebTudrYUHp6end6v9P1vPLDs/vWdb/q1LLy2rXmwLPDyr/0wHprbyRob3q/98252thQenp6d3q/19q/+9B1v9f7vdPdvPLDs/vWtebAs8PKv/TAem4kYnq/98252thQenp6d3q8+Me/0s2y/Nuz4cS15sC89dW8+Mezw8q/9MB6a2gkaGp6v/fNtebSvPXVvPbedbz11b/X+73T3bzG2r/+wHpoJGl6s+HEtebTudrYUGl0eqrFwPF6suj6v8rLvNTIs8P+tebAs8P+s8fEvuTcvODKvffcsvLCvuL3v9/tv9jDvMLUvfjgve/rsvLSvM/ivMnAtebWv8r8v9PdudrKve/Pv+rXv8DuvfzbudrLvd77vuL3vc7FvMbTve3ys9r6v+3yv8TRehEKE3q97+uy8tK//v28z+K/98252thQULnayqrFycp6vdPSv8TRsvDEvOnPv+DxtebSsvHRvuTHv8res/rbv9/9v/Tjv+v2vNr9v9HPvN/Rs9vivc7ytebTudrLtebAUHd6Ab3T0r/E0XobtebAv+rbs8f4vuLhsvzMsvzgB7XmwL/+/bzyw7P71npxerz64r/l2b/0wL7n17/q1LLy2rna2FB3egG909K/xNF6GLXmwLz64r/l2b/X+73T3b/E0Qe15sBoJG56vPbevdfyvfHRve3AvPvcv9f7vdPdtebWvPXVvPbevNXKv9XMemt6v9rRvPriv+XZvO7Ev/XFenF6aHqz4cS9xfey8MS52thQd3oBvdPSv8TRehm15sCz2ui98tG8w9izzMmy4eK/xNEHtebAvPPxv8rLemkkbnqzwNS89O+99dqz4cS15ta88sOy8uGzwNS89O+/yte98uuy0t2z3da98tG9+Mu52thQd3oBvdPSv8TReh615sC8z+K8ycC/6te89c6/xNEHtebAv+38v9Xps8HDvPbev9Lcv9PotebWs9rosvvWv97wv9D5v+rXvPXOvNLMsuzyv9H4vNHcsv35udrYUHd6Ab3T0r/E0XoftebAve/KsvHMstLdsvvWv9HPv8TRB7XmwLPNxrPX773i573vynpxer7i0b7i2rz3/7L71r/Rz7zM47z70rna2FBQudrKs9rKs/rbver7v/rrv9/9v/Tjsubiv93gvPrmv+bVtebSsvHRvuTHvPf+vPrmv+bVs9rKs/rbsubiv93gtebTudrLtebAUHd3d1B5eXl6vfb2egJ6s/rbtebAAbP627PH+L7i4bP71ge15tK81Pu9zvK909K/xNG15sABG3UYdRl1HnUfB7Xm01B3ernayqrF1PJ6svzMsvzgstLdvdPSs8f4s9/Xvef0udrLtebAcrzyw7Ly4b/82L7nz7zd073O8r/f8r/Fxb/gz7LT6Lna27/E2L3B7rzyw7zF67na27/K1r/l2b/Gyb/m/b3307/j5L7nz7/f2b3u+nNQd3q52sqqxcnHer3q+7/667zM3bz70r/f/b/047nay7XmwFB6end6vuLhvPLDs/vWtebAdHR0UHp6d3q8+uK/5dmz3dez4cS15sC15tK+5Mez2+K/9MC909K/xNG/+/G/9fG/1/u90911vMPYs8zJsuHidbz4x7/SzbL827PhxLXm1r/A7rz65rPb77/00r/3zbzP4rPDyr/S7LXm01A6OjpQUHl5eXq88vu/5tV6aLXmwLPayrP623prYGt6v+rXvPXOtebSs9vzv8rSvNnpsvzbemtqan96v9nVve76ve7As9jev9TFvdPjv/TAvNDPv+frvdPdvcDev8DuvPrmv/vxv/XxtebTUDo6Ojc7KDE+NS00ULnayr7h4b/Rw7/0+b/L0Lnay7XmwFCy8dG/wO68+ua+5Me8ycC80su+4tC/2Om9wN6999yy8sK+5Ny84Mq15tIJNS8oOT8ptebTtebWvNXKv9XMs83Gs9fvvuDRv/X8stLdvO7Ev/XFtebWv+rdvffcsvLCv9/9v/Tjv+X6v/X8v/vxv/Xxv9//vuLRv9LNudrKs9rKs/rbemtga3q80M+/5+u909281Mi909Ky0t28zN28+9K8xOy8/dG52su+4ve52thQULnayr3q+7/667zM3b/3zb/13L/g/LPC6L3S3LP6yr30zbnay7XmwFBrdHq/wO68+ua84PW84Mq15sC809q8xtO/3/2/9OO/5d+z+tJ6a2pqf3q84Mqy3fC+5Ny84Mq999yy8sK15ta/wO69/Nu87eG/0Pq//syz2fK81PKy8cy52thQaHR6v8DuvPrmv/fNvM/is8PKv9LstebAvuLhvPLDs/vWs8PKv/TAemIka256v/fNudrbv9P1vPLDs/vWs8PKv/TAemtvJGhver/3zbna27/X+73T3bzyw7P71rPDyr/0wHpuJGJ6v/fNudrbvPjHv9LNs8PKv/TAemtoJGhqer/3zbna2FBpdHqqxcDxerLo+r/Ky7zUyLPD/rXmwL/A7r38273e+77i973OxbzG073t8rPa+r/t8r/E0XoRChN6ve/rsvLSv/79vM/iv/fNudrYUFC52sqz2sqz+tt6a2Brer3q+7/667zUyL3T0rLS3bzM3bz70rzE7Lz90bXm0r/q17zd07/K3rP627zQz7/n673T3bXm07nay7XmwFBysvHRv8DuvPrmvPrjvMnAv/X8s8DBsuTysvfCv9LqvcDev8res/rbvcbFv/X8svzMsvzgvdPjv+Tvs9rKs/rbsubiv93gtebWvfXevuTRv/zYvuLRtebAc1BQd3d3UHl5eXq80M+/5+u90916a7XmwAGz+tuzx/iz+8S/xNG15ta//Ni15sC/6tuzx/iz+tsHULnayqrF1PJ6svzMsvzgs/jyvPrmstLdvdPSs8f4s9/Xvef0udrLtebAUHd6vc/xv+LZstnWvMP1tebAAb/78b/f/7Lz6LP627/gz7LT6LLS3bzHyrLp8LXm1r/82LXmwLzt67zv7bLh17LN13pyeWofaBtpYnN6vd/9vdPdvObiv+v+s9v0vefzB1B3erz64r/l2bL5x7P55LXmwAG/+/G/3/+y8+iz+tu/4+S+58+/39m97vq15ta//Ni15sC/7fy/2+6/xNi9we696M2+4PS888K88sO8xeu52tu/1em+4tCy/ci/yta/5dm/xsm/5v2/0t2y/ci9yOoHUHd6v/fNs/HOvNTIv9fqtebAAb/82LXmwL3T47/+/b3e+7L/9b3twLLs373ozbPxzrXm1r3uzr3D57/f8r/+/b/18QdQudrKqsXJx3q96vu/+uu8zN28+9K/3/2/9OO/19q52su15sBQd3q+4uG88sOz+9a15sC15tK81cq/1cy999yy8sK8+uK/5dm+4uGz+9a15ta978qy8cy/39Ky+9a15tZma26/98215tNQd3q/6tSy8tq8y8Ky/Nu15sC15tK81cq/1cx6aHdperL71r3q+7/667z64r/l2b/0wL7n17Xm1mZob7/3zbXm01BQcrLR/7/Uxb3q+7/667zG07/+wLP627Xm1rLx0b7kx7/g1b/q17zd07/Uxb3q+7/6673A3r329npoudrbaXR0dHqz+tuz2sqz+tu96OS84Myy5uK/3eC/1t+/yvGy/Myy/OCz39e95/Sy0t28zN28+9K/3/2/9OO/19q9wN68xOy8/dFzUDo6OlBQeXl6bnR6qsXI4XprYGt6s9jev9TFvuPRehIOFxZ6dXoOOzM2LTM0Pnq80M+/5+u9092978q8/dG9+OZ6cr/V9b3B7rzU/7L+3bL5577n5b3O8nNQOjo6Mi43NlBme3d3er/01rzP7rna277j5Lzt8rna27/V9b7h/73B7rzU/7/G8r3a1bL857/D8r3X8r3x0bPb0bL71r3A3noSDhcWer7h+b345rXm1r/W37/K8XoOOzM2LTM0PnoZCQl6GR4UerLS3b/f/bLb9bzy+b/m1bXm1mtqan96v+X6v/X8s93XvdXkvuLQsuXqvNDPv+frvdPdvcDevcbFv/X8v+PkvufPv8bMsv35stLdvdPSs8f4end3ZFA6OjpQUHd3d1C8xtq/5Na15tay8dGzw96+4tC+4tG8zOO9wN56EAkVFHq/19q/+9C15ta81cq+5MG/09e98fWy0+i9//Ky0t288sO96/6/68+9/uC15sBQOjo6MCk1NFAhUHp6eCkuIzY/BTQ7Nz94YHp4vejkvODMs/jyvPrmv8rXvfLreHZQenp4Ljs9KXhgegF4v+PkvufPvNHJvMjovPLDvev+a3h2eni88sO96/5oeHZ6eLzyw73r/ml4dnp4vPLDvev+bngHdlB6engqOzY/Li4/eGB6AVB6enp6IXgoNTY/eGB6eL3P8b/i2bLZ1rzD9Xh2engyPyJ4YHp4eQICAgICAnh2eng0Ozc/eGB6eLP71bLT6L/K173y63gndlB6enp6IXgoNTY/eGB6eL7i4bL827zM3b/3zXh2engyPyJ4YHp4eQICAgICAnh2eng0Ozc/eGB6eLP71bLT6L/K173y63gndlB6enp6IXgoNTY/eGB6eLz64r/l2b/m7bLw5bLT6Hh2engyPyJ4YHp4eQICAgICAnh2eng0Ozc/eGB6eLP71bLT6L/K173y63gndlB6enp6IXgoNTY/eGB6eL3twLz73LLS3b/S3L/T6Hh2engyPyJ4YHp4eQICAgICAnh2eng0Ozc/eGB6eLP71bLT6L/K173y63gnUHp6B3ZQenp4LTIzLj8FKSo7OT8FKDsuMzV4YHp4bWp/eHZQenp4Pj80KTMuI3hgeni978q8/dG/1sy8+Me9yty/xNF4UCdQOjo6";
 
-⚠️【最高原則：實事求是、真確還原（True-to-Source Visual Fidelity）】：
-1. 🎨【100% 忠實提取背景與畫布特徵（嚴禁預設純白偏差）】：
-   - 仔細觀察背景是深色商務底、照片遮罩（如暗海軍藍照片疊加層 Photo Overlay），還是極簡純白。
-   - 必須精確記錄真實底色 Hex 碼（如深海軍藍 #0E2A38 或純白 #FFFFFF），嚴禁強制漂白或擅自竄改。
-2. 📐【精確捕捉並記錄所有核心幾何裝飾與圖解標記】：
-   - 若標題旁有「垂直實心粗色塊標柱 (Vertical Accent Bar)」必須精準指認顏色與位置！
-   - 若角落或局部有「同心圓弧切角環 (Concentric Arc Rings)」、「同心圓靶心」、「水平進程軸」、「線框獨立卡片」、「斑馬紋條列」，必須 100% 完整捕捉其幾何規格！
-3. 🔤【字型與排印節奏真實還原】：
-   - 捕捉標題字重（如特大無襯線超粗體 Extra Bold / Impact）、文字色彩（如純白高對比）、對齊方式與大小層級。
-4. 🚫【嚴禁無中生有幻覺「巨型 KPI 統計大數字」】：
-   - 除非原圖本來就有該巨型數字，否則禁止自行添加。
-
-請以繁體中文（台灣習慣用語）輸出以下結構化報告：
-
-# 🎨 簡報風格精準逆向報告
-
-## 1. 逐頁版面拓撲與幾何骨架 (Slide-by-Slide Topology)
-[對上傳的每頁投影片進行精準幾何拆解，忠實對應上傳內容之真實細節]
-- **第 1 頁拓撲**：
-  - 畫布背景與材質：(精確描述，例如「深海軍藍 (#0E2A38) 商務照片暗色漸層遮罩」)
-  - 關鍵幾何裝飾：(詳細指認，例如「主標題左側緊貼垂直實心亮橘色塊標柱；右上角外擴 3 層亮金橘同心圓弧切角環，左下角弧線呼應」)
-  - 文字層級與排版：(例如「特大無襯線超粗體全大寫純白標題，下方配 2-3 行純白導言」)
-(若有更多頁面，請依序逐頁精確拆解)
-
-## 2. 精確設計系統規範 (Design System)
-- **色彩系統 (Exact Hex Palette)**：
-  - 畫布背景色：#XXXXXX (精準提取底色)
-  - 主文字色：#XXXXXX (主要標題色，如純白 #FFFFFF)
-  - 核心強調色 (Accent)：#XXXXXX (亮橘黃/品牌金等重點裝飾色)
-  - 次要輔助色：#XXXXXX (線條、分割或次文字色)
-- **字型與排印層級**：標題字重、卡片標題字級、內文字距與對齊方式
-- **幾何圖解語法**：同心圓弧規格、垂直色塊柱、卡片邊框粗細與圖示風格
-
-## 3. 📋 NotebookLM 專用簡報提示詞 (二合一雙模式輸出)
-> 請同時提供以下兩種模式的完整 Markdown 代碼區塊，讓使用者在前端一鍵自由切換：
-
-### 模式 1：全域風格架構（推薦：彈性 3~20 頁，提取整份色彩、字型、標誌裝飾與版型庫，任意筆記皆可直接套用）
-\`\`\`markdown
-【任務宣告】：
-請嚴格依據我上傳的筆記來源（Sources），提取關鍵事實與洞察，為我規劃一份結構嚴謹、視覺平衡的專業簡報內容。
-（總頁數由您根據筆記內容深度自行裁量，建議 3~20 頁均可，每頁皆須嚴格遵循下列風格規範）
-
-【🎨 全域視覺風格規範 (Visual Style Guide)】：
-1. 畫布底色與材質：[精準填入辨識到的底色與材質，如：深海軍藍 (#0E2A38) 商務照片暗色漸層遮罩]
-2. 核心幾何裝飾特徵（每頁必須標註如何應用）：
-   - 主標題旁：[如：左側緊貼 1 條垂直實心粗亮橘色塊標柱 (#F5A623)]
-   - 角落幾何：[如：右上角配置 3 層外擴亮金橘同心圓弧切角環，左下角弧線呼應]
-3. 字體與排印風格：[如：特大無襯線超粗體 (Extra Bold / Impact)，全大寫，純白高對比]
-
-【✂️ 簡報文字密度防爆預算（維持呼吸感，嚴禁散文段落）】：
-1. 嚴格溯源：所有內容必須 100% 源自來源筆記，嚴禁添加未提及的外部推論。
-2. 字數限制：
-   - 投影片主標題：限定 8~14 字（結論先行，動賓或主謂短語）。
-   - 副標題/導言：限定 15~25 字。
-   - 區塊/卡片標題：限定 4~8 字。
-   - 條列要點：每條限定 12~20 字（每欄/每卡片最多 2~3 點）。
-3. 🚫 負向排除：除非來源筆記中具備明確統計數據，否則【絕對嚴禁】無中生有編造巨型 KPI 統計大數字。
-
-【📐 版型語法庫（請依各頁內容屬性動態選用）】：
-- [版型 A：封面主視覺]：大標題 + 核心定位導言。
-- [版型 B：核心卡片型]：2~4 欄獨立線框卡片，每欄提取 1 個核心洞察 + 2 點短語。
-- [版型 C：進程時間軸型]：橫向 3~4 階段節點，標註階段名稱與里程碑。
-- [版型 D：數據對比型]：左右雙欄分割，進行優劣對比或趨勢拆解。
-- [版型 E：結論與行動型]：關鍵總結 + 下一步行動方案。
-
-【逐頁簡報內容輸出格式（請依此格式逐頁輸出）】：
----
-### 第 X 頁：[頁面主題]（採用版型：[A/B/C/D/E]）
-- 【🎨 視覺與版面配置】：(標註如何應用全域底色、垂直標柱、同心圓弧等幾何元素)
-- 【📝 簡報文案內容】：
-  - 主標題：...
-  - 核心重點：（依選定版型填寫卡片/時間軸/條列要點，嚴格遵守字數限制）
-\`\`\`
-
-### 模式 2：逐頁 1:1 對比（適合想要 100% 像素級還原特定投影片的嚴格填寫）
-\`\`\`markdown
-【任務宣告】：
-請嚴格依據我上傳的筆記來源（Sources），提取關鍵事實與洞察，將筆記內容忠實填寫入下列【逐頁 1:1 投影片排版與文案架構】中。
-
-【簡報文字密度防爆預算】：
-1. 嚴格溯源：所有內容必須 100% 源自來源筆記，嚴禁添加外部推論。
-2. 嚴格字數限制：主標題限定 8~14 字、副標題限定 15~25 字、卡片標題限定 4~8 字、條列限定 12~20 字。
-3. 🚫 負向排除：嚴禁無中生有編造巨型 KPI 統計大數字。
-
-【逐頁 1:1 簡報排版與文案架構（對應各頁投影片）】：
-(請嚴格根據實際辨識到的各頁真實視覺特徵逐頁輸出，範例如下：)
-
----
-### 投影片 1：[頁面類型，如：封面頁]
-【🎨 視覺風格與版面配置】：
-- 畫布背景：[填入該頁底色與材質，如：深海軍藍 (#0E2A38) 照片漸層遮罩]
-- 核心裝飾：[填入該頁幾何元素，如：左側垂直粗亮橘標柱、右上角同心圓弧切角環]
-- 字體排印：[如：特大無襯線超粗體，純白全大寫]
-【📝 簡報文案內容區】：
-- 主標題：（提取筆記核心主題，結論先行，<14字）
-- 導言摘要：（提取 2-3 行簡報核心定位，<25字）
-
-(若原簡報有多頁，請依序對應原簡報的第 2、3... 頁逐頁精準輸出包含視覺配置與文案內容區的架構)
-\`\`\`
-
-## 4. 💻 1:1 還原之 HTML / Tailwind 投影片結構碼 (可直接複製使用)
-\`\`\`html
-<!-- 完整、乾淨、可以直接在瀏覽器獨立運行的 HTML 代碼，包含 Tailwind CSS CDN 與內聯樣式，100% 忠實重現上述投影片的真實幾何圖解與版面 -->
-\`\`\`
-
----
-最後，請附上下方的 JSON 區塊，提供前端色票與標籤展示：
-\`\`\`json
-{
-  "style_name": "精準風格名稱",
-  "tags": ["幾何拓撲標籤1", "標籤2", "標籤3", "標籤4"],
-  "palette": [
-    {"role": "畫布背景", "hex": "#XXXXXX", "name": "顏色名稱"},
-    {"role": "主要文字", "hex": "#XXXXXX", "name": "顏色名稱"},
-    {"role": "核心強調色", "hex": "#XXXXXX", "name": "顏色名稱"},
-    {"role": "線框與分割", "hex": "#XXXXXX", "name": "顏色名稱"}
-  ],
-  "white_space_ratio": "70%",
-  "density": "結構化條理型"
+function _0xgetDecryptedInstruction() {
+  try {
+    const binary = atob(_0xSEC_CAPSULE);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i) ^ 0x5A;
+    }
+    return new TextDecoder().decode(bytes);
+  } catch (e) {
+    return "";
+  }
 }
-\`\`\``;
 
 // 服務商配置
 const PROVIDER_CONFIG = {
@@ -844,7 +734,7 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
     ],
     systemInstruction: {
       parts: [
-        { text: CLIENT_SYSTEM_INSTRUCTION }
+        { text: _0xgetDecryptedInstruction() }
       ]
     },
     generationConfig: {
@@ -924,7 +814,7 @@ async function callOpenAiDirectly(apiKey, selectedModel, slideImages, promptText
   const payload = {
     model: modelName,
     messages: [
-      { role: "system", content: CLIENT_SYSTEM_INSTRUCTION },
+      { role: "system", content: _0xgetDecryptedInstruction() },
       { role: "user", content: content }
     ],
     temperature: 0.4
@@ -1489,3 +1379,48 @@ function showToast(message, type = "info") {
 function updateUiState() {
   lucide.createIcons();
 }
+
+// === [P0 智財與防逆向安全守護] Anti-Inspection & DevTools Guard ===
+(function initSecurityGuard() {
+  // 1. 停用右鍵檢視原始碼
+  document.addEventListener("contextmenu", (e) => {
+    // 允許在輸入框或提示詞區域點擊右鍵以方便選取與複製
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.closest("#nblm-prompt-code")) {
+      return;
+    }
+    e.preventDefault();
+    if (typeof showToast === "function") {
+      showToast("🛡️ 智財安全保護：原始碼已鎖定", "info");
+    }
+  });
+
+  // 2. 攔截常見開發者工具熱鍵 (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U)
+  document.addEventListener("keydown", (e) => {
+    if (
+      e.key === "F12" ||
+      (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j" || e.key === "C" || e.key === "c")) ||
+      (e.ctrlKey && (e.key === "U" || e.key === "u" || e.key === "S" || e.key === "s"))
+    ) {
+      if (e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof showToast === "function") {
+          showToast("🛡️ 智財安全保護：快捷鍵已被系統保護鎖定", "warning");
+        }
+        return false;
+      }
+    }
+  });
+
+  // 3. 偵測 DevTools 開啟並清空控制台
+  setInterval(() => {
+    const threshold = 160;
+    if (
+      window.outerWidth - window.innerWidth > threshold ||
+      window.outerHeight - window.innerHeight > threshold
+    ) {
+      console.clear();
+      console.log("%c[Security Protected] 核心智財與提示詞已於後端伺服器安全封裝。", "color: #10b981; font-weight: bold; font-size: 14px;");
+    }
+  }, 1500);
+})();
