@@ -27,7 +27,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Marked.js for Markdown Rendering -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=2.3">
+  <link rel="stylesheet" href="style.css?v=2.4">
 </head>
 <body class="bg-[#0B0F19] text-slate-100 min-h-screen flex flex-col font-sans selection:bg-blue-600 selection:text-white">
 
@@ -242,71 +242,60 @@
       <!-- 3. 結果成果中心 -->
       <div id="panel-result" class="hidden flex flex-col space-y-5">
         
-        <!-- ★ 核心亮點：原稿 vs 還原效果對照 -->
-        <div class="bg-[#161F30] rounded-2xl p-5 card-soft-shadow border border-slate-750 space-y-4">
-          
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/80 pb-3.5">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-sky-400 flex items-center gap-1.5">
-                  <i data-lucide="check-check" class="w-4 h-4 text-emerald-400"></i>
-                  原稿與還原效果對照
-                </span>
-                <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-950/60 text-emerald-300 font-bold border border-emerald-800">
-                  排版 100% 對齊
-                </span>
-                <span id="result-auto-badge" class="hidden text-[11px] px-2.5 py-0.5 rounded-full bg-slate-800 text-sky-300 font-medium border border-slate-700"></span>
-              </div>
-              <h2 id="result-style-name" class="text-lg font-bold text-slate-100 mt-1">簡報風格名稱</h2>
-            </div>
-
-            <!-- 控制列：頁數切換 + 檢視模式 -->
+        <!-- 頂部標題與直達快捷按鈕 -->
+        <div class="bg-[#161F30] rounded-2xl p-5 card-soft-shadow border border-slate-750 flex flex-wrap items-center justify-between gap-4">
+          <div class="space-y-1">
             <div class="flex items-center gap-2">
-              <!-- 多頁翻頁器 -->
-              <div id="slide-page-nav" class="hidden items-center bg-slate-900 rounded-xl p-1 border border-slate-700 text-xs font-medium">
-                <button id="btn-prev-slide" class="px-2 py-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer">
-                  <i data-lucide="chevron-left" class="w-4 h-4"></i>
-                </button>
-                <span id="slide-page-indicator" class="px-2 text-slate-300 font-mono text-[11px]">第 1 頁</span>
-                <button id="btn-next-slide" class="px-2 py-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer">
-                  <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                </button>
-              </div>
-
-              <!-- 檢視模式切換按鈕 -->
-              <div class="flex bg-slate-900 rounded-xl p-1 border border-slate-700 text-xs font-semibold">
-                <button id="mode-btn-split" class="px-3 py-1.5 rounded-lg bg-slate-800 text-sky-300 shadow-sm cursor-pointer transition-all flex items-center gap-1 font-bold border border-slate-700">
-                  <i data-lucide="columns-2" class="w-3.5 h-3.5 text-sky-400"></i>
-                  <span>並排對照</span>
-                </button>
-                <button id="mode-btn-reconstruct" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 cursor-pointer transition-all flex items-center gap-1">
-                  <i data-lucide="monitor" class="w-3.5 h-3.5"></i>
-                  <span>僅看還原效果</span>
-                </button>
-                <button id="mode-btn-original" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 cursor-pointer transition-all flex items-center gap-1">
-                  <i data-lucide="image" class="w-3.5 h-3.5"></i>
-                  <span>僅看原始檔案</span>
-                </button>
-              </div>
+              <span class="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                <i data-lucide="check-check" class="w-4 h-4 text-emerald-400"></i>
+                風格與排版已解析完成
+              </span>
+              <span id="result-auto-badge" class="hidden text-[11px] px-2.5 py-0.5 rounded-full bg-slate-800 text-sky-300 font-medium border border-slate-700"></span>
+            </div>
+            <h2 id="result-style-name" class="text-lg font-bold text-slate-100">簡報風格名稱</h2>
+            <div id="result-tags-container" class="flex flex-wrap gap-1.5 pt-1">
+              <!-- 動態插入標籤 -->
             </div>
           </div>
 
-          <!-- 風格標籤列 -->
-          <div id="result-tags-container" class="flex flex-wrap gap-2">
-            <!-- 動態插入標籤 -->
+          <!-- 核心直達工作流快捷按鈕 -->
+          <div class="flex flex-wrap gap-2.5">
+            <button id="btn-copy-and-open-nblm" class="px-4 py-2.5 font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-md shadow-sky-600/20 flex items-center gap-1.5 transition-all cursor-pointer text-xs">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span>複製指令並打開 NotebookLM ↗</span>
+            </button>
+            <button id="btn-copy-and-open-gamma" class="px-4 py-2.5 font-bold bg-purple-600 hover:bg-purple-500 text-white rounded-xl shadow-md shadow-purple-600/20 flex items-center gap-1.5 transition-all cursor-pointer text-xs">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+              <span>複製指令並打開 Gamma ↗</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 參考簡報與色彩方案卡片 -->
+        <div class="bg-[#161F30] rounded-2xl p-5 card-soft-shadow border border-slate-750 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-700/80 pb-3">
+            <div class="flex items-center gap-2">
+              <i data-lucide="image" class="w-4 h-4 text-sky-400"></i>
+              <span class="text-xs font-bold text-slate-200">參考簡報與色彩方案</span>
+            </div>
+            <!-- 多頁翻頁器 -->
+            <div id="slide-page-nav" class="hidden items-center bg-slate-900 rounded-xl p-1 border border-slate-700 text-xs font-medium">
+              <button id="btn-prev-slide" class="px-2 py-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+              </button>
+              <span id="slide-page-indicator" class="px-2 text-slate-300 font-mono text-[11px]">第 1 頁</span>
+              <button id="btn-next-slide" class="px-2 py-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer">
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </button>
+            </div>
           </div>
 
-          <!-- 雙欄幻燈片展廳 -->
-          <div id="comparison-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-            
-            <!-- 左欄：原始投影片 -->
-            <div id="pane-original-slide" class="flex flex-col space-y-2">
-              <div class="flex items-center justify-between text-xs font-bold text-slate-300 px-1">
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-slate-500"></span>
-                  你的原始投影片
-                </span>
-                <span class="text-[11px] text-slate-400 font-mono" id="original-page-label">Page 1</span>
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+            <!-- 左欄：原檔投影片圖片 (5 cols) -->
+            <div class="md:col-span-5 flex flex-col space-y-2">
+              <div class="flex items-center justify-between text-xs font-semibold text-slate-400 px-1">
+                <span>原始簡報預覽</span>
+                <span class="text-[11px] font-mono text-slate-500" id="original-page-label">Page 1</span>
               </div>
               <div class="relative w-full aspect-video rounded-xl bg-[#0B0F19] border border-slate-700 overflow-hidden slide-frame-shadow flex items-center justify-center">
                 <img id="img-original-slide" src="" alt="原始投影片" class="w-full h-full object-contain">
@@ -316,60 +305,24 @@
               </div>
             </div>
 
-            <!-- 右欄：還原出的投影片效果 -->
-            <div id="pane-reconstructed-slide" class="flex flex-col space-y-2">
-              <div class="flex items-center justify-between text-xs font-bold text-sky-400 px-1">
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  還原出的投影片效果
+            <!-- 右欄：配色方案色票 (7 cols) -->
+            <div class="md:col-span-7 flex flex-col space-y-2.5">
+              <div class="flex items-center justify-between text-xs font-semibold text-slate-400 px-1">
+                <span class="flex items-center gap-1.5 text-slate-200 font-bold">
+                  <i data-lucide="palette" class="w-3.5 h-3.5 text-amber-400"></i>
+                  色彩方案（點擊代碼複製 Hex）
                 </span>
-                <span class="text-[11px] text-emerald-300 font-medium bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800">
-                  風格已鎖定
+                <span id="white-space-metric" class="text-[11px] text-slate-300 bg-slate-800 px-2.5 py-0.5 rounded-lg border border-slate-700">
+                  留白比例: 70%
                 </span>
               </div>
-              <div class="relative w-full aspect-video rounded-xl bg-[#0B0F19] border border-slate-700 overflow-hidden slide-frame-shadow">
-                <iframe id="slide-preview-iframe" class="w-full h-full border-0" sandbox="allow-scripts allow-same-origin"></iframe>
+              <div id="color-palette-container" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <!-- 動態插入色票卡片 -->
+              </div>
+              <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-400 leading-relaxed mt-1">
+                💡 <strong>提示詞已內嵌排版保護</strong>：AI 將嚴格按照原簡報的靶心同心圓、多階段里程碑與卡片幾何槽位填入內容，絕不隨機捏造大數字或無關科技圖標。
               </div>
             </div>
-
-          </div>
-
-          <!-- 核心直達工作流按鈕組 (超實用直通按鈕) -->
-          <div class="pt-3 border-t border-slate-750 flex flex-wrap items-center justify-between gap-3">
-            <span class="text-xs text-slate-400">
-              👉 滿意此排版？點擊下方快捷按鈕，直接開始製作：
-            </span>
-            <div class="flex flex-wrap gap-2">
-              <button id="btn-copy-and-open-nblm" class="px-4 py-2 font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-md shadow-sky-600/20 flex items-center gap-1.5 transition-all cursor-pointer text-xs">
-                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-                <span>複製指令並打開 NotebookLM ↗</span>
-              </button>
-              <button id="btn-copy-and-open-gamma" class="px-4 py-2 font-bold bg-purple-600 hover:bg-purple-500 text-white rounded-xl shadow-md shadow-purple-600/20 flex items-center gap-1.5 transition-all cursor-pointer text-xs">
-                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-                <span>複製指令並打開 Gamma ↗</span>
-              </button>
-              <button id="btn-open-preview-window" class="px-3 py-2 font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700 flex items-center gap-1 transition-all cursor-pointer text-xs">
-                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                全螢幕展示
-              </button>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- 這份簡報的配色方案 (設計色票卡片) -->
-        <div class="bg-[#161F30] rounded-2xl p-5 card-soft-shadow border border-slate-750 space-y-3">
-          <div class="flex items-center justify-between text-xs">
-            <div class="font-bold text-slate-100 flex items-center gap-2">
-              <i data-lucide="palette" class="w-4 h-4 text-amber-400"></i>
-              這份簡報的配色方案 (點擊代碼直接複製)
-            </div>
-            <span id="white-space-metric" class="text-xs text-slate-300 bg-slate-800 px-2.5 py-0.5 rounded-lg border border-slate-700">
-              留白比例: 70%
-            </span>
-          </div>
-          <div id="color-palette-container" class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-            <!-- 動態插入色票卡片 -->
           </div>
         </div>
 
@@ -704,7 +657,7 @@
     <span id="toast-text">通知內容</span>
   </div>
 
-  <script src="app.js?v=2.3"></script>
+  <script src="app.js?v=2.4"></script>
   <script>
     lucide.createIcons();
   </script>

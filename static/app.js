@@ -395,11 +395,6 @@ function setupEventListeners() {
     });
   });
 
-  // 檢視模式切換 (並排 / 僅看還原 / 僅看原檔)
-  on("mode-btn-split", "click", () => setComparisonMode("split"));
-  on("mode-btn-reconstruct", "click", () => setComparisonMode("reconstruct"));
-  on("mode-btn-original", "click", () => setComparisonMode("original"));
-
   // 投影片翻頁監聽
   on("btn-prev-slide", "click", () => {
     if (currentComparisonPage > 0) {
@@ -710,18 +705,9 @@ function renderAnalysisResult(data) {
     gammaCodeEl.textContent = generatedGammaPrompt || "未能擷取到特定 Gamma 指令，請參閱完整規範報告。";
   }
 
-  // 渲染右側 1:1 投影片 iframe
-  if (generatedSlideHtml) {
-    const iframe = document.getElementById("slide-preview-iframe");
-    if (iframe) {
-      iframe.srcdoc = buildFullSlideHtml(generatedSlideHtml);
-    }
-  }
-
-  // 更新「左右並排對比」視窗
+  // 更新投影片預覽視窗
   currentComparisonPage = 0;
   updateComparisonView();
-  setComparisonMode("split");
 
   // 預設切換至 NotebookLM 提示詞頁籤
   switchResultTab("nblm");
@@ -804,39 +790,7 @@ function updateComparisonView() {
   }
 }
 
-// 檢視模式切換 (並排 / 僅看還原 / 僅看原檔)
-function setComparisonMode(mode) {
-  currentComparisonMode = mode;
-  const grid = document.getElementById("comparison-grid");
-  const paneOriginal = document.getElementById("pane-original-slide");
-  const paneReconstruct = document.getElementById("pane-reconstructed-slide");
-  
-  const btnSplit = document.getElementById("mode-btn-split");
-  const btnReconstruct = document.getElementById("mode-btn-reconstruct");
-  const btnOriginal = document.getElementById("mode-btn-original");
 
-  [btnSplit, btnReconstruct, btnOriginal].forEach(btn => {
-    btn.className = "px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 cursor-pointer transition-all flex items-center gap-1 text-xs font-semibold";
-  });
-
-  if (mode === "split") {
-    btnSplit.className = "px-3 py-1.5 rounded-lg bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer transition-all flex items-center gap-1 text-xs font-bold";
-    grid.className = "grid grid-cols-1 md:grid-cols-2 gap-4 pt-1";
-    paneOriginal.classList.remove("hidden");
-    paneReconstruct.classList.remove("hidden");
-  } else if (mode === "reconstruct") {
-    btnReconstruct.className = "px-3 py-1.5 rounded-lg bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer transition-all flex items-center gap-1 text-xs font-bold";
-    grid.className = "grid grid-cols-1 gap-4 pt-1";
-    paneOriginal.classList.add("hidden");
-    paneReconstruct.classList.remove("hidden");
-  } else if (mode === "original") {
-    btnOriginal.className = "px-3 py-1.5 rounded-lg bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer transition-all flex items-center gap-1 text-xs font-bold";
-    grid.className = "grid grid-cols-1 gap-4 pt-1";
-    paneOriginal.classList.remove("hidden");
-    paneReconstruct.classList.add("hidden");
-  }
-  lucide.createIcons();
-}
 
 function switchResultTab(tabName) {
   document.querySelectorAll(".result-tab-btn").forEach(btn => {
