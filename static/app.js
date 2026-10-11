@@ -2,56 +2,186 @@
 let selectedFiles = [];
 let generatedReportMarkdown = "";
 let generatedNblmPrompt = "";
+let currentProvider = localStorage.getItem("active_provider") || "gemini";
+let modalSelectedProvider = currentProvider;
 
-// DOM 元素載入
+// 模型規格資料庫
+const PROVIDER_CONFIG = {
+  gemini: {
+    name: "Google Gemini",
+    defaultPlaceholder: "AIzaSy...",
+    portalText: "前往 Google AI Studio 免費申請",
+    portalUrl: "https://aistudio.google.com/app/apikey",
+    models: [
+      { id: "auto", name: "⚡ 智慧自動判定（推薦首選：依投影片長度自動適配）" },
+      { id: "gemini-2.5-flash", name: "🚀 Gemini 2.5 Flash（日常首選：少頁截圖、3秒極速、額度最充裕）" },
+      { id: "gemini-1.5-pro", name: "🧠 Gemini 1.5 Pro（深度解析：10+ 頁超長簡報、複雜圖表剖析）" },
+      { id: "gemini-2.0-flash", name: "⚡ Gemini 2.0 Flash（次世代極速：快速推導排版與標籤）" }
+    ],
+    descriptions: {
+      "auto": {
+        title: "⚡ 智慧自動判定模式（免動腦首選）",
+        text: "系統自動偵測投影片總頁數：少於 10 頁時以 3 秒極速模型快速推導；長篇大報告則自動切換至百萬上下文 Pro 模型進行深度推論。"
+      },
+      "gemini-2.5-flash": {
+        title: "🚀 Gemini 2.5 Flash（日常極速首選）",
+        text: "速度約 3~5 秒。適合 1~10 頁精選截圖或一般投影片。色彩 Hex 與排版網格萃取精準，Google 免費額度最高、幾乎不觸發頻率限制。"
+      },
+      "gemini-1.5-pro": {
+        title: "🧠 Gemini 1.5 Pro（深度推論與長篇首選）",
+        text: "耗時約 12~20 秒。具備百萬 Token 超大上下文能力。專門應對 30+ 頁超長簡報、麥肯錫諮詢風密集圖表、或極度講求微光影與字距排印學的情境。"
+      },
+      "gemini-2.0-flash": {
+        title: "⚡ Gemini 2.0 Flash（次世代極速模型）",
+        text: "反應敏捷（約 3 秒完成）。專注於結構標籤快速推導，適合快速連續測試不同投影片風格。"
+      }
+    }
+  },
+  openai: {
+    name: "OpenAI",
+    defaultPlaceholder: "sk-proj-...",
+    portalText: "前往 OpenAI Platform 建立 Key",
+    portalUrl: "https://platform.openai.com/api-keys",
+    models: [
+      { id: "auto", name: "⚡ 智慧自動判定（推薦首選：依投影片長度自動適配）" },
+      { id: "gpt-4o", name: "🧠 GPT-4o（旗艦深度：高精準視覺理解與結構推導）" },
+      { id: "gpt-4o-mini", name: "🚀 GPT-4o mini（極速輕量：低成本、秒級分析）" }
+    ],
+    descriptions: {
+      "auto": {
+        title: "⚡ 智慧自動判定模式（OpenAI）",
+        text: "系統將自動依據頁數與複雜度，在 GPT-4o 旗艦模型與 GPT-4o mini 極速模型之間自動切換。"
+      },
+      "gpt-4o": {
+        title: "🧠 GPT-4o（OpenAI 旗艦多模態視覺）",
+        text: "全球頂級多模態模型，對高複雜排版與色彩反差有極高敏銳度，適合精準逆向專業簡報。"
+      },
+      "gpt-4o-mini": {
+        title: "🚀 GPT-4o mini（極速輕量）",
+        text: "極低成本、回應極快，適合日常投影片快速擷取色票與大綱。"
+      }
+    }
+  },
+  anthropic: {
+    name: "Anthropic Claude",
+    defaultPlaceholder: "sk-ant-...",
+    portalText: "前往 Anthropic Console 建立 Key",
+    portalUrl: "https://console.anthropic.com/settings/keys",
+    models: [
+      { id: "auto", name: "⚡ 智慧自動判定（推薦首選：依投影片長度自動適配）" },
+      { id: "claude-3-5-sonnet-20241022", name: "🧠 Claude 3.5 Sonnet（美學旗艦：極致排版與設計語言感悟）" },
+      { id: "claude-3-5-haiku-20241022", name: "🚀 Claude 3.5 Haiku（極速輕量：快速架構萃取）" }
+    ],
+    descriptions: {
+      "auto": {
+        title: "⚡ 智慧自動判定模式（Claude）",
+        text: "系統預設使用被譽為設計審美最強的 Claude 3.5 Sonnet 模型為您進行風格逆向。"
+      },
+      "claude-3-5-sonnet-20241022": {
+        title: "🧠 Claude 3.5 Sonnet（設計美學首選）",
+        text: "業界公認文字品味、排版語言理解與 Markdown 規範遵循度最高的頂級視覺模型。"
+      },
+      "claude-3-5-haiku-20241022": {
+        title: "🚀 Claude 3.5 Haiku（極速輕量）",
+        text: "速度極快，兼顧 Claude 優質的文筆與架構提煉能力。"
+      }
+    }
+  }
+};
+
+// DOM 初始化
 document.addEventListener("DOMContentLoaded", () => {
+  initProviderAndModels();
   initApiKeyStatus();
   setupEventListeners();
   updateUiState();
 });
 
-// === 1. API KEY 管理 (完全用戶端本地儲存，保障資安) ===
-function getApiKey() {
-  return localStorage.getItem("gemini_api_key") || "";
+// === 1. API KEY 管理 (分供應商獨立儲存於用戶端 LocalStorage) ===
+function getApiKey(provider = currentProvider) {
+  return localStorage.getItem(`${provider}_api_key`) || "";
 }
 
-function setApiKey(key) {
+function setApiKey(provider, key) {
   if (key && key.trim()) {
-    localStorage.setItem("gemini_api_key", key.trim());
+    localStorage.setItem(`${provider}_api_key`, key.trim());
   } else {
-    localStorage.removeItem("gemini_api_key");
+    localStorage.removeItem(`${provider}_api_key`);
   }
   initApiKeyStatus();
 }
 
 function initApiKeyStatus() {
-  const key = getApiKey();
+  const key = getApiKey(currentProvider);
   const dot = document.getElementById("status-indicator-dot");
   const text = document.getElementById("status-indicator-text");
-  const modalInput = document.getElementById("input-api-key");
+  const config = PROVIDER_CONFIG[currentProvider];
   
   if (key) {
     dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
-    text.textContent = "Gemini Key 已就緒";
+    text.textContent = `${config.name} Key 已就緒`;
     text.className = "text-emerald-300 font-medium";
-    modalInput.value = key;
   } else {
     dot.className = "w-2 h-2 rounded-full bg-amber-400";
-    text.textContent = "設定 Gemini Key";
+    text.textContent = `設定 ${config.name} Key`;
     text.className = "text-amber-300 font-medium";
-    modalInput.value = "";
   }
+}
+
+// 切換供應商與更新模型下拉清單
+function switchProvider(newProvider) {
+  currentProvider = newProvider;
+  localStorage.setItem("active_provider", newProvider);
+
+  // 更新主面板供應商標籤外觀
+  document.querySelectorAll("#provider-selector .provider-tab").forEach(btn => {
+    const p = btn.getAttribute("data-provider");
+    if (p === newProvider) {
+      btn.className = "provider-tab px-2.5 py-2 rounded-xl text-xs font-semibold border transition-all flex flex-col items-center gap-1 bg-indigo-600/20 text-indigo-300 border-indigo-500 shadow-sm";
+    } else {
+      btn.className = "provider-tab px-2.5 py-2 rounded-xl text-xs font-semibold border transition-all flex flex-col items-center gap-1 bg-surface-850 text-slate-400 border-slate-800 hover:border-slate-700";
+    }
+  });
+
+  // 更新模型選單
+  const config = PROVIDER_CONFIG[newProvider];
+  const modelSelect = document.getElementById("model-select");
+  modelSelect.innerHTML = "";
+  config.models.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = m.name;
+    modelSelect.appendChild(opt);
+  });
+
+  updateModelDescription();
+  initApiKeyStatus();
+  lucide.createIcons();
+}
+
+function updateModelDescription() {
+  const config = PROVIDER_CONFIG[currentProvider];
+  const modelSelect = document.getElementById("model-select");
+  const selectedModelId = modelSelect.value || "auto";
+  const desc = config.descriptions[selectedModelId] || config.descriptions["auto"];
+
+  document.getElementById("model-desc-title").textContent = desc.title;
+  document.getElementById("model-desc-text").textContent = desc.text;
+}
+
+function initProviderAndModels() {
+  switchProvider(currentProvider);
 }
 
 // === 2. 事件監聽設置 ===
 function setupEventListeners() {
-  // 模態視窗開關
   const modalApiKey = document.getElementById("modal-apikey");
   const modalTutorial = document.getElementById("modal-tutorial");
   const modalSecurity = document.getElementById("modal-security");
 
+  // 頂部導航按鈕
   document.getElementById("btn-apikey-modal").addEventListener("click", () => {
-    modalApiKey.classList.remove("hidden");
+    openApiKeyModal(currentProvider);
   });
   document.getElementById("btn-close-apikey-modal").addEventListener("click", () => {
     modalApiKey.classList.add("hidden");
@@ -65,8 +195,8 @@ function setupEventListeners() {
   });
   document.getElementById("btn-tutorial-got-it").addEventListener("click", () => {
     modalTutorial.classList.add("hidden");
-    if (!getApiKey()) {
-      modalApiKey.classList.remove("hidden");
+    if (!getApiKey(currentProvider)) {
+      openApiKeyModal(currentProvider);
     }
   });
 
@@ -80,24 +210,48 @@ function setupEventListeners() {
     modalSecurity.classList.add("hidden");
   });
 
-  // API Key 儲存 / 清除 / 顯隱
+  // 主面板供應商切換
+  document.querySelectorAll("#provider-selector .provider-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const p = btn.getAttribute("data-provider");
+      switchProvider(p);
+    });
+  });
+
+  // 模型切換
+  document.getElementById("model-select").addEventListener("change", updateModelDescription);
+
+  // 金鑰設定彈窗內供應商切換
+  document.querySelectorAll("#modal-provider-selector .modal-provider-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const p = btn.getAttribute("data-modal-provider");
+      openApiKeyModal(p);
+    });
+  });
+
+  // 儲存金鑰
   document.getElementById("btn-save-key").addEventListener("click", () => {
     const key = document.getElementById("input-api-key").value.trim();
     if (!key) {
       showToast("請輸入有效金鑰，或點擊清除", "warning");
       return;
     }
-    setApiKey(key);
+    setApiKey(modalSelectedProvider, key);
     modalApiKey.classList.add("hidden");
-    showToast("API Key 已安全儲存於您本地瀏覽器！", "success");
+    showToast(`${PROVIDER_CONFIG[modalSelectedProvider].name} 金鑰已安全保存於本地！`, "success");
+    if (modalSelectedProvider !== currentProvider) {
+      switchProvider(modalSelectedProvider);
+    }
   });
 
+  // 清除金鑰
   document.getElementById("btn-clear-key").addEventListener("click", () => {
-    setApiKey("");
-    modalApiKey.classList.add("hidden");
-    showToast("已清除本地保存之 API Key", "info");
+    setApiKey(modalSelectedProvider, "");
+    document.getElementById("input-api-key").value = "";
+    showToast(`已清除 ${PROVIDER_CONFIG[modalSelectedProvider].name} 本地金鑰`, "info");
   });
 
+  // 密碼顯隱切換
   const toggleBtn = document.getElementById("btn-toggle-key-visibility");
   const keyInput = document.getElementById("input-api-key");
   toggleBtn.addEventListener("click", () => {
@@ -109,6 +263,23 @@ function setupEventListeners() {
       toggleBtn.innerHTML = '<i data-lucide="eye" class="w-4 h-4"></i>';
     }
     lucide.createIcons();
+  });
+
+  // 教學頁籤切換
+  document.querySelectorAll(".tut-tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tut = btn.getAttribute("data-tut");
+      document.querySelectorAll(".tut-tab-btn").forEach(b => {
+        b.className = "tut-tab-btn py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200";
+      });
+      btn.className = "tut-tab-btn py-2 border-b-2 border-indigo-500 text-indigo-300 font-semibold";
+
+      document.getElementById("tut-content-gemini").classList.add("hidden");
+      document.getElementById("tut-content-openai").classList.add("hidden");
+      document.getElementById("tut-content-anthropic").classList.add("hidden");
+      document.getElementById(`tut-content-${tut}`).classList.remove("hidden");
+      lucide.createIcons();
+    });
   });
 
   // 拖曳上傳與檔案選擇
@@ -148,40 +319,10 @@ function setupEventListeners() {
     showToast("已清空選擇檔案", "info");
   });
 
-  // 模型切換白話文說明
-  const modelSelect = document.getElementById("model-select");
-  const modelDescTitle = document.getElementById("model-desc-title");
-  const modelDescText = document.getElementById("model-desc-text");
-
-  const modelDescriptions = {
-    "auto": {
-      title: "⚡ 智慧自動判定模式（免動腦首選）",
-      text: "系統自動偵測投影片總頁數與元素密度：少於 10 頁時以 3 秒極速模型快速推導；長篇大報告則自動切換至百萬上下文 Pro 模型進行深度推論。"
-    },
-    "gemini-2.5-flash": {
-      title: "🚀 Gemini 2.5 Flash（日常極速首選）",
-      text: "速度約 3~5 秒。適合 1~10 頁精選截圖或一般投影片。色彩 Hex 與排版網格萃取精準，Google 免費額度最高、幾乎不觸發頻率限制。"
-    },
-    "gemini-1.5-pro": {
-      title: "🧠 Gemini 1.5 Pro（深度推論與長篇首選）",
-      text: "耗時約 12~20 秒。具備百萬 Token 超大上下文能力。專門應對 30+ 頁超長簡報、麥肯錫諮詢風密集圖表、或極度講求微光影與字距排印學的情境。"
-    },
-    "gemini-2.0-flash": {
-      title: "⚡ Gemini 2.0 Flash（次世代極速模型）",
-      text: "反應敏捷（約 3 秒完成）。專注於結構標籤快速推導，適合快速連續測試不同投影片風格。"
-    }
-  };
-
-  modelSelect.addEventListener("change", (e) => {
-    const desc = modelDescriptions[e.target.value] || modelDescriptions["auto"];
-    modelDescTitle.textContent = desc.title;
-    modelDescText.textContent = desc.text;
-  });
-
   // 開始分析按鈕
   document.getElementById("btn-start-analyze").addEventListener("click", handleStartAnalyze);
 
-  // 複製按鈕們
+  // 複製與下載按鈕
   document.getElementById("btn-copy-nblm").addEventListener("click", () => {
     if (!generatedNblmPrompt) return;
     navigator.clipboard.writeText(generatedNblmPrompt).then(() => {
@@ -200,7 +341,6 @@ function setupEventListeners() {
     });
   });
 
-  // 匯出 Markdown 按鈕
   document.getElementById("btn-export-markdown").addEventListener("click", () => {
     if (!generatedReportMarkdown) return;
     const blob = new Blob([generatedReportMarkdown], { type: "text/markdown;charset=utf-8" });
@@ -214,6 +354,35 @@ function setupEventListeners() {
     URL.revokeObjectURL(url);
     showToast("已下載報告檔案！", "success");
   });
+}
+
+function openApiKeyModal(provider) {
+  modalSelectedProvider = provider;
+  const config = PROVIDER_CONFIG[provider];
+  const modalApiKey = document.getElementById("modal-apikey");
+
+  // 更新彈窗內的按鈕選中樣式
+  document.querySelectorAll("#modal-provider-selector .modal-provider-btn").forEach(btn => {
+    const p = btn.getAttribute("data-modal-provider");
+    if (p === provider) {
+      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition-all text-center bg-indigo-600/20 text-indigo-300 border-indigo-500";
+    } else {
+      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition-all text-center bg-surface-850 text-slate-400 border-slate-800 hover:border-slate-700";
+    }
+  });
+
+  // 更新輸入框與官方連結
+  document.getElementById("modal-key-label").textContent = `${config.name} API Key：`;
+  const keyInput = document.getElementById("input-api-key");
+  keyInput.placeholder = config.defaultPlaceholder;
+  keyInput.value = getApiKey(provider);
+
+  const portalLink = document.getElementById("modal-portal-link");
+  portalLink.href = config.portalUrl;
+  document.getElementById("modal-portal-text").textContent = config.portalText;
+
+  modalApiKey.classList.remove("hidden");
+  lucide.createIcons();
 }
 
 // === 3. 檔案處理與縮圖預覽 ===
@@ -239,7 +408,6 @@ async function handleFilesAdded(files) {
     const ext = "." + file.name.split(".").pop().toLowerCase();
     
     if (ext === ".pdf" || ext === ".pptx") {
-      // 呼叫後端提取 PDF / PPTX 縮圖
       const previewCard = document.createElement("div");
       previewCard.className = "relative rounded-lg border border-slate-700 bg-surface-800 p-2 flex flex-col items-center justify-center text-center text-xs text-slate-300";
       const fileIcon = ext === ".pptx" ? "presentation" : "file-text";
@@ -278,7 +446,6 @@ async function handleFilesAdded(files) {
       }
 
     } else {
-      // 圖片格式直接前端預覽
       const reader = new FileReader();
       reader.onload = (e) => {
         const card = document.createElement("div");
@@ -299,14 +466,14 @@ async function handleFilesAdded(files) {
 // === 4. 開始發起分析流程 ===
 async function handleStartAnalyze() {
   if (selectedFiles.length === 0) {
-    showToast("請先上傳簡報 PDF 或投影片圖片！", "warning");
+    showToast("請先上傳簡報 PPTX、PDF 或投影片圖片！", "warning");
     return;
   }
 
-  const apiKey = getApiKey();
+  const apiKey = getApiKey(currentProvider);
   if (!apiKey) {
-    showToast("請先輸入您的 Google Gemini API Key（免費）", "warning");
-    document.getElementById("modal-apikey").classList.remove("hidden");
+    showToast(`請先輸入您的 ${PROVIDER_CONFIG[currentProvider].name} API Key`, "warning");
+    openApiKeyModal(currentProvider);
     return;
   }
 
@@ -324,19 +491,15 @@ async function handleStartAnalyze() {
     formData.append("files", file);
   });
 
-  const model = document.getElementById("model-select").value;
+  formData.append("provider", currentProvider);
+  const model = document.getElementById("model-select").value || "auto";
   formData.append("model", model);
-  
-  const customFocus = document.getElementById("custom-focus").value;
-  if (customFocus) {
-    formData.append("custom_focus", customFocus);
-  }
 
   try {
     const response = await fetch("/api/analyze", {
       method: "POST",
       headers: {
-        "x-gemini-api-key": apiKey
+        "x-api-key": apiKey
       },
       body: formData
     });
@@ -347,7 +510,6 @@ async function handleStartAnalyze() {
       throw new Error(data.detail || "分析失敗");
     }
 
-    // 成功渲染結果
     renderAnalysisResult(data);
     showToast("風格逆向分析完成！已為您產生 NBLM 提示詞", "success");
 
@@ -366,19 +528,15 @@ async function handleStartAnalyze() {
 function renderAnalysisResult(data) {
   generatedReportMarkdown = data.markdown_report || "";
   
-  // 切換面板
   document.getElementById("panel-idle").classList.add("hidden");
   document.getElementById("panel-loading").classList.add("hidden");
   document.getElementById("panel-result").classList.remove("hidden");
 
-  // 1. 提取 NotebookLM 專用提示詞
   generatedNblmPrompt = extractNblmPrompt(generatedReportMarkdown);
   document.getElementById("nblm-prompt-code").textContent = generatedNblmPrompt || "未能擷取到特定提示詞區塊，請參閱下方全文報告。";
 
-  // 2. 結構化色票與標籤
   const meta = data.structured_meta || fallbackExtractMeta(generatedReportMarkdown);
   
-  // 風格名稱與自動判定標籤
   document.getElementById("result-style-name").textContent = meta.style_name || "簡報視覺風格解析報告";
 
   const autoBadge = document.getElementById("result-auto-badge");
@@ -392,7 +550,6 @@ function renderAnalysisResult(data) {
     autoBadge.classList.add("hidden");
   }
 
-  // 風格標籤
   const tagsContainer = document.getElementById("result-tags-container");
   tagsContainer.innerHTML = "";
   (meta.tags || ["簡報逆向", "視覺規範", "NBLM 適配"]).forEach(tag => {
@@ -402,12 +559,10 @@ function renderAnalysisResult(data) {
     tagsContainer.appendChild(span);
   });
 
-  // 留白比例
   if (meta.white_space_ratio) {
     document.getElementById("white-space-metric").textContent = `留白指標: ${meta.white_space_ratio}`;
   }
 
-  // 色票調色盤渲染
   renderColorPalette(meta.palette || [
     { role: "主背景色", hex: "#0F172A", name: "Deep Navy" },
     { role: "主要標題", hex: "#FFFFFF", name: "Pure White" },
@@ -415,14 +570,12 @@ function renderAnalysisResult(data) {
     { role: "視覺強調", hex: "#10B981", name: "Emerald Highlight" }
   ]);
 
-  // 3. 完整 Markdown 報告渲染
   const markdownContainer = document.getElementById("full-report-markdown");
   markdownContainer.innerHTML = marked.parse(generatedReportMarkdown);
 
   lucide.createIcons();
 }
 
-// 提取 NBLM 提示詞區塊
 function extractNblmPrompt(markdown) {
   if (markdown.includes("## 3. 📋 NotebookLM 專用簡報引導提示詞") || markdown.includes("NotebookLM 專用")) {
     const parts = markdown.split(/## 3\..*?NotebookLM.*?/i);
@@ -435,12 +588,10 @@ function extractNblmPrompt(markdown) {
       return section.trim();
     }
   }
-  // Fallback: 尋找第一個有 markdown 代碼區塊
   const firstBlock = markdown.match(/```(?:markdown)?([\s\S]*?)```/);
   return firstBlock ? firstBlock[1].trim() : markdown;
 }
 
-// 渲染色票卡片
 function renderColorPalette(palette) {
   const container = document.getElementById("color-palette-container");
   container.innerHTML = "";
@@ -470,7 +621,6 @@ function renderColorPalette(palette) {
   });
 }
 
-// Fallback: 從文字中抓取 Hex 碼
 function fallbackExtractMeta(markdown) {
   const hexMatches = markdown.match(/#[0-9a-fA-F]{6}/g) || ["#0F172A", "#FFFFFF", "#6366F1", "#10B981"];
   const uniqueHex = Array.from(new Set(hexMatches)).slice(0, 4);
@@ -486,7 +636,6 @@ function fallbackExtractMeta(markdown) {
   };
 }
 
-// === 6. Toast 提示通知 ===
 function showToast(message, type = "info") {
   const toast = document.getElementById("toast");
   const icon = document.getElementById("toast-icon");

@@ -1,56 +1,51 @@
-# 🔑 Google Gemini API 免費申請教學與資安防護指南
+# 🔑 各大主流 AI API 金鑰免費/快速申請教學與資安指南
 
-本工具核心採用 **Google Gemini Vision（多模態視覺 AI）**，能精準洞察簡報的色彩系統、留白比例、Bento Grid 模組化佈局、字型反差與圖表規範，並逆向生成適合 **NotebookLM** 的高精度提示詞。
-
----
-
-## 📌 第一部分：1 分鐘免費申請 Gemini API Key
-
-Google 針對個人開發者與一般使用者提供了極為慷慨的 **Free Tier（免費方案）**，完全不需要綁定信用卡！
-
-### 步驟 1：前往 Google AI Studio
-點擊官方直達連結：👉 **[https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)**
-
-### 步驟 2：登入 Google 帳號
-使用您平時常用的 Google 帳號登入（若出現服務條款請勾選同意）。
-
-### 步驟 3：建立 API 金鑰 (Create API Key)
-1. 點擊頁面中央或左上角的藍色按鈕 **「Create API key」**（建立 API 金鑰）。
-2. 在彈出的選項中，選擇 **「Create API key in new project」**（在全新專案中建立金鑰）。
-3. 系統會在幾秒鐘內產生一組金鑰（格式類似：`AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxxxxxx`）。
-
-### 步驟 4：複製並在網站中使用
-1. 點擊 **「Copy」**（複製）。
-2. 開啟本工具網頁（http://localhost:8000）。
-3. 點擊右上角 **「設定 Gemini Key」**。
-4. 貼上您的金鑰並點擊「儲存並使用」。
-5. **恭喜！您現在可以開始無限制免費逆向分析任何簡報風格！**
+本工具支援全球三大頂級 AI 視覺模型（**Google Gemini**、**OpenAI GPT-4o**、**Anthropic Claude 3.5 Sonnet**），能精準分析簡報風格並轉換為最適合 NotebookLM 的結構化提示詞。
 
 ---
 
-## 🛡️ 第二部分：網站分享資安防護架構（絕不外洩個人 Key）
+## 🌟 方案一：Google Gemini API（最推薦首選・完全免費）
 
-若您日後將此工具部署上線，或分享給同事、朋友使用，請務必了解本系統的資安防護機制：
+Google 針對個人開發者與一般大眾提供極充裕的 **Free Tier 免費方案**，**完全無須綁定信用卡**！
 
-### 1. 「零伺服器儲存」原則 (Zero-Server-Storage)
-* **用戶端專屬保存**：訪客在右上角輸入的 API Key，僅保存在其個人電腦的瀏覽器 `localStorage` 中。
-* **絕不落盤、絕不寫入檔案**：後端 Python 伺服器不會將使用者的 Key 寫入任何日誌（Logs）、資料庫或快取檔案。
-* **記憶體即時釋放**：每次請求僅在呼叫 Google API 時暫存於 RAM 中，一旦分析完成立刻從記憶體銷毀。
-
-### 2. BYOK (Bring Your Own Key) 各自自備模式
-* **日後公開分享時**：只要您不將自己的 API Key 寫死在代碼或伺服器環境變數中，**任何訪問該網站的外部使用者都必須輸入他們自己的免費 API Key 才能執行**。
-* 這意味著：
-  * ❌ 訪客**絕對看不到、也用不到您的個人 API Key**。
-  * ❌ 訪客的用量不會消耗您的配額。
-  * ✅ 每個人都享受各自 Google 帳號的免費配額，互不干擾、最安全。
+* **官方申請直達**：👉 **[https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)**
+* **步驟**：
+  1. 使用個人 Google 帳號登入 Google AI Studio。
+  2. 點擊藍色按鈕 **「Create API key」** ➔ 選擇 **「Create API key in new project」**。
+  3. 複製生成的金鑰（以 `AIzaSy...` 開頭）。
+  4. 回到本工具右上角點擊「設定 AI 金鑰」貼上即可享受無限制免費分析！
 
 ---
 
-## 💡 第三部分：如何將產出的提示詞套用到 NotebookLM？
+## 🟢 方案二：OpenAI API (GPT-4o / GPT-4o mini)
 
-1. **取得提示詞**：在分析完成後，點擊「一鍵複製提示詞」。
-2. **開啟 NotebookLM**：前往 [https://notebooklm.google.com/](https://notebooklm.google.com/)。
-3. **建立筆記本並上傳資料來源**：上傳您的研究文件、企劃草稿或會議紀錄。
-4. **貼入提示詞**：
-   * **方法 A（對話窗指令）**：在右側聊天輸入框直接貼上逆向出來的提示詞，並加上：「*請依據上述風格規範與版面模板，將我上傳的資料來源整理成 5 頁核心投影片大綱與文案*」。
-   * **方法 B（筆記本指引）**：將提示詞存入筆記本的「來源指引」中，讓未來的每次摘要都自動維持該簡報風格。
+如果您平時已有使用 OpenAI 帳戶或習慣使用 ChatGPT 體系，可使用 OpenAI 官方 API：
+
+* **官方申請直達**：👉 **[https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)**
+* **步驟**：
+  1. 登入 OpenAI Platform。
+  2. 點擊左側選單的 **「API keys」**。
+  3. 點擊 **「+ Create new secret key」**，為金鑰命名（例如 `nblm-reverser`）。
+  4. 複製生成的金鑰（以 `sk-proj-...` 開頭）並妥善保存（離開頁面後將無法再次檢視完整金鑰）。
+  5. 回到本工具選擇 OpenAI 並貼入使用。
+  * *註：OpenAI 採預付扣額制，需確認帳戶內有基本額度。*
+
+---
+
+## 🟣 方案三：Anthropic Claude API (Claude 3.5 Sonnet)
+
+Claude 3.5 Sonnet 被全球設計師與工程師公認為排版理解、字句品味與美學感悟最強的模型：
+
+* **官方申請直達**：👉 **[https://console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)**
+* **步驟**：
+  1. 前往 Anthropic Console 註冊或登入。
+  2. 進入 **Settings** ➔ **API Keys**。
+  3. 點擊 **「Create Key」** 並複製金鑰（以 `sk-ant-...` 開頭）。
+  4. 回到本工具選擇 Claude 並貼入使用。
+
+---
+
+## 🛡️ 資安防護承諾 (Zero-Server-Storage)
+
+* **零伺服器儲存**：無論您使用哪一家 AI 的金鑰，金鑰**僅儲存於您本地電腦的瀏覽器中（LocalStorage）**，絕不落盤、不寫入伺服器磁碟、不記錄至 Logs。
+* **BYOK 自備模式**：公開分享此網站時，任何訪客均需自備各自的金鑰，作者的個人金鑰與配額 100% 安全隔離！

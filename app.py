@@ -12,6 +12,8 @@ import fitz  # PyMuPDF
 from PIL import Image
 from google import genai
 from google.genai import types
+import openai
+import anthropic
 
 # 設置日誌（嚴格過濾敏感資訊）
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -159,27 +161,44 @@ async def file_preview(file: UploadFile = File(...)):
 @app.post("/api/analyze")
 async def analyze_style(
     files: List[UploadFile] = File(...),
-    model: str = Form("gemini-2.5-flash"),
+    provider: str = Form("gemini"),
+    model: str = Form("auto"),
     target_use: str = Form("notebooklm_slide"),
-    custom_focus: Optional[str] = Form(None),
-    x_gemini_api_key: Optional[str] = Header(None)
+    x_api_key: Optional[str] = Header(None),
+    x_gemini_api_key: Optional[str] = Header(None),
+    x_openai_api_key: Optional[str] = Header(None),
+    x_anthropic_api_key: Optional[str] = Header(None)
 ):
     """
-    接收投影片檔案（PDF、PPTX 或圖片），呼叫 Google Gemini API 進行風格逆向工程。
+    接收投影片檔案（PDF、PPTX 或圖片），
+    支援 Google Gemini、OpenAI (GPT-4o)、Anthropic Claude (3.5 Sonnet) 進行多模態風格逆向工程。
     【資安核心】：API Key 僅於當次請求記憶體中使用，不留存於磁碟或日誌中。
     """
-    api_key = x_gemini_api_key or os.environ.get("GEMINI_API_KEY", "").strip()
+    provider = provider.lower()
+    
+    # 決定使用的 API Key
+    if provider == "openai":
+        api_key = x_api_key or x_openai_api_key or os.environ.get("OPENAI_API_KEY", "").strip()
+        provider_name = "OpenAI"
+    elif provider == "anthropic":
+        api_key = x_api_key or x_anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY", "").strip()
+        provider_name = "Anthropic Claude"
+    else:
+        provider = "gemini"
+        api_key = x_api_key or x_gemini_api_key or os.environ.get("GEMINI_API_KEY", "").strip()
+        provider_name = "Google Gemini"
     
     if not api_key:
         raise HTTPException(
             status_code=401,
-            detail="【未提供 Gemini API Key】為了保護資安與隱私，本系統不會公開作者個人金鑰。請在右上角「設定 API Key」輸入您向 Google 免費申請的金鑰（完全免費且安全，僅儲存於您本地瀏覽器）。"
+            detail=f"【未提供 {provider_name} API Key】為了保護資安與隱私，本系統不留存伺服器金鑰。請在右上角「設定 API Key」選擇 {provider_name} 並輸入您的專屬金鑰。"
         )
 
     if not files or len(files) == 0:
         raise HTTPException(status_code=400, detail="請至少上傳一個 PDF、PPTX 或圖片檔案")
 
-    gemini_parts = []
+    # 統一收集圖像素材與投影片結構
+    standard_images = []  # List of tuples: (bytes, mime_type)
     pptx_summaries = []
     total_detected_pages = 0
     
@@ -195,28 +214,25 @@ async def analyze_style(
                 
                 # 附加上前 4 頁投影片的視覺佈局縮圖
                 for page in pptx_res["preview_pages"][:4]:
-                    gemini_parts.append(types.Part.from_bytes(data=page["bytes"], mime_type="image/jpeg"))
+                    standard_images.append((page["bytes"], "image/jpeg"))
                 
                 # 附加上 PPTX 內置的高畫質插圖/背景圖（最多前 4 張）
                 for _, img_bytes in pptx_res["media_images"][:4]:
-                    gemini_parts.append(types.Part.from_bytes(data=img_bytes, mime_type="image/png"))
+                    standard_images.append((img_bytes, "image/png"))
 
             elif filename.endswith(".pdf"):
-                part = types.Part.from_bytes(data=content, mime_type="application/pdf")
-                gemini_parts.append(part)
-                
                 try:
                     doc = fitz.open(stream=content, filetype="pdf")
                     total_detected_pages += len(doc)
-                    sample_pages = min(len(doc), 3)
+                    sample_pages = min(len(doc), 4)
                     for p in range(sample_pages):
                         page = doc.load_page(p)
                         pix = page.get_pixmap(dpi=150)
                         img_bytes = pix.tobytes("jpeg")
-                        gemini_parts.append(types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"))
+                        standard_images.append((img_bytes, "image/jpeg"))
                     doc.close()
                 except Exception as conv_err:
-                    logger.warning(f"輔助投影片頁面渲染略過: {conv_err}")
+                    logger.warning(f"PDF 頁面渲染略過: {conv_err}")
 
             elif filename.endswith((".png", ".jpg", ".jpeg", ".webp")):
                 mime_type = "image/png" if filename.endswith(".png") else "image/jpeg"
@@ -224,54 +240,110 @@ async def analyze_style(
                     mime_type = "image/webp"
                 
                 total_detected_pages += 1
-                part = types.Part.from_bytes(data=content, mime_type=mime_type)
-                gemini_parts.append(part)
+                standard_images.append((content, mime_type))
             else:
                 raise HTTPException(status_code=400, detail=f"不支援的檔案格式: {uploaded_file.filename}。請上傳 PPTX, PDF, PNG, JPG, 或 WEBP。")
 
         # 組裝 Prompt 提示詞
-        user_prompt_text = "請詳細審視我上傳的簡報檔案/投影片截圖，執行深度視覺與排版逆向工程，產出符合規範的報告與適用於 NotebookLM 的結構化提示詞。"
-        
+        user_prompt_text = "請詳細審視我上傳的簡報投影片，執行深度視覺與排版逆向工程，產出符合規範的報告與適用於 NotebookLM 的結構化提示詞。"
         if pptx_summaries:
             user_prompt_text += "\n\n【從 PPTX 程式碼提取之精確設計元數據】：\n" + "\n\n".join(pptx_summaries)
-            
-        if custom_focus and custom_focus.strip():
-            user_prompt_text += f"\n\n【使用者特別著重之分析需求】：\n{custom_focus.strip()}"
 
-        user_part = types.Part.from_text(text=user_prompt_text)
-        gemini_parts.append(user_part)
-
-        # 模型選擇（支援智慧自動判定）
+        is_complex = (total_detected_pages > 10) or (len(standard_images) >= 5)
         auto_reason = None
-        if model == "auto":
-            # 統計估算頁數與複雜度
-            is_complex = (total_detected_pages > 10) or (len(gemini_parts) >= 6)
-            if is_complex:
-                selected_model = "gemini-1.5-pro"
-                auto_reason = f"⚡ 智慧判定：檢測到投影片頁數較多或結構繁複（約 {total_detected_pages} 頁），已自動啟用深度推論模型 Gemini 1.5 Pro 進行全域剖析。"
+        analysis_text = ""
+
+        # === 供應商 1: Google Gemini ===
+        if provider == "gemini":
+            if model == "auto":
+                if is_complex:
+                    selected_model = "gemini-1.5-pro"
+                    auto_reason = f"⚡ 智慧判定：簡報頁數較多（約 {total_detected_pages} 頁），自動選用深度推論模型 Gemini 1.5 Pro。"
+                else:
+                    selected_model = "gemini-2.5-flash"
+                    auto_reason = "⚡ 智慧判定：精選投影片截圖（少於 10 頁），自動選用極速高精準的 Gemini 2.5 Flash（3秒完成）。"
             else:
-                selected_model = "gemini-2.5-flash"
-                auto_reason = "⚡ 智慧判定：檢測為精選投影片截圖（少於 10 頁），已自動選用極速高精準的 Gemini 2.5 Flash（約 3~5 秒完成，免費額度最充裕）。"
-        else:
-            supported_models = ["gemini-2.5-flash", "gemini-1.5-pro", "gemini-2.5-pro", "gemini-2.0-flash"]
-            selected_model = model if model in supported_models else "gemini-2.5-flash"
+                supported = ["gemini-2.5-flash", "gemini-1.5-pro", "gemini-2.5-pro", "gemini-2.0-flash"]
+                selected_model = model if model in supported else "gemini-2.5-flash"
 
-        # 初始化 Gemini 客戶端 (使用當次請求的 API Key)
-        client = genai.Client(api_key=api_key)
+            client = genai.Client(api_key=api_key)
+            gemini_parts = []
+            for img_bytes, mime in standard_images:
+                gemini_parts.append(types.Part.from_bytes(data=img_bytes, mime_type=mime))
+            gemini_parts.append(types.Part.from_text(text=user_prompt_text))
 
-        logger.info(f"發起風格逆向分析，使用模型: {selected_model} (auto={model=='auto'})，上傳元件數: {len(gemini_parts)}")
-
-        # 呼叫 Gemini 生成分析結果
-        response = client.models.generate_content(
-            model=selected_model,
-            contents=gemini_parts,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_INSTRUCTION,
-                temperature=0.4,
+            response = client.models.generate_content(
+                model=selected_model,
+                contents=gemini_parts,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_INSTRUCTION,
+                    temperature=0.4,
+                )
             )
-        )
+            analysis_text = response.text or ""
 
-        analysis_text = response.text or ""
+        # === 供應商 2: OpenAI (GPT-4o) ===
+        elif provider == "openai":
+            if model == "auto":
+                if is_complex:
+                    selected_model = "gpt-4o"
+                    auto_reason = "⚡ 智慧判定：已為您自動匹配 OpenAI 旗艦 GPT-4o 視覺模型進行深度剖析。"
+                else:
+                    selected_model = "gpt-4o-mini"
+                    auto_reason = "⚡ 智慧判定：已為您自動選用 OpenAI 極速輕量 GPT-4o mini 視覺模型。"
+            else:
+                selected_model = "gpt-4o" if "mini" not in model else "gpt-4o-mini"
+
+            client = openai.OpenAI(api_key=api_key)
+            content_list = [{"type": "text", "text": user_prompt_text}]
+            for img_bytes, mime in standard_images[:6]:  # OpenAI 最多 6 張
+                b64 = base64.b64encode(img_bytes).decode("utf-8")
+                content_list.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime};base64,{b64}"}
+                })
+
+            response = client.chat.completions.create(
+                model=selected_model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_INSTRUCTION},
+                    {"role": "user", "content": content_list}
+                ],
+                temperature=0.4
+            )
+            analysis_text = response.choices[0].message.content or ""
+
+        # === 供應商 3: Anthropic Claude (3.5 Sonnet) ===
+        elif provider == "anthropic":
+            if model == "auto":
+                selected_model = "claude-3-5-sonnet-20241022"
+                auto_reason = "⚡ 智慧判定：已為您自動啟用設計與美學頂級的 Claude 3.5 Sonnet 視覺模型。"
+            else:
+                selected_model = "claude-3-5-sonnet-20241022" if "haiku" not in model else "claude-3-5-haiku-20241022"
+
+            client = anthropic.Anthropic(api_key=api_key)
+            content_list = [{"type": "text", "text": user_prompt_text}]
+            for img_bytes, mime in standard_images[:6]:
+                # Claude 僅支援 jpeg, png, gif, webp
+                safe_mime = mime if mime in ["image/jpeg", "image/png", "image/webp"] else "image/jpeg"
+                b64 = base64.b64encode(img_bytes).decode("utf-8")
+                content_list.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": safe_mime,
+                        "data": b64
+                    }
+                })
+
+            response = client.messages.create(
+                model=selected_model,
+                max_tokens=4096,
+                system=SYSTEM_INSTRUCTION,
+                messages=[{"role": "user", "content": content_list}],
+                temperature=0.4
+            )
+            analysis_text = response.content[0].text if response.content else ""
 
         # 提取末端的 JSON 資料（如果有的話）
         parsed_json = None
@@ -284,6 +356,7 @@ async def analyze_style(
 
         return {
             "status": "success",
+            "provider": provider,
             "model_used": selected_model,
             "auto_reason": auto_reason,
             "markdown_report": analysis_text,
@@ -294,16 +367,15 @@ async def analyze_style(
         error_msg = str(e)
         logger.error(f"分析過程發生異常: {error_msg}")
         
-        # 針對常見的 API Key 錯誤給予友善繁體中文提示
-        if "API_KEY_INVALID" in error_msg or "400" in error_msg and "key" in error_msg.lower():
+        if "API_KEY_INVALID" in error_msg or "401" in error_msg or "authentication" in error_msg.lower():
             raise HTTPException(
                 status_code=401,
-                detail="您的 Google Gemini API Key 無效或尚未啟用。請檢查右上角輸入的金鑰是否正確，或前往 Google AI Studio 重新生成。"
+                detail=f"您的 {provider_name} API Key 無效或尚未啟用。請檢查右上角輸入的金鑰是否正確。"
             )
-        elif "RESOURCE_EXHAUSTED" in error_msg or "quota" in error_msg.lower():
+        elif "quota" in error_msg.lower() or "429" in error_msg:
             raise HTTPException(
                 status_code=429,
-                detail="您的 Gemini API 呼叫次數已達頻率限制，請稍候 30 秒至 1 分鐘後再試一次。"
+                detail=f"您的 {provider_name} API 呼叫次數已達頻率限制，請稍候 30 秒至 1 分鐘後再試。"
             )
         else:
             raise HTTPException(status_code=500, detail=f"逆向分析失敗: {error_msg}")
