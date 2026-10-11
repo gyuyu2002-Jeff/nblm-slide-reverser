@@ -120,6 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initApiKeyStatus();
   setupEventListeners();
   updateUiState();
+  checkFirstTimeVisitor();
 });
 
 // === 1. API KEY 管理 ===
@@ -164,6 +165,37 @@ function initApiKeyStatus() {
   }
 }
 
+// 迎賓導引彈窗開關控制
+function openOnboardingModal() {
+  const modal = document.getElementById("modal-onboarding");
+  if (!modal) return;
+  const input = document.getElementById("input-onboarding-key");
+  if (input) {
+    input.value = getApiKey("gemini");
+  }
+  modal.classList.remove("hidden");
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function closeOnboardingModal(rememberDismiss = false) {
+  const modal = document.getElementById("modal-onboarding");
+  if (modal) modal.classList.add("hidden");
+  if (rememberDismiss) {
+    localStorage.setItem("has_seen_onboarding", "true");
+  }
+}
+
+// 首次造訪且尚未設定 API 金鑰時，自動彈出迎賓教學
+function checkFirstTimeVisitor() {
+  const hasAnyKey = getApiKey("gemini") || getApiKey("openai") || getApiKey("anthropic");
+  const hasSeen = localStorage.getItem("has_seen_onboarding") === "true";
+  if (!hasAnyKey && !hasSeen) {
+    setTimeout(() => {
+      openOnboardingModal();
+    }, 350);
+  }
+}
+
 // 切換服務商（僅在彈窗內切換，主畫面自動同步）
 function switchProvider(newProvider) {
   currentProvider = newProvider;
@@ -195,8 +227,9 @@ function setupEventListeners() {
     if (modalApiKey) modalApiKey.classList.add("hidden");
   });
 
+  // 點擊「免費金鑰教學」開啟迎賓教學彈窗（直達三步驟與一鍵儲存）
   on("btn-tutorial", "click", () => {
-    if (modalTutorial) modalTutorial.classList.remove("hidden");
+    openOnboardingModal();
   });
   on("btn-close-tutorial", "click", () => {
     if (modalTutorial) modalTutorial.classList.add("hidden");
@@ -207,6 +240,47 @@ function setupEventListeners() {
       openApiKeyModal(currentProvider);
     }
   });
+
+  // 迎賓導引彈窗互動監聽
+  on("btn-close-onboarding", "click", () => {
+    closeOnboardingModal(true);
+  });
+  on("btn-skip-onboarding", "click", () => {
+    closeOnboardingModal(true);
+    showToast("您可隨時點擊右上角「設定 API 金鑰」進行設定", "info");
+  });
+  on("btn-onboarding-switch-other", "click", () => {
+    closeOnboardingModal(true);
+    openApiKeyModal("openai");
+  });
+  on("btn-save-onboarding-key", "click", () => {
+    const input = document.getElementById("input-onboarding-key");
+    const key = input ? input.value.trim() : "";
+    if (!key) {
+      showToast("請先貼上有效的 Google Gemini API Key，或點擊跳過", "warning");
+      return;
+    }
+    setApiKey("gemini", key);
+    switchProvider("gemini");
+    closeOnboardingModal(true);
+    showToast("Google Gemini 金鑰已就緒！請拖入投影片開始分析", "success");
+  });
+
+  // 迎賓彈窗密碼顯隱切換
+  const toggleOnboardingBtn = document.getElementById("btn-toggle-onboarding-key");
+  const onboardingInput = document.getElementById("input-onboarding-key");
+  if (toggleOnboardingBtn && onboardingInput) {
+    toggleOnboardingBtn.addEventListener("click", () => {
+      if (onboardingInput.type === "password") {
+        onboardingInput.type = "text";
+        toggleOnboardingBtn.innerHTML = '<i data-lucide="eye-off" class="w-3.5 h-3.5"></i>';
+      } else {
+        onboardingInput.type = "password";
+        toggleOnboardingBtn.innerHTML = '<i data-lucide="eye" class="w-3.5 h-3.5"></i>';
+      }
+      lucide.createIcons();
+    });
+  }
 
   on("btn-security", "click", () => {
     if (modalSecurity) modalSecurity.classList.remove("hidden");
