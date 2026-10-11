@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NBLM 簡報風格逆向工程器 | Presentation Style to Prompt</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            surface: {
+              800: '#1e2230',
+              850: '#171b26',
+              900: '#0f121d',
+              950: '#0a0c14'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Marked.js for Markdown Rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-surface-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+
+  <!-- 頂部導航列 -->
+  <header class="border-b border-slate-800/80 bg-surface-900/80 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent flex items-center gap-2">
+            NBLM 簡報風格逆向器
+            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium">Vision Pro</span>
+          </h1>
+          <p class="text-xs text-slate-400">上傳任何簡報風格，精準逆向解析為 NotebookLM 提示詞</p>
+        </div>
+      </div>
+
+      <!-- 右側按鈕群 -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <button id="btn-tutorial" class="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 rounded-lg border border-slate-700/60 transition-all">
+          <i data-lucide="help-circle" class="w-4 h-4 text-emerald-400"></i>
+          <span>免費申請 API 教學</span>
+        </button>
+
+        <button id="btn-security" class="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 rounded-lg border border-slate-700/60 transition-all">
+          <i data-lucide="shield-check" class="w-4 h-4 text-cyan-400"></i>
+          <span>資安防護保證</span>
+        </button>
+
+        <!-- API Key 狀態膠囊按鈕 -->
+        <button id="btn-apikey-modal" class="flex items-center space-x-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-all shadow-sm"
+                :class="hasApiKey ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/50' : 'bg-amber-950/40 text-amber-300 border-amber-500/40 hover:bg-amber-900/50'">
+          <span class="w-2 h-2 rounded-full" id="status-indicator-dot"></span>
+          <span id="status-indicator-text">設定 Gemini Key</span>
+          <i data-lucide="key" class="w-3.5 h-3.5 opacity-80"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容區 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- 左側面板：上傳與設定 (5 cols) -->
+    <div class="lg:col-span-5 flex flex-col space-y-5">
+      
+      <!-- 拖曳上傳卡片 -->
+      <div class="bg-surface-900 border border-slate-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <i data-lucide="upload-cloud" class="w-4 h-4 text-indigo-400"></i>
+            上傳簡報風格範例
+          </h2>
+          <span class="text-xs text-slate-400">支援 PPTX / PDF / PNG / JPG / WEBP</span>
+        </div>
+
+        <!-- 拖曳區域 -->
+        <div id="drop-zone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500/80 bg-surface-850/60 hover:bg-indigo-950/10 rounded-xl p-6 text-center cursor-pointer transition-all duration-200 group">
+          <input type="file" id="file-input" class="hidden" multiple accept=".pptx,.pdf,.png,.jpg,.jpeg,.webp">
+          <div class="flex flex-col items-center justify-center space-y-3 pointer-events-none">
+            <div class="w-12 h-12 rounded-full bg-slate-800 group-hover:bg-indigo-600/20 text-slate-400 group-hover:text-indigo-400 flex items-center justify-center transition-all">
+              <i data-lucide="file-up" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-slate-200 group-hover:text-indigo-300">
+                點擊選取或拖曳檔案至此
+              </p>
+              <p class="text-xs text-slate-400 mt-1">
+                簡報 PPTX、PDF 檔，或多張精選投影片截圖
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 檔案列表與縮圖預覽 -->
+        <div id="file-preview-section" class="mt-4 hidden space-y-3">
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span id="file-count-label">已選擇 0 個檔案</span>
+            <button id="btn-clear-files" class="text-red-400 hover:text-red-300 flex items-center gap-1">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              全部清除
+            </button>
+          </div>
+          <!-- 縮圖滾動區 -->
+          <div id="thumbnail-gallery" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 custom-scrollbar">
+            <!-- 動態插入縮圖 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 分析偏好與參數設定 -->
+      <div class="bg-surface-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+        <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+          <i data-lucide="sliders" class="w-4 h-4 text-purple-400"></i>
+          分析偏好設定
+        </h3>
+
+        <!-- 模型選擇 -->
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">視覺多模態模型 (Gemini Vision)</label>
+          <select id="model-select" class="w-full bg-surface-850 border border-slate-700/80 text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500">
+            <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash（推薦：極速、高精確度、免費額度充足）</option>
+            <option value="gemini-1.5-pro">Gemini 1.5 Pro（深度推論：超大上下文與繁複細節剖析）</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Flash（次世代極速模型）</option>
+          </select>
+        </div>
+
+        <!-- 特別著重維度 (選填) -->
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">
+            自訂著重分析需求 (選填)
+          </label>
+          <textarea id="custom-focus" rows="2" placeholder="例：請特別解析其 Bento Grid 模組化佈局，以及深色背景搭配螢光色的色票代碼..." class="w-full bg-surface-850 border border-slate-700/80 text-slate-200 text-xs rounded-lg p-2.5 focus:outline-none focus:border-indigo-500 placeholder-slate-500"></textarea>
+        </div>
+
+        <!-- 開始按鈕 -->
+        <button id="btn-start-analyze" class="w-full py-3 px-4 rounded-xl font-medium text-sm text-white bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          <span>開始深度逆向分析風格</span>
+        </button>
+      </div>
+
+      <!-- 使用方式說明卡片 -->
+      <div class="bg-surface-900/60 border border-slate-800/80 rounded-2xl p-4 text-xs text-slate-400 space-y-2">
+        <div class="font-semibold text-slate-300 flex items-center gap-1.5">
+          <i data-lucide="book-open" class="w-3.5 h-3.5 text-indigo-400"></i>
+          如何將提示詞用於 NotebookLM？
+        </div>
+        <ol class="list-decimal list-inside space-y-1 text-slate-400 leading-relaxed">
+          <li>在下方取得專屬生成的「NotebookLM 引導詞」。</li>
+          <li>打開 NotebookLM，點開右側筆記本或聊天視窗。</li>
+          <li>將提示詞貼入，指令：「請根據我上傳的筆記來源，依據以下視覺與版面規格生成投影片大綱」。</li>
+          <li>NotebookLM 便會自動輸出符合該簡報風格的投影片內容！</li>
+        </ol>
+      </div>
+
+    </div>
+
+    <!-- 右側面板：逆向分析結果 (7 cols) -->
+    <div class="lg:col-span-7 flex flex-col space-y-5">
+      
+      <!-- 初始空狀態 / 載入中狀態 / 結果面板 -->
+      
+      <!-- 1. 初始空狀態 -->
+      <div id="panel-idle" class="bg-surface-900 border border-slate-800 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[480px]">
+        <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mb-4">
+          <i data-lucide="layers" class="w-8 h-8"></i>
+        </div>
+        <h3 class="text-base font-semibold text-slate-200 mb-1">準備就緒，等待投影片輸入</h3>
+        <p class="text-xs text-slate-400 max-w-sm leading-relaxed mb-6">
+          在左側拖入您欣賞的簡報 PDF 或投影片圖片，AI 將全面拆解其色彩系統、留白格線、排版層級，並自動轉換為 NotebookLM 專用提示詞。
+        </p>
+        <div class="flex flex-wrap gap-2 justify-center text-xs text-slate-400">
+          <span class="px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700/80">🎨 自動抓取 Hex 色票</span>
+          <span class="px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700/80">📐 留白與 Bento Grid 規範</span>
+          <span class="px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700/80">📋 NBLM 1-Click 複製</span>
+        </div>
+      </div>
+
+      <!-- 2. 載入中狀態 (骨架屏) -->
+      <div id="panel-loading" class="hidden bg-surface-900 border border-slate-800 rounded-2xl p-8 flex flex-col items-center justify-center min-h-[480px] space-y-6">
+        <div class="relative w-16 h-16">
+          <div class="absolute inset-0 rounded-full border-4 border-indigo-500/20 animate-ping"></div>
+          <div class="w-16 h-16 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin flex items-center justify-center"></div>
+          <div class="absolute inset-0 flex items-center justify-center text-indigo-400">
+            <i data-lucide="eye" class="w-6 h-6"></i>
+          </div>
+        </div>
+        <div class="text-center space-y-1.5">
+          <h4 class="text-sm font-semibold text-slate-100" id="loading-step-text">Gemini 視覺模型正在審視投影片細節...</h4>
+          <p class="text-xs text-slate-400">正在萃取色彩 Hex 碼、剖析網格佈局、轉換 NotebookLM 提示詞</p>
+        </div>
+        <!-- 模擬進度步進器 -->
+        <div class="w-full max-w-xs space-y-2 text-xs text-slate-400">
+          <div class="flex items-center gap-2 text-indigo-400">
+            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+            <span>讀取投影片視覺訊號 (PDF / Images)</span>
+          </div>
+          <div class="flex items-center gap-2 text-indigo-300 animate-pulse">
+            <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+            <span>逆向推導設計語言規範 (Design System)</span>
+          </div>
+          <div class="flex items-center gap-2 text-slate-500">
+            <i data-lucide="circle" class="w-4 h-4"></i>
+            <span>構建結構化 NotebookLM 引導指令集</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 結果面板 -->
+      <div id="panel-result" class="hidden flex flex-col space-y-5">
+        
+        <!-- 風格概要與色票精華卡片 -->
+        <div class="bg-surface-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div>
+              <span class="text-xs font-medium text-indigo-400 uppercase tracking-wider">風格逆向完成</span>
+              <h2 id="result-style-name" class="text-lg font-bold text-white mt-0.5">風格名稱</h2>
+            </div>
+            <div class="flex gap-2">
+              <button id="btn-export-markdown" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 flex items-center gap-1.5 transition-all">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                下載報告 (.md)
+              </button>
+            </div>
+          </div>
+
+          <!-- 風格標籤 -->
+          <div id="result-tags-container" class="flex flex-wrap gap-2">
+            <!-- 動態插入標籤 -->
+          </div>
+
+          <!-- 色彩調色盤 (Color Palette) -->
+          <div>
+            <div class="flex items-center justify-between text-xs text-slate-400 mb-2">
+              <span class="font-medium text-slate-300">精準色票系統（點擊 Hex 代碼直接複製）</span>
+              <span id="white-space-metric" class="text-indigo-300"></span>
+            </div>
+            <div id="color-palette-container" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <!-- 動態插入色票卡片 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- NotebookLM 提示詞專屬大卡片 (重點醒目) -->
+        <div class="bg-gradient-to-b from-indigo-950/40 via-surface-900 to-surface-900 border border-indigo-500/40 rounded-2xl p-5 shadow-2xl space-y-3 relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+                <i data-lucide="terminal" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-white">NotebookLM 專用引導提示詞</h3>
+                <p class="text-xs text-indigo-300/80">可直接貼至 NotebookLM 的自訂筆記引導或聊天指令</p>
+              </div>
+            </div>
+            <button id="btn-copy-nblm" class="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow-md shadow-indigo-600/30 flex items-center gap-1.5 transition-all active:scale-95">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span id="copy-btn-label">一鍵複製提示詞</span>
+            </button>
+          </div>
+
+          <div class="relative">
+            <pre id="nblm-prompt-code" class="bg-surface-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono overflow-x-auto max-h-72 custom-scrollbar leading-relaxed whitespace-pre-wrap"></pre>
+          </div>
+        </div>
+
+        <!-- 完整深度報告 (Markdown 呈現) -->
+        <div class="bg-surface-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+              <i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i>
+              完整設計規範與轉譯報告
+            </h3>
+            <button id="btn-copy-all-report" class="text-xs text-slate-400 hover:text-white flex items-center gap-1">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              複製全文
+            </button>
+          </div>
+          <div id="full-report-markdown" class="prose prose-invert prose-sm max-w-none prose-headings:font-bold prose-headings:text-slate-100 prose-p:text-slate-300 prose-li:text-slate-300 leading-relaxed">
+            <!-- 渲染 Markdown -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- 彈窗 1：API Key 設定彈窗 -->
+  <div id="modal-apikey" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-surface-900 border border-slate-700/80 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-scale-up">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center">
+            <i data-lucide="key-round" class="w-5 h-5"></i>
+          </div>
+          <h3 class="text-base font-bold text-white">設定 Google Gemini API Key</h3>
+        </div>
+        <button id="btn-close-apikey-modal" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs text-slate-300">
+        <p class="leading-relaxed">
+          為了防止個人 API 金鑰外洩，本系統採取 <strong class="text-emerald-400">「零伺服器儲存 (Zero-Server-Storage)」</strong> 機制。您的金鑰僅儲存於您個人的電腦瀏覽器，不會寫入伺服器日誌或資料庫。
+        </p>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-200 mb-1">您的 Gemini API Key：</label>
+          <div class="relative">
+            <input type="password" id="input-api-key" placeholder="AIzaSy..." class="w-full bg-surface-850 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono pr-10">
+            <button id="btn-toggle-key-visibility" type="button" class="absolute right-3 top-2.5 text-slate-400 hover:text-white">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-[11px] pt-1">
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium underline">
+            前往 Google AI Studio 免費申請 <i data-lucide="external-link" class="w-3 h-3"></i>
+          </a>
+          <button id="btn-clear-key" class="text-red-400 hover:text-red-300">清除已存金鑰</button>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-800 pt-4 flex space-x-2">
+        <button id="btn-save-key" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs rounded-xl shadow-lg shadow-indigo-600/30 transition-all">
+          儲存並使用
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 2：超詳細 API 申請教學抽屜/彈窗 -->
+  <div id="modal-tutorial" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-surface-900 border border-slate-700/80 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center">
+            <i data-lucide="sparkles" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">1 分鐘免費申請 Google Gemini API</h3>
+            <p class="text-xs text-slate-400">完全免費、官方額度高、無須綁定信用卡</p>
+          </div>
+        </div>
+        <button id="btn-close-tutorial" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- 教學步驟 -->
+      <div class="space-y-4 text-xs text-slate-300 leading-relaxed">
+        
+        <!-- 步驟 1 -->
+        <div class="flex gap-3 bg-surface-850 p-3.5 rounded-xl border border-slate-800">
+          <span class="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs shrink-0">1</span>
+          <div>
+            <div class="font-semibold text-slate-200 mb-1">前往 Google AI Studio 官方網站</div>
+            <p class="text-slate-400 mb-2">點擊下方按鈕，使用您既有的 Google 帳號直接登入：</p>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 rounded-lg font-medium">
+              開啟 Google AI Studio API 申請頁面
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- 步驟 2 -->
+        <div class="flex gap-3 bg-surface-850 p-3.5 rounded-xl border border-slate-800">
+          <span class="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs shrink-0">2</span>
+          <div>
+            <div class="font-semibold text-slate-200 mb-1">建立 API 金鑰 (Create API Key)</div>
+            <p class="text-slate-400">
+              在頁面中點擊藍色按鈕 <strong class="text-indigo-300">「Create API key」</strong>，在彈出選單選擇 <strong class="text-indigo-300">「Create API key in new project」</strong>（在全新專案中建立金鑰）。
+            </p>
+          </div>
+        </div>
+
+        <!-- 步驟 3 -->
+        <div class="flex gap-3 bg-surface-850 p-3.5 rounded-xl border border-slate-800">
+          <span class="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs shrink-0">3</span>
+          <div>
+            <div class="font-semibold text-slate-200 mb-1">複製金鑰並貼回本工具</div>
+            <p class="text-slate-400">
+              點擊複製剛生成的金鑰（以 <code>AIzaSy...</code> 開頭），回到本網站點擊右上角「設定 Gemini Key」，貼上即可立刻使用！
+            </p>
+          </div>
+        </div>
+
+        <!-- 常見疑問 -->
+        <div class="bg-slate-800/40 p-3.5 rounded-xl border border-slate-700/60 space-y-2">
+          <div class="font-semibold text-slate-200 flex items-center gap-1.5">
+            <i data-lucide="help-circle" class="w-3.5 h-3.5 text-amber-400"></i>
+            常見問題 Q&A
+          </div>
+          <p><strong class="text-slate-200">Q：會被收費嗎？</strong><br>
+          A：完全不會。Google AI Studio 提供慷慨的 Free Tier 免費方案，個人進行簡報風格逆向工程之用量綽綽有餘。</p>
+          <p><strong class="text-slate-200">Q：為什麼不能共用網站作者的 Key？</strong><br>
+          A：如果作者將個人 Key 燒錄在前端或公開伺服器中，會造成額度被陌生人刷爆，甚至產生個人隱私外流與資安風險。由每位使用者各自使用自己的免費 Key（BYOK 模式），是全世界開源社群最安全、最標準的作法！</p>
+        </div>
+
+      </div>
+
+      <div class="border-t border-slate-800 pt-3 text-right">
+        <button id="btn-tutorial-got-it" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs rounded-xl transition-all">
+          我瞭解了，開始使用
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 3：資安防護說明彈窗 -->
+  <div id="modal-security" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-surface-900 border border-slate-700/80 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+          </div>
+          <h3 class="text-base font-bold text-white">資安與隱私承諾</h3>
+        </div>
+        <button id="btn-close-security" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2.5 text-xs text-slate-300 leading-relaxed">
+        <p>
+          本工具設計初衷是為了方便公開部署或分享給親友/團隊使用，為確保所有使用者的資產安全，我們實踐了以下架構：
+        </p>
+        <ul class="list-disc list-inside space-y-1.5 text-slate-300">
+          <li><strong>金鑰不落盤</strong>：您的 API Key 只暫存在您個人電腦瀏覽器的 LocalStorage，後端伺服器絕對不會寫入資料庫或檔案。</li>
+          <li><strong>隨請求加密傳遞</strong>：發起分析時，金鑰直接在記憶體中調用 Google API，分析完成立即釋放，伺服器日誌（Logs）嚴格遮蔽金鑰。</li>
+          <li><strong>分享無後顧之憂</strong>：日後即便您將此專案網址分享給他人，其他訪客也完全無法讀取您的個人 API Key。</li>
+        </ul>
+      </div>
+
+      <div class="border-t border-slate-800 pt-3 text-right">
+        <button id="btn-close-security-confirm" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-medium">
+          關閉
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 全局 Toast 提示 -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-xs shadow-2xl text-white">
+    <i data-lucide="info" id="toast-icon" class="w-4 h-4 text-indigo-400"></i>
+    <span id="toast-text">通知內容</span>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+import os
+import io
+import json
+import base64
+import logging
+from typing import List, Optional
+from fastapi import FastAPI, File, UploadFile, Form, Header, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+import fitz  # PyMuPDF
+from PIL import Image
+from google import genai
+from google.genai import types
+
+# 設置日誌（嚴格過濾敏感資訊）
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("nblm-reverser")
+
+app = FastAPI(
+    title="NBLM Presentation Style Reverse-Engineer",
+    description="簡報風格逆向工程與 NotebookLM 提示詞生成器",
+    version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 系統逆向工程 Prompt
+SYSTEM_INSTRUCTION = """
+你是一位世界頂級的簡報視覺總監（Presentation Art Director）與提示詞架構大師（Prompt Engineer）。
+你的任務是「深度逆向工程（Reverse-Engineer）」使用者上傳的簡報範例（PDF 或投影片截圖），並將其獨特的視覺美學、版面編排節奏與資訊架構，精確轉化為適用於「NotebookLM (NBLM)」及現代 AI 簡報工具的高精度提示詞與風格指南。
+
+請深入剖析下列五大維度：
+1. 【色彩系統 (Color Palette)】：精確推敲其背景色、主色（Primary）、輔色（Secondary）、強調重點色（Accent），並列出可使用的 Hex 16進制色碼，分析其色彩心理與光影特徵。
+2. 【版面佈局與格線 (Layout & Grid)】：留白比例（例如 70% 留白 vs 高密度看板）、排版網格（Bento Grid 模組化卡片、非對稱雜誌流、單欄焦點、左右對稱比對等）。
+3. 【字體排版與層次 (Typography & Hierarchy)】：標題字重（極黑體/優雅襯線/無襯線現代體）、字級對比比率（大標題與內文的巨大反差）、標籤化裝飾字（Kicker / Tag / Badge）。
+4. 【視覺元素與質素 (Visual Accents & Texture)】：背景質感（純白極簡、深色科技光暈、柔和微漸層、紙質磨砂）、圖表形態（大字數據卡、極簡線條圖、膠囊進度條）、插畫或意象形態。
+5. 【敘事節奏與資訊密度 (Narrative & Information Density)】：單頁核心訊息數量（One Key Takeaway 原則）、條列重點數量限制（嚴格 3-4 點）、卡片切分方式。
+
+你必須以繁體中文（台灣習慣用語，如「投影片」、「排版」、「資訊」）產出結構化解析報告，並且必須包含一段專為 NotebookLM 設計的完整複製提示詞！
+
+輸出格式規範：
+請務必輸出包含以下標題的詳細 Markdown 內容：
+# 🎨 簡報風格逆向工程報告
+
+## 1. 風格定位與核心摘要
+[精準命名此風格，如「現代矽谷極簡發布會風」、「日系知性留白雜誌風」、「Bento Grid 模組化商務看板風」，並以 2-3 句話點出其視覺靈魂]
+
+## 2. 視覺設計系統規範 (Design System)
+- **色彩系統**：
+  - 背景色：#XXXXXX (說明)
+  - 品牌主色：#XXXXXX (說明)
+  - 輔助中性色：#XXXXXX (說明)
+  - 強調高光色：#XXXXXX (說明)
+  - 漸層/光影：(有無漸層、陰影或透明度)
+- **版面與網格**：(留白比例、網格佈局、邊界間距)
+- **字型與文字層次**：(標題風格、內文規格、標籤/小標特徵)
+- **視覺元素與圖表**：(卡片樣式、圖表視覺、圖示 Icon 規範)
+- **資訊架構節奏**：(單頁字數限制、核心論點呈現法則)
+
+## 3. 📋 NotebookLM 專用簡報引導提示詞 (System Prompt)
+> 請將以下區塊直接複製並貼入 NotebookLM 的「筆記指引 (Notebook Guide)」或聊天提示中：
+
+```markdown
+[在此產生一段極其嚴謹、結構分明的 NotebookLM 提示詞。
+包含：
+1. 角色設定：簡報內容架構師。
+2. 輸出格式：單頁投影片的 Markdown 模板（包含 Slide Title、Sub-headline、Key Takeaways 卡片、視覺版面提示標籤 [Visual Directive]）。
+3. 遵循上述風格的文字精簡原則、數字凸顯規範與視覺留白指令。]
+```
+
+## 4. 🚀 搭配 AI 簡報工具生成提示詞 (Gamma / Midjourney / Canva)
+- **Gamma AI 簡報主題提示詞**：(可直接貼給 Gamma 生成簡報的風格指令)
+- **Midjourney / 視覺背景生成提示詞**：(英文 Prompt，適合生成配套簡報投影片背景)
+
+## 5. 💡 實戰套用範例 (Example Slide Output)
+[以本風格示範「第 1 頁 (封面)」與「第 2 頁 (核心數據內頁)」由 NotebookLM 產出的實際成果範例]
+
+---
+最後，請在回答最尾端，附上一個嚴格符合 JSON 格式的代碼塊，用於前端介面渲染顏色色票與標籤：
+```json
+{
+  "style_name": "風格名稱",
+  "tags": ["極簡", "科技感", "Bento Grid", "高留白"],
+  "palette": [
+    {"role": "背景色", "hex": "#111827", "name": "Dark Slate"},
+    {"role": "主色", "hex": "#3B82F6", "name": "Electric Blue"},
+    {"role": "輔色", "hex": "#9CA3AF", "name": "Cool Gray"},
+    {"role": "強調色", "hex": "#10B981", "name": "Emerald Accent"}
+  ],
+  "white_space_ratio": "75%",
+  "density": "中低密度 / 視覺焦點型"
+}
+```
+"""
+
+from pptx_handler import process_pptx_presentation
+
+@app.post("/api/preview")
+@app.post("/api/pdf-preview")
+async def file_preview(file: UploadFile = File(...)):
+    """接收 PDF 或 PPTX 檔案，提取前 6 頁投影片縮圖給前端即時預覽"""
+    filename = file.filename.lower()
+    if not (filename.endswith(".pdf") or filename.endswith(".pptx")):
+        raise HTTPException(status_code=400, detail="預覽僅支援 PDF 或 PPTX 簡報檔案")
+    
+    try:
+        content = await file.read()
+        
+        if filename.endswith(".pptx"):
+            # 解析 PPTX 投影片與素材
+            pptx_data = process_pptx_presentation(content)
+            return {
+                "status": "success",
+                "file_type": "pptx",
+                "total_pages": pptx_data["total_slides"],
+                "aspect_ratio": pptx_data["aspect_ratio"],
+                "preview_pages": pptx_data["preview_pages"],
+                "structure_summary": pptx_data["structure_summary"],
+                "detected_fonts": pptx_data["detected_fonts"],
+                "detected_colors": pptx_data["detected_colors"]
+            }
+
+        else:
+            # 解析 PDF
+            doc = fitz.open(stream=content, filetype="pdf")
+            total_pages = len(doc)
+            preview_pages = []
+
+            max_preview = min(total_pages, 6)
+            for i in range(max_preview):
+                page = doc.load_page(i)
+                pix = page.get_pixmap(dpi=120)
+                img_bytes = pix.tobytes("jpeg")
+                b64_str = base64.b64encode(img_bytes).decode("utf-8")
+                preview_pages.append({
+                    "page": i + 1,
+                    "image": f"data:image/jpeg;base64,{b64_str}"
+                })
+            
+            doc.close()
+            return {
+                "status": "success",
+                "file_type": "pdf",
+                "total_pages": total_pages,
+                "preview_pages": preview_pages
+            }
+    except Exception as e:
+        logger.error(f"檔案預覽生成失敗: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"檔案預覽生成失敗: {str(e)}")
+
+
+@app.post("/api/analyze")
+async def analyze_style(
+    files: List[UploadFile] = File(...),
+    model: str = Form("gemini-2.5-flash"),
+    target_use: str = Form("notebooklm_slide"),
+    custom_focus: Optional[str] = Form(None),
+    x_gemini_api_key: Optional[str] = Header(None)
+):
+    """
+    接收投影片檔案（PDF、PPTX 或圖片），呼叫 Google Gemini API 進行風格逆向工程。
+    【資安核心】：API Key 僅於當次請求記憶體中使用，不留存於磁碟或日誌中。
+    """
+    api_key = x_gemini_api_key or os.environ.get("GEMINI_API_KEY", "").strip()
+    
+    if not api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="【未提供 Gemini API Key】為了保護資安與隱私，本系統不會公開作者個人金鑰。請在右上角「設定 API Key」輸入您向 Google 免費申請的金鑰（完全免費且安全，僅儲存於您本地瀏覽器）。"
+        )
+
+    if not files or len(files) == 0:
+        raise HTTPException(status_code=400, detail="請至少上傳一個 PDF、PPTX 或圖片檔案")
+
+    gemini_parts = []
+    pptx_summaries = []
+    
+    try:
+        for uploaded_file in files:
+            content = await uploaded_file.read()
+            filename = uploaded_file.filename.lower()
+            
+            if filename.endswith(".pptx"):
+                # 處理 PPTX 簡報
+                pptx_res = process_pptx_presentation(content)
+                pptx_summaries.append(pptx_res["structure_summary"])
+                
+                # 附加上前 4 頁投影片的視覺佈局縮圖
+                for page in pptx_res["preview_pages"][:4]:
+                    gemini_parts.append(types.Part.from_bytes(data=page["bytes"], mime_type="image/jpeg"))
+                
+                # 附加上 PPTX 內置的高畫質插圖/背景圖（最多前 4 張）
+                for _, img_bytes in pptx_res["media_images"][:4]:
+                    gemini_parts.append(types.Part.from_bytes(data=img_bytes, mime_type="image/png"))
+
+            elif filename.endswith(".pdf"):
+                part = types.Part.from_bytes(data=content, mime_type="application/pdf")
+                gemini_parts.append(part)
+                
+                try:
+                    doc = fitz.open(stream=content, filetype="pdf")
+                    sample_pages = min(len(doc), 3)
+                    for p in range(sample_pages):
+                        page = doc.load_page(p)
+                        pix = page.get_pixmap(dpi=150)
+                        img_bytes = pix.tobytes("jpeg")
+                        gemini_parts.append(types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"))
+                    doc.close()
+                except Exception as conv_err:
+                    logger.warning(f"輔助投影片頁面渲染略過: {conv_err}")
+
+            elif filename.endswith((".png", ".jpg", ".jpeg", ".webp")):
+                mime_type = "image/png" if filename.endswith(".png") else "image/jpeg"
+                if filename.endswith(".webp"):
+                    mime_type = "image/webp"
+                
+                part = types.Part.from_bytes(data=content, mime_type=mime_type)
+                gemini_parts.append(part)
+            else:
+                raise HTTPException(status_code=400, detail=f"不支援的檔案格式: {uploaded_file.filename}。請上傳 PPTX, PDF, PNG, JPG, 或 WEBP。")
+
+        # 組裝 Prompt 提示詞
+        user_prompt_text = "請詳細審視我上傳的簡報檔案/投影片截圖，執行深度視覺與排版逆向工程，產出符合規範的報告與適用於 NotebookLM 的結構化提示詞。"
+        
+        if pptx_summaries:
+            user_prompt_text += "\n\n【從 PPTX 程式碼提取之精確設計元數據】：\n" + "\n\n".join(pptx_summaries)
+            
+        if custom_focus and custom_focus.strip():
+            user_prompt_text += f"\n\n【使用者特別著重之分析需求】：\n{custom_focus.strip()}"
+
+        user_part = types.Part.from_text(text=user_prompt_text)
+        gemini_parts.append(user_part)
+
+        # 初始化 Gemini 客戶端 (使用當次請求的 API Key)
+        client = genai.Client(api_key=api_key)
+
+        # 驗證模型名稱
+        supported_models = ["gemini-2.5-flash", "gemini-1.5-pro", "gemini-2.5-pro", "gemini-2.0-flash"]
+        selected_model = model if model in supported_models else "gemini-2.5-flash"
+
+        logger.info(f"發起風格逆向分析，使用模型: {selected_model}，上傳元件數: {len(gemini_parts)}")
+
+        # 呼叫 Gemini 生成分析結果
+        response = client.models.generate_content(
+            model=selected_model,
+            contents=gemini_parts,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_INSTRUCTION,
+                temperature=0.4,
+            )
+        )
+
+        analysis_text = response.text or ""
+
+        # 提取末端的 JSON 資料（如果有的話）
+        parsed_json = None
+        if "```json" in analysis_text:
+            try:
+                json_part = analysis_text.split("```json")[-1].split("```")[0].strip()
+                parsed_json = json.loads(json_part)
+            except Exception as j_err:
+                logger.warning(f"解析 JSON 失敗: {j_err}")
+
+        return {
+            "status": "success",
+            "model_used": selected_model,
+            "markdown_report": analysis_text,
+            "structured_meta": parsed_json
+        }
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"分析過程發生異常: {error_msg}")
+        
+        # 針對常見的 API Key 錯誤給予友善繁體中文提示
+        if "API_KEY_INVALID" in error_msg or "400" in error_msg and "key" in error_msg.lower():
+            raise HTTPException(
+                status_code=401,
+                detail="您的 Google Gemini API Key 無效或尚未啟用。請檢查右上角輸入的金鑰是否正確，或前往 Google AI Studio 重新生成。"
+            )
+        elif "RESOURCE_EXHAUSTED" in error_msg or "quota" in error_msg.lower():
+            raise HTTPException(
+                status_code=429,
+                detail="您的 Gemini API 呼叫次數已達頻率限制，請稍候 30 秒至 1 分鐘後再試一次。"
+            )
+        else:
+            raise HTTPException(status_code=500, detail=f"逆向分析失敗: {error_msg}")
+
+
+# 掛載前端靜態檔案（使用絕對路徑確保無論從哪裡執行皆正確）
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+
+if __name__ == "__main__":
+    import uvicorn
+    import webbrowser
+    import threading
+
+    def open_browser():
+        webbrowser.open("http://127.0.0.1:8000")
+
+    threading.Timer(1.5, open_browser).start()
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)

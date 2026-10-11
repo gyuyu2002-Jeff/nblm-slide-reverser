@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  nblm-reverser:
+    build: .
+    container_name: nblm-slide-reverser
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      # 選填：若自己私有伺服器使用可填入，公開部署時請留空，由各訪客前端輸入各自金鑰
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    restart: unless-stopped
