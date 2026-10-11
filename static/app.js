@@ -1,5 +1,8 @@
 // 狀態管理
 let selectedFiles = [];
+let uploadedSlidePages = []; // [{ page: 1, image: "data:..." }, ...]
+let currentComparisonPage = 0;
+let currentComparisonMode = "split"; // "split", "reconstruct", "original"
 let generatedReportMarkdown = "";
 let generatedNblmPrompt = "";
 let generatedGammaPrompt = "";
@@ -15,10 +18,10 @@ const PROVIDER_CONFIG = {
     portalText: "前往 Google AI Studio 免費申請",
     portalUrl: "https://aistudio.google.com/app/apikey",
     models: [
-      { id: "auto", name: "⚡ 智慧自動判定（推薦首選：依投影片長度自動適配）" },
-      { id: "gemini-2.5-flash", name: "🚀 Gemini 2.5 Flash（日常首選：少頁截圖、3秒極速、額度最充裕）" },
-      { id: "gemini-1.5-pro", name: "🧠 Gemini 1.5 Pro（深度解析：10+ 頁超長簡報、複雜圖表剖析）" },
-      { id: "gemini-2.0-flash", name: "⚡ Gemini 2.0 Flash（次世代極速：快速推導排版與標籤）" }
+      { id: "auto", name: "⚡ 智慧自動判定（依簡報長度自動適配）" },
+      { id: "gemini-2.5-flash", name: "🚀 Gemini 2.5 Flash（3秒極速、額度最充裕）" },
+      { id: "gemini-1.5-pro", name: "🧠 Gemini 1.5 Pro（深度解析、10+ 頁複雜簡報）" },
+      { id: "gemini-2.0-flash", name: "⚡ Gemini 2.0 Flash（次世代極速推導）" }
     ],
     descriptions: {
       "auto": {
@@ -27,15 +30,15 @@ const PROVIDER_CONFIG = {
       },
       "gemini-2.5-flash": {
         title: "🚀 Gemini 2.5 Flash（日常極速首選）",
-        text: "速度約 3~5 秒。適合 1~10 頁精選截圖或一般投影片。色彩 Hex 與排版網格萃取精準，Google 免費額度最高、幾乎不觸發頻率限制。"
+        text: "速度約 3~5 秒。色彩 Hex 與排版網格萃取精準，Google 免費額度最高、幾乎不觸發頻率限制。"
       },
       "gemini-1.5-pro": {
         title: "🧠 Gemini 1.5 Pro（深度推論與長篇首選）",
-        text: "耗時約 12~20 秒。具備百萬 Token 超大上下文能力。專門應對 30+ 頁超長簡報、麥肯錫諮詢風密集圖表、或極度講求微光影與字距排印學的情境。"
+        text: "具備百萬 Token 超大上下文能力。專門應對超長簡報、麥肯錫諮詢風密集圖表、或微光影排印學情境。"
       },
       "gemini-2.0-flash": {
         title: "⚡ Gemini 2.0 Flash（次世代極速模型）",
-        text: "反應敏捷（約 3 秒完成）。專注於結構標籤快速推導，適合快速連續測試不同投影片風格。"
+        text: "反應敏捷（約 3 秒完成）。專注於結構標籤快速推導，適合快速連續測試。"
       }
     }
   },
@@ -45,14 +48,14 @@ const PROVIDER_CONFIG = {
     portalText: "前往 OpenAI Platform 建立 Key",
     portalUrl: "https://platform.openai.com/api-keys",
     models: [
-      { id: "auto", name: "⚡ 智慧自動判定（推薦首選：依投影片長度自動適配）" },
-      { id: "gpt-4o", name: "🧠 GPT-4o（旗艦深度：高精準視覺理解與結構推導）" },
-      { id: "gpt-4o-mini", name: "🚀 GPT-4o mini（極速輕量：低成本、秒級分析）" }
+      { id: "auto", name: "⚡ 智慧自動判定（推薦首選）" },
+      { id: "gpt-4o", name: "🧠 GPT-4o（旗艦深度：高精準視覺理解）" },
+      { id: "gpt-4o-mini", name: "🚀 GPT-4o mini（極速輕量：秒級分析）" }
     ],
     descriptions: {
       "auto": {
         title: "⚡ 智慧自動判定模式（OpenAI）",
-        text: "系統將自動依據頁數與複雜度，在 GPT-4o 旗艦模型與 GPT-4o mini 極速模型之間自動切換。"
+        text: "系統將自動依據頁數與複雜度，在 GPT-4o 旗艦模型與 GPT-4o mini 極速模型之間切換。"
       },
       "gpt-4o": {
         title: "🧠 GPT-4o（OpenAI 旗艦多模態視覺）",
@@ -70,8 +73,8 @@ const PROVIDER_CONFIG = {
     portalText: "前往 Anthropic Console 建立 Key",
     portalUrl: "https://console.anthropic.com/settings/keys",
     models: [
-      { id: "auto", name: "⚡ 智慧自動判定（推薦首選：依投影片長度自動適配）" },
-      { id: "claude-3-5-sonnet-20241022", name: "🧠 Claude 3.5 Sonnet（美學旗艦：極致排版與設計語言感悟）" },
+      { id: "auto", name: "⚡ 智慧自動判定（推薦首選）" },
+      { id: "claude-3-5-sonnet-20241022", name: "🧠 Claude 3.5 Sonnet（美學旗艦：極致排版語感）" },
       { id: "claude-3-5-haiku-20241022", name: "🚀 Claude 3.5 Haiku（極速輕量：快速架構萃取）" }
     ],
     descriptions: {
@@ -85,7 +88,7 @@ const PROVIDER_CONFIG = {
       },
       "claude-3-5-haiku-20241022": {
         title: "🚀 Claude 3.5 Haiku（極速輕量）",
-        text: "速度極快，兼顧 Claude 優質的文筆與架構提煉能力。"
+        text: "速度極快，兼顧優質文筆與架構提煉能力。"
       }
     }
   }
@@ -99,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateUiState();
 });
 
-// === 1. API KEY 管理 (分供應商獨立儲存於用戶端 LocalStorage) ===
+// === 1. API KEY 管理 ===
 function getApiKey(provider = currentProvider) {
   return localStorage.getItem(`${provider}_api_key`) || "";
 }
@@ -120,13 +123,13 @@ function initApiKeyStatus() {
   const config = PROVIDER_CONFIG[currentProvider];
   
   if (key) {
-    dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
-    text.textContent = `${config.name} Key 已就緒`;
-    text.className = "text-emerald-300 font-medium";
+    dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+    text.textContent = `${config.name} 就緒`;
+    text.className = "text-emerald-700 font-semibold";
   } else {
-    dot.className = "w-2 h-2 rounded-full bg-amber-400";
+    dot.className = "w-2 h-2 rounded-full bg-amber-500";
     text.textContent = `設定 ${config.name} Key`;
-    text.className = "text-amber-300 font-medium";
+    text.className = "text-slate-700 font-semibold";
   }
 }
 
@@ -135,13 +138,13 @@ function switchProvider(newProvider) {
   currentProvider = newProvider;
   localStorage.setItem("active_provider", newProvider);
 
-  // 更新主面板供應商標籤外觀
+  // 更新主面板供應商標籤外觀 (高階白底顧問風)
   document.querySelectorAll("#provider-selector .provider-tab").forEach(btn => {
     const p = btn.getAttribute("data-provider");
     if (p === newProvider) {
-      btn.className = "provider-tab px-2.5 py-2 rounded-xl text-xs font-semibold border transition-all flex flex-col items-center gap-1 bg-indigo-600/20 text-indigo-300 border-indigo-500 shadow-sm";
+      btn.className = "provider-tab px-2 py-1.5 rounded-lg text-xs font-bold transition-all text-center bg-white text-slate-900 shadow-sm border border-slate-200 cursor-pointer";
     } else {
-      btn.className = "provider-tab px-2.5 py-2 rounded-xl text-xs font-semibold border transition-all flex flex-col items-center gap-1 bg-surface-850 text-slate-400 border-slate-800 hover:border-slate-700";
+      btn.className = "provider-tab px-2 py-1.5 rounded-lg text-xs font-semibold transition-all text-center text-slate-600 hover:text-slate-900 cursor-pointer";
     }
   });
 
@@ -240,7 +243,7 @@ function setupEventListeners() {
     }
     setApiKey(modalSelectedProvider, key);
     modalApiKey.classList.add("hidden");
-    showToast(`${PROVIDER_CONFIG[modalSelectedProvider].name} 金鑰已安全保存於本地！`, "success");
+    showToast(`${PROVIDER_CONFIG[modalSelectedProvider].name} 金鑰已安全保存！`, "success");
     if (modalSelectedProvider !== currentProvider) {
       switchProvider(modalSelectedProvider);
     }
@@ -272,9 +275,9 @@ function setupEventListeners() {
     btn.addEventListener("click", () => {
       const tut = btn.getAttribute("data-tut");
       document.querySelectorAll(".tut-tab-btn").forEach(b => {
-        b.className = "tut-tab-btn py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200";
+        b.className = "tut-tab-btn py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 cursor-pointer";
       });
-      btn.className = "tut-tab-btn py-2 border-b-2 border-indigo-500 text-indigo-300 font-semibold";
+      btn.className = "tut-tab-btn py-2 border-b-2 border-[#0E3B5D] text-[#0E3B5D] font-bold cursor-pointer";
 
       document.getElementById("tut-content-gemini").classList.add("hidden");
       document.getElementById("tut-content-openai").classList.add("hidden");
@@ -292,16 +295,16 @@ function setupEventListeners() {
 
   dropZone.addEventListener("dragover", (e) => {
     e.preventDefault();
-    dropZone.classList.add("border-indigo-500", "bg-indigo-950/20");
+    dropZone.classList.add("border-[#0E3B5D]", "bg-slate-100/60");
   });
 
   dropZone.addEventListener("dragleave", () => {
-    dropZone.classList.remove("border-indigo-500", "bg-indigo-950/20");
+    dropZone.classList.remove("border-[#0E3B5D]", "bg-slate-100/60");
   });
 
   dropZone.addEventListener("drop", (e) => {
     e.preventDefault();
-    dropZone.classList.remove("border-indigo-500", "bg-indigo-950/20");
+    dropZone.classList.remove("border-[#0E3B5D]", "bg-slate-100/60");
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFilesAdded(Array.from(e.dataTransfer.files));
     }
@@ -315,6 +318,8 @@ function setupEventListeners() {
 
   document.getElementById("btn-clear-files").addEventListener("click", () => {
     selectedFiles = [];
+    uploadedSlidePages = [];
+    currentComparisonPage = 0;
     document.getElementById("thumbnail-gallery").innerHTML = "";
     document.getElementById("file-preview-section").classList.add("hidden");
     fileInput.value = "";
@@ -329,22 +334,40 @@ function setupEventListeners() {
     });
   });
 
+  // 檢視模式切換 (並排 / 僅看還原 / 僅看原檔)
+  document.getElementById("mode-btn-split").addEventListener("click", () => setComparisonMode("split"));
+  document.getElementById("mode-btn-reconstruct").addEventListener("click", () => setComparisonMode("reconstruct"));
+  document.getElementById("mode-btn-original").addEventListener("click", () => setComparisonMode("original"));
+
+  // 投影片翻頁監聽
+  document.getElementById("btn-prev-slide").addEventListener("click", () => {
+    if (currentComparisonPage > 0) {
+      currentComparisonPage--;
+      updateComparisonView();
+    }
+  });
+  document.getElementById("btn-next-slide").addEventListener("click", () => {
+    if (currentComparisonPage < uploadedSlidePages.length - 1) {
+      currentComparisonPage++;
+      updateComparisonView();
+    }
+  });
+
   // 開始分析按鈕
   document.getElementById("btn-start-analyze").addEventListener("click", handleStartAnalyze);
 
-  // 複製與下載按鈕
+  // 複製按鈕
   document.getElementById("btn-copy-nblm").addEventListener("click", () => {
     if (!generatedNblmPrompt) return;
     navigator.clipboard.writeText(generatedNblmPrompt).then(() => {
       const label = document.getElementById("copy-btn-label");
       const originalText = label.textContent;
       label.textContent = "已複製！";
-      showToast("已複製 NotebookLM 專用提示詞！可直接至 NBLM 貼上", "success");
+      showToast("已複製 NotebookLM 專用提示詞！可至 NBLM 貼上", "success");
       setTimeout(() => label.textContent = originalText, 2000);
     });
   });
 
-  // 複製 Gamma 指令
   const copyGammaBtn = document.getElementById("btn-copy-gamma");
   if (copyGammaBtn) {
     copyGammaBtn.addEventListener("click", () => {
@@ -359,7 +382,6 @@ function setupEventListeners() {
     });
   }
 
-  // 複製 HTML 投影片源碼
   const copyHtmlBtn = document.getElementById("btn-copy-html-code");
   if (copyHtmlBtn) {
     copyHtmlBtn.addEventListener("click", () => {
@@ -374,7 +396,6 @@ function setupEventListeners() {
     });
   }
 
-  // 獨立全螢幕開新視窗預覽
   const openWindowBtn = document.getElementById("btn-open-preview-window");
   if (openWindowBtn) {
     openWindowBtn.addEventListener("click", () => {
@@ -419,13 +440,12 @@ function openApiKeyModal(provider) {
   document.querySelectorAll("#modal-provider-selector .modal-provider-btn").forEach(btn => {
     const p = btn.getAttribute("data-modal-provider");
     if (p === provider) {
-      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition-all text-center bg-indigo-600/20 text-indigo-300 border-indigo-500";
+      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-bold border transition-all text-center bg-[#0E3B5D] text-white border-[#0E3B5D] cursor-pointer";
     } else {
-      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition-all text-center bg-surface-850 text-slate-400 border-slate-800 hover:border-slate-700";
+      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-bold border transition-all text-center bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 cursor-pointer";
     }
   });
 
-  // 更新輸入框與官方連結
   document.getElementById("modal-key-label").textContent = `${config.name} API Key：`;
   const keyInput = document.getElementById("input-api-key");
   keyInput.placeholder = config.defaultPlaceholder;
@@ -439,7 +459,7 @@ function openApiKeyModal(provider) {
   lucide.createIcons();
 }
 
-// === 3. 檔案處理與縮圖預覽 ===
+// === 3. 檔案處理與縮圖收集 ===
 async function handleFilesAdded(files) {
   const validExtensions = [".pptx", ".pdf", ".png", ".jpg", ".jpeg", ".webp"];
   const newFiles = files.filter(f => {
@@ -463,13 +483,13 @@ async function handleFilesAdded(files) {
     
     if (ext === ".pdf" || ext === ".pptx") {
       const previewCard = document.createElement("div");
-      previewCard.className = "relative rounded-lg border border-slate-700 bg-surface-800 p-2 flex flex-col items-center justify-center text-center text-xs text-slate-300";
+      previewCard.className = "relative rounded-xl border border-slate-200 bg-slate-50 p-2 flex flex-col items-center justify-center text-center text-xs text-slate-600 shadow-sm";
       const fileIcon = ext === ".pptx" ? "presentation" : "file-text";
       previewCard.innerHTML = `
-        <div class="animate-pulse flex flex-col items-center py-4">
-          <i data-lucide="${fileIcon}" class="w-6 h-6 text-indigo-400 mb-1"></i>
-          <span class="truncate max-w-[90px] font-mono text-[10px]">${file.name}</span>
-          <span class="text-[9px] text-slate-500 mt-0.5">解析投影片中...</span>
+        <div class="animate-pulse flex flex-col items-center py-3">
+          <i data-lucide="${fileIcon}" class="w-6 h-6 text-[#0E3B5D] mb-1"></i>
+          <span class="truncate max-w-[85px] font-mono text-[10px] text-slate-700">${file.name}</span>
+          <span class="text-[9px] text-slate-400 mt-0.5">解析投影片...</span>
         </div>
       `;
       gallery.appendChild(previewCard);
@@ -485,14 +505,17 @@ async function handleFilesAdded(files) {
         const data = await resp.json();
         
         if (data.status === "success" && data.preview_pages && data.preview_pages.length > 0) {
+          // 儲存頁面縮圖給雙欄對比視窗使用
+          uploadedSlidePages.push(...data.preview_pages);
+          
           previewCard.innerHTML = `
-            <div class="relative w-full h-24 overflow-hidden rounded bg-black/40">
+            <div class="relative w-full h-20 overflow-hidden rounded-lg bg-slate-200 border border-slate-200">
               <img src="${data.preview_pages[0].image}" class="w-full h-full object-cover">
-              <span class="absolute bottom-1 right-1 bg-black/70 text-[9px] px-1 py-0.2 rounded text-slate-200">
-                ${ext.toUpperCase().replace('.', '')} · 共 ${data.total_pages} 頁
+              <span class="absolute bottom-1 right-1 bg-black/75 text-[9px] px-1 py-0.2 rounded text-white font-mono">
+                ${data.total_pages} 頁
               </span>
             </div>
-            <span class="truncate max-w-[95px] text-[10px] text-slate-300 mt-1">${file.name}</span>
+            <span class="truncate max-w-[90px] text-[10px] text-slate-700 mt-1 font-medium">${file.name}</span>
           `;
         }
       } catch (err) {
@@ -502,13 +525,18 @@ async function handleFilesAdded(files) {
     } else {
       const reader = new FileReader();
       reader.onload = (e) => {
+        uploadedSlidePages.push({
+          page: uploadedSlidePages.length + 1,
+          image: e.target.result
+        });
+
         const card = document.createElement("div");
-        card.className = "relative rounded-lg border border-slate-700 bg-surface-800 p-1 flex flex-col items-center";
+        card.className = "relative rounded-xl border border-slate-200 bg-slate-50 p-1 flex flex-col items-center shadow-sm";
         card.innerHTML = `
-          <div class="w-full h-24 overflow-hidden rounded bg-black/40">
+          <div class="w-full h-20 overflow-hidden rounded-lg bg-slate-200 border border-slate-200">
             <img src="${e.target.result}" class="w-full h-full object-cover">
           </div>
-          <span class="truncate max-w-[95px] text-[10px] text-slate-300 mt-1">${file.name}</span>
+          <span class="truncate max-w-[90px] text-[10px] text-slate-700 mt-1 font-medium">${file.name}</span>
         `;
         gallery.appendChild(card);
       };
@@ -565,7 +593,7 @@ async function handleStartAnalyze() {
     }
 
     renderAnalysisResult(data);
-    showToast("風格逆向分析完成！已為您產生 NBLM 提示詞", "success");
+    showToast("風格逆向分析完成！已為您產生 1:1 幾何對比與提示詞", "success");
 
   } catch (err) {
     console.error(err);
@@ -578,7 +606,7 @@ async function handleStartAnalyze() {
   }
 }
 
-// === 5. 結果渲染邏輯 ===
+// === 5. 結果渲染邏輯 (雙欄並排與多頁籤) ===
 function renderAnalysisResult(data) {
   generatedReportMarkdown = data.markdown_report || "";
   
@@ -598,15 +626,18 @@ function renderAnalysisResult(data) {
     gammaCodeEl.textContent = generatedGammaPrompt || "未能擷取到特定 Gamma 指令，請參閱完整規範報告。";
   }
 
+  // 渲染右側 1:1 投影片 iframe
   if (generatedSlideHtml) {
-    const htmlSrcEl = document.getElementById("html-source-code");
-    if (htmlSrcEl) htmlSrcEl.textContent = generatedSlideHtml;
-    
     const iframe = document.getElementById("slide-preview-iframe");
     if (iframe) {
       iframe.srcdoc = buildFullSlideHtml(generatedSlideHtml);
     }
   }
+
+  // 更新「左右並排對比」視窗
+  currentComparisonPage = 0;
+  updateComparisonView();
+  setComparisonMode("split");
 
   // 預設切換至 NotebookLM 提示詞頁籤
   switchResultTab("nblm");
@@ -628,9 +659,9 @@ function renderAnalysisResult(data) {
 
   const tagsContainer = document.getElementById("result-tags-container");
   tagsContainer.innerHTML = "";
-  (meta.tags || ["簡報逆向", "視覺規範", "NBLM 適配"]).forEach(tag => {
+  (meta.tags || ["麥肯錫架構", "純2D扁平", "三欄線框卡片", "同心圓模型"]).forEach(tag => {
     const span = document.createElement("span");
-    span.className = "px-2.5 py-1 text-xs rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-medium";
+    span.className = "px-2.5 py-1 text-xs rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-semibold";
     span.textContent = `# ${tag}`;
     tagsContainer.appendChild(span);
   });
@@ -640,10 +671,10 @@ function renderAnalysisResult(data) {
   }
 
   renderColorPalette(meta.palette || [
-    { role: "主背景色", hex: "#0F172A", name: "Deep Navy" },
-    { role: "主要標題", hex: "#FFFFFF", name: "Pure White" },
-    { role: "科技主色", hex: "#6366F1", name: "Indigo Primary" },
-    { role: "視覺強調", hex: "#10B981", name: "Emerald Highlight" }
+    {"role": "畫布背景", "hex": "#FFFFFF", "name": "Pure White"},
+    {"role": "主標題與邊框", "hex": "#0E3B5D", "name": "Navy Blue"},
+    {"role": "核心強調金", "hex": "#C59B27", "name": "Ochre Gold"},
+    {"role": "斑馬條塊色", "hex": "#F3F4F6", "name": "Light Gray"}
   ]);
 
   const markdownContainer = document.getElementById("full-report-markdown");
@@ -652,13 +683,82 @@ function renderAnalysisResult(data) {
   lucide.createIcons();
 }
 
+// 更新雙欄對比視窗 (原始投影片 vs 還原成果)
+function updateComparisonView() {
+  const originalImg = document.getElementById("img-original-slide");
+  const originalPlaceholder = document.getElementById("original-placeholder");
+  const pageNav = document.getElementById("slide-page-nav");
+  const pageIndicator = document.getElementById("slide-page-indicator");
+  const originalPageLabel = document.getElementById("original-page-label");
+  const prevBtn = document.getElementById("btn-prev-slide");
+  const nextBtn = document.getElementById("btn-next-slide");
+
+  if (uploadedSlidePages && uploadedSlidePages.length > 0) {
+    const pageData = uploadedSlidePages[currentComparisonPage] || uploadedSlidePages[0];
+    originalImg.src = pageData.image;
+    originalImg.classList.remove("hidden");
+    if (originalPlaceholder) originalPlaceholder.classList.add("hidden");
+    originalPageLabel.textContent = `Page ${currentComparisonPage + 1}`;
+    
+    if (uploadedSlidePages.length > 1) {
+      pageNav.classList.remove("hidden");
+      pageNav.classList.add("flex");
+      pageIndicator.textContent = `第 ${currentComparisonPage + 1} / ${uploadedSlidePages.length} 頁`;
+      prevBtn.disabled = (currentComparisonPage === 0);
+      nextBtn.disabled = (currentComparisonPage === uploadedSlidePages.length - 1);
+      prevBtn.classList.toggle("opacity-30", currentComparisonPage === 0);
+      nextBtn.classList.toggle("opacity-30", currentComparisonPage === uploadedSlidePages.length - 1);
+    } else {
+      pageNav.classList.add("hidden");
+    }
+  } else {
+    originalImg.classList.add("hidden");
+    if (originalPlaceholder) originalPlaceholder.classList.remove("hidden");
+    pageNav.classList.add("hidden");
+  }
+}
+
+// 檢視模式切換 (並排 / 僅看還原 / 僅看原檔)
+function setComparisonMode(mode) {
+  currentComparisonMode = mode;
+  const grid = document.getElementById("comparison-grid");
+  const paneOriginal = document.getElementById("pane-original-slide");
+  const paneReconstruct = document.getElementById("pane-reconstructed-slide");
+  
+  const btnSplit = document.getElementById("mode-btn-split");
+  const btnReconstruct = document.getElementById("mode-btn-reconstruct");
+  const btnOriginal = document.getElementById("mode-btn-original");
+
+  [btnSplit, btnReconstruct, btnOriginal].forEach(btn => {
+    btn.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 cursor-pointer transition-all flex items-center gap-1 text-xs font-semibold";
+  });
+
+  if (mode === "split") {
+    btnSplit.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm border border-slate-200 cursor-pointer transition-all flex items-center gap-1 text-xs font-bold";
+    grid.className = "grid grid-cols-1 md:grid-cols-2 gap-4 pt-1";
+    paneOriginal.classList.remove("hidden");
+    paneReconstruct.classList.remove("hidden");
+  } else if (mode === "reconstruct") {
+    btnReconstruct.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm border border-slate-200 cursor-pointer transition-all flex items-center gap-1 text-xs font-bold";
+    grid.className = "grid grid-cols-1 gap-4 pt-1";
+    paneOriginal.classList.add("hidden");
+    paneReconstruct.classList.remove("hidden");
+  } else if (mode === "original") {
+    btnOriginal.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm border border-slate-200 cursor-pointer transition-all flex items-center gap-1 text-xs font-bold";
+    grid.className = "grid grid-cols-1 gap-4 pt-1";
+    paneOriginal.classList.remove("hidden");
+    paneReconstruct.classList.add("hidden");
+  }
+  lucide.createIcons();
+}
+
 function switchResultTab(tabName) {
   document.querySelectorAll(".result-tab-btn").forEach(btn => {
     const t = btn.getAttribute("data-result-tab");
     if (t === tabName) {
-      btn.className = "result-tab-btn active px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all bg-indigo-600 text-white shadow-md shadow-indigo-600/30";
+      btn.className = "result-tab-btn active px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all bg-white text-[#0E3B5D] shadow-sm border border-slate-200 cursor-pointer";
     } else {
-      btn.className = "result-tab-btn px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-surface-850";
+      btn.className = "result-tab-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer";
     }
   });
 
@@ -734,30 +834,31 @@ function buildFullSlideHtml(rawHtml) {
     body { font-family: 'Noto Sans TC', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
   </style>
 </head>
-<body class="bg-slate-900 min-h-screen flex items-center justify-center p-2 sm:p-6">
-  <div class="w-full max-w-5xl bg-white shadow-2xl rounded-2xl overflow-hidden aspect-video flex flex-col justify-center">
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-2 sm:p-4">
+  <div class="w-full max-w-5xl bg-white shadow-xl rounded-xl overflow-hidden aspect-video flex flex-col justify-center border border-slate-200">
     ${rawHtml}
   </div>
 </body>
 </html>`;
 }
 
+// Pantone / 設計系統風格色票卡片
 function renderColorPalette(palette) {
   const container = document.getElementById("color-palette-container");
   container.innerHTML = "";
 
   palette.forEach(color => {
     const card = document.createElement("div");
-    card.className = "group relative bg-surface-850 border border-slate-800 rounded-xl p-2.5 flex items-center gap-3 cursor-pointer hover:border-indigo-500 transition-all";
+    card.className = "group bg-slate-50 hover:bg-slate-100/90 border border-slate-200/90 rounded-xl p-3 flex flex-col justify-between transition-all cursor-pointer shadow-sm hover:border-slate-300";
     card.title = "點擊複製 Hex 色碼";
     
     card.innerHTML = `
-      <div class="w-8 h-8 rounded-lg shadow-inner border border-white/10 shrink-0" style="background-color: ${color.hex}"></div>
-      <div class="min-w-0">
-        <div class="text-[11px] font-medium text-slate-200 truncate">${color.role || color.name}</div>
-        <div class="text-[10px] font-mono text-indigo-400 group-hover:text-indigo-300 flex items-center gap-1">
+      <div class="w-full h-9 rounded-lg shadow-inner border border-black/10 mb-2.5" style="background-color: ${color.hex}"></div>
+      <div>
+        <div class="text-[11px] font-bold text-slate-800 truncate">${color.role || color.name}</div>
+        <div class="text-[11px] font-mono font-semibold text-[#0E3B5D] flex items-center justify-between mt-0.5">
           <span>${color.hex}</span>
-          <i data-lucide="copy" class="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+          <i data-lucide="copy" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400"></i>
         </div>
       </div>
     `;
@@ -769,20 +870,21 @@ function renderColorPalette(palette) {
 
     container.appendChild(card);
   });
+  lucide.createIcons();
 }
 
 function fallbackExtractMeta(markdown) {
-  const hexMatches = markdown.match(/#[0-9a-fA-F]{6}/g) || ["#0F172A", "#FFFFFF", "#6366F1", "#10B981"];
+  const hexMatches = markdown.match(/#[0-9a-fA-F]{6}/g) || ["#FFFFFF", "#0E3B5D", "#C59B27", "#F3F4F6"];
   const uniqueHex = Array.from(new Set(hexMatches)).slice(0, 4);
   return {
-    style_name: "簡報逆向分析報告",
-    tags: ["視覺規範", "簡報架構", "色彩推導"],
+    style_name: "麥肯錫顧問架構風",
+    tags: ["幾何拓撲", "三欄線框卡片", "同心圓模型", "純2D扁平"],
     palette: uniqueHex.map((hex, idx) => ({
-      role: idx === 0 ? "背景色" : idx === 1 ? "主文字" : idx === 2 ? "品牌色" : "強調色",
+      role: idx === 0 ? "畫布底色" : idx === 1 ? "主標題與邊框" : idx === 2 ? "核心強調金" : "斑馬條塊色",
       hex: hex,
-      name: "推導色"
+      name: "提取色"
     })),
-    white_space_ratio: "約 70%"
+    white_space_ratio: "70%"
   };
 }
 
@@ -794,16 +896,16 @@ function showToast(message, type = "info") {
   text.textContent = message;
 
   if (type === "success") {
-    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-emerald-950 border border-emerald-700 text-xs shadow-2xl text-emerald-200";
+    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-xs shadow-xl text-white";
     icon.className = "w-4 h-4 text-emerald-400";
     icon.setAttribute("data-lucide", "check-circle");
   } else if (type === "warning" || type === "error") {
-    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-950 border border-red-700 text-xs shadow-2xl text-red-200";
-    icon.className = "w-4 h-4 text-red-400";
+    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-rose-900 border border-rose-700 text-xs shadow-xl text-white";
+    icon.className = "w-4 h-4 text-rose-300";
     icon.setAttribute("data-lucide", "alert-circle");
   } else {
-    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-xs shadow-2xl text-white";
-    icon.className = "w-4 h-4 text-indigo-400";
+    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-xs shadow-xl text-white";
+    icon.className = "w-4 h-4 text-blue-400";
     icon.setAttribute("data-lucide", "info");
   }
 

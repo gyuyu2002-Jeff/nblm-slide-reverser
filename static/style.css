@@ -1,26 +1,27 @@
-/* 自訂微調樣式 */
+/* 自訂微調樣式 (高階白底顧問風 - Editorial McKinsey / Consulting Studio) */
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: #f1f5f9;
   border-radius: 9999px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(71, 85, 105, 0.6);
+  background: #cbd5e1;
   border-radius: 9999px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.8);
+  background: #94a3b8;
 }
 
 @keyframes scaleUp {
   0% {
-    transform: scale(0.95);
+    transform: scale(0.97);
     opacity: 0;
   }
   100% {
@@ -33,31 +34,46 @@
   animation: scaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Markdown prose 微調 */
+/* Markdown prose 微調 (白底高階顧問風格) */
 .prose h1, .prose h2, .prose h3 {
-  color: #f8fafc !important;
+  color: #0f172a !important;
+  font-weight: 700;
   margin-top: 1.25em;
   margin-bottom: 0.5em;
 }
 
 .prose h2 {
-  border-bottom: 1px solid rgba(51, 65, 85, 0.6);
+  border-bottom: 1px solid #e2e8f0;
   padding-bottom: 0.3em;
 }
 
+.prose p, .prose li {
+  color: #334155 !important;
+  line-height: 1.7;
+}
+
 .prose blockquote {
-  border-left-color: #6366f1 !important;
-  background-color: rgba(99, 102, 241, 0.08);
-  padding: 0.5rem 1rem;
+  border-left-color: #0e3b5d !important;
+  background-color: #f8fafc;
+  padding: 0.75rem 1.25rem;
   border-radius: 0.5rem;
+  color: #1e293b !important;
+  border-left-width: 4px;
 }
 
 .prose code {
-  color: #a5b4fc !important;
-  background-color: #1e1b4b !important;
+  color: #0e3b5d !important;
+  background-color: #f1f5f9 !important;
   padding: 0.15rem 0.35rem;
   border-radius: 0.25rem;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 0.85em;
+}
+
+.prose pre {
+  background-color: #0f172a !important;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .prose pre code {
