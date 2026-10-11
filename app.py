@@ -36,7 +36,7 @@ app.add_middleware(
 # 系統逆向工程 Prompt (真確幾何骨架與視覺還原專用引擎 - 零幻覺標準)
 SYSTEM_INSTRUCTION = """
 你是一位世界頂級的簡報視覺逆向架構師（Presentation Layout Reverse-Engineer）與幾何排版專家。
-你的使命是【像素級與拓撲級真實還原】使用者上傳的簡報範例（PDF、PPTX 或投影片截圖），徹底洞察其「真實幾何骨架、圖解隱喻、邊框材質、文字節奏與色彩系統」，並轉譯為能 100% 忠實對齊的 NotebookLM 提示詞、Gamma/AI 簡報生成指令、以及可直接渲染的 HTML/Tailwind 投影片代碼。
+你的使命是【像素級與拓撲級真實還原】使用者上傳的簡報範例（PDF、PPTX 或投影片截圖），徹底洞察其「真實幾何骨架、圖解隱喻、邊框材質、文字節奏與色彩系統」，並轉譯為能 100% 忠實對齊的 NotebookLM 結構化提示詞、排版設計規範、以及可直接渲染的 HTML/Tailwind 投影片代碼。
 
 ⚠️【最高原則：實事求是、零幻覺還原（Zero-Hallucination Constraints）】：
 1. 🚫【嚴禁無中生有幻覺「巨型 KPI 統計大數字」】：
@@ -99,22 +99,7 @@ SYSTEM_INSTRUCTION = """
 3. 根據上述「第 1 節實際辨識到的各頁幾何拓撲」，精確產生對應的投影片型態骨架插槽（例如型態 1: 概念架構與進程頁 [左右分割/同心圓/里程碑]；型態 2: 模組分析與檢視頁 [三欄線框卡片/斑馬紋條列] 等）！]
 ```
 
-## 4. 🚀 Gamma AI 簡報工具專用風格指令 (Gamma Prompt)
-> 複製以下指令貼給 Gamma AI 或其他簡報工具，直接生成風格與版面 1:1 一致的投影片：
-
-```markdown
-[在此輸出專門給 Gamma AI、Marp 或 AI 簡報工具的主題與排版指令。
-包含：
-- Style Directive (風格流派：高雅麥肯錫企管顧問極簡風)
-- Background & Exact Color Hex Palette (純白背景 #FFFFFF，海軍藍 #0E3B5D，赭石金 #C59B27)
-- 2D Flat Constraint (所有圖表強制純 2D 平面向量，時間軸強制水平水平橫向)
-- Container & Card Style (明確指示 1.5px 俐落邊框、純白底、無陰影)
-- List & Content Style (明確指示斑馬紋條列水平色塊，替代普通圓點)
-- Iconography Style (頂部居中雙色向量圖示)
-- Strict Negative Prompt (嚴格排除：blueprint, grid paper, ruler, crosshair, 3d render, shadows, sci-fi, cyberpunk, neon, tilted arrow, giant KPI numbers)]
-```
-
-## 5. 💻 1:1 還原之 HTML / Tailwind 投影片結構碼 (可直接複製使用)
+## 4. 💻 1:1 還原之 HTML / Tailwind 投影片結構碼 (可直接複製使用)
 ```html
 <!-- 完整、乾淨、可以直接在瀏覽器獨立運行的 HTML 代碼，包含 Tailwind CSS CDN 與內聯樣式，100% 忠實重現上述投影片的真實幾何圖解與版面 -->
 ```
@@ -285,8 +270,8 @@ async def analyze_style(
             "【核心使命】：\n"
             "1. 必須逐頁精確拆解投影片的真實骨架（如左右分割、同心圓靶心、橫向進程軸、N 欄線框卡片、斑馬紋條列區塊），實事求是，嚴格禁止無中生有幻覺巨型 KPI 統計大數字！\n"
             "2. 產出的 NotebookLM 提示詞必須與上傳投影片的真實骨架 1:1 精確對齊，讓使用者貼入 NotebookLM 後能將筆記內容填入對應的幾何槽位中。\n"
-            "3. 同步產出 Gamma AI 簡報工具專用風格指令，以及一份可直接獨立運行的 HTML/Tailwind 1:1 還原投影片結構代碼。\n"
-            "4. 請嚴格依照 SYSTEM INSTRUCTION 規定的五大章節與 JSON 格式輸出。"
+            "3. 產出一份可直接獨立運行的 HTML/Tailwind 1:1 還原投影片結構代碼。\n"
+            "4. 請嚴格依照 SYSTEM INSTRUCTION 規定的章節與 JSON 格式輸出。"
         )
         if pptx_summaries:
             user_prompt_text += "\n\n【從 PPTX 程式碼提取之精確設計元數據】：\n" + "\n\n".join(pptx_summaries)

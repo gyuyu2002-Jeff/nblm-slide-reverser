@@ -5,14 +5,13 @@ let currentComparisonPage = 0;
 let currentComparisonMode = "split"; // "split", "reconstruct", "original"
 let generatedReportMarkdown = "";
 let generatedNblmPrompt = "";
-let generatedGammaPrompt = "";
 let generatedSlideHtml = "";
 let currentProvider = localStorage.getItem("active_provider") || "gemini";
 let modalSelectedProvider = currentProvider;
 
 // 系統逆向工程 Prompt (真確幾何骨架與視覺還原專用引擎 - 零幻覺標準)
 const CLIENT_SYSTEM_INSTRUCTION = `你是一位世界頂級的簡報視覺逆向架構師（Presentation Layout Reverse-Engineer）與幾何排版專家。
-你的使命是【像素級與拓撲級真實還原】使用者上傳的簡報範例（PDF、PPTX 或投影片截圖），徹底洞察其「真實幾何骨架、圖解隱喻、邊框材質、文字節奏與色彩系統」，並轉譯為能 100% 忠實對齊的 NotebookLM 提示詞、Gamma/AI 簡報生成指令、以及可直接渲染的 HTML/Tailwind 投影片代碼。
+你的使命是【像素級與拓撲級真實還原】使用者上傳的簡報範例（PDF、PPTX 或投影片截圖），徹底洞察其「真實幾何骨架、圖解隱喻、邊框材質、文字節奏與色彩系統」，並轉譯為能 100% 忠實對齊的 NotebookLM 結構化提示詞、排版設計規範、以及可直接渲染的 HTML/Tailwind 投影片代碼。
 
 ⚠️【最高原則：實事求是、零幻覺還原（Zero-Hallucination Constraints）】：
 1. 🚫【嚴禁無中生有幻覺「巨型 KPI 統計大數字」】：
@@ -71,22 +70,7 @@ const CLIENT_SYSTEM_INSTRUCTION = `你是一位世界頂級的簡報視覺逆向
 3. 根據上述「第 1 節實際辨識到的各頁幾何拓撲」，精確產生對應的投影片型態骨架插槽！]
 \`\`\`
 
-## 4. 🚀 Gamma AI 簡報工具專用風格指令 (Gamma Prompt)
-> 複製以下指令貼給 Gamma AI 或其他簡報工具，直接生成風格與版面 1:1 一致的投影片：
-
-\`\`\`markdown
-[在此輸出專門給 Gamma AI、Marp 或 AI 簡報工具的主題與排版指令。
-包含：
-- Style Directive (風格流派：高雅麥肯錫企管顧問極簡風)
-- Background & Exact Color Hex Palette
-- 2D Flat Constraint (所有圖表強制純 2D 平面向量，時間軸強制水平水平橫向)
-- Container & Card Style (明確指示 1.5px 俐落邊框、純白底、無陰影)
-- List & Content Style (明確指示斑馬紋條列水平色塊，替代普通圓點)
-- Iconography Style (頂部居中雙色向量圖示)
-- Strict Negative Prompt (嚴格排除：blueprint, grid paper, ruler, crosshair, 3d render, shadows, sci-fi, cyberpunk, neon, tilted arrow, giant KPI numbers)]
-\`\`\`
-
-## 5. 💻 1:1 還原之 HTML / Tailwind 投影片結構碼 (可直接複製使用)
+## 4. 💻 1:1 還原之 HTML / Tailwind 投影片結構碼 (可直接複製使用)
 \`\`\`html
 <!-- 完整、乾淨、可以直接在瀏覽器獨立運行的 HTML 代碼，包含 Tailwind CSS CDN 與內聯樣式，100% 忠實重現上述投影片的真實幾何圖解與版面 -->
 \`\`\`
@@ -390,19 +374,6 @@ function setupEventListeners() {
     });
   });
 
-  on("btn-copy-gamma", "click", () => {
-    if (!generatedGammaPrompt) return;
-    navigator.clipboard.writeText(generatedGammaPrompt).then(() => {
-      const label = document.getElementById("copy-gamma-label");
-      if (label) {
-        const originalText = label.textContent;
-        label.textContent = "已複製！";
-        setTimeout(() => label.textContent = originalText, 2000);
-      }
-      showToast("已複製 Gamma AI 簡報風格指令！", "success");
-    });
-  });
-
   // 直達工作流按鈕：複製並開啟 NotebookLM
   on("btn-copy-and-open-nblm", "click", () => {
     if (!generatedNblmPrompt) {
@@ -412,18 +383,6 @@ function setupEventListeners() {
     navigator.clipboard.writeText(generatedNblmPrompt).then(() => {
       showToast("已複製提示詞！正在為您開啟 NotebookLM...", "success");
       window.open("https://notebooklm.google.com/", "_blank");
-    });
-  });
-
-  // 直達工作流按鈕：複製並開啟 Gamma
-  on("btn-copy-and-open-gamma", "click", () => {
-    if (!generatedGammaPrompt) {
-      showToast("尚未產生 Gamma 指令，請先上傳簡報進行分析", "warning");
-      return;
-    }
-    navigator.clipboard.writeText(generatedGammaPrompt).then(() => {
-      showToast("已複製 Gamma 風格指令！正在為您開啟 Gamma...", "success");
-      window.open("https://gamma.app/", "_blank");
     });
   });
 
@@ -897,8 +856,8 @@ async function handleStartAnalyze() {
         "【核心使命】：\n" +
         "1. 必須逐頁精確拆解投影片的真實骨架（如左右分割、同心圓靶心、橫向進程軸、N 欄線框卡片、斑馬紋條列區塊），實事求是，嚴格禁止無中生有幻覺巨型 KPI 統計大數字！\n" +
         "2. 產出的 NotebookLM 提示詞必須與上傳投影片的真實骨架 1:1 精確對齊，讓使用者貼入 NotebookLM 後能將筆記內容填入對應的幾何槽位中。\n" +
-        "3. 同步產出 Gamma AI 簡報工具專用風格指令，以及一份可直接獨立運行的 HTML/Tailwind 1:1 還原投影片結構代碼。\n" +
-        "4. 請嚴格依照 SYSTEM INSTRUCTION 規定的五大章節與 JSON 格式輸出。";
+        "3. 產出一份可直接獨立運行的 HTML/Tailwind 1:1 還原投影片結構代碼。\n" +
+        "4. 請嚴格依照 SYSTEM INSTRUCTION 規定的章節與 JSON 格式輸出。";
 
       if (currentProvider === "gemini") {
         data = await callGeminiDirectly(apiKey, model, uploadedSlidePages, promptText);
@@ -933,15 +892,9 @@ function renderAnalysisResult(data) {
 
   // 萃取各項產出
   generatedNblmPrompt = extractNblmPrompt(generatedReportMarkdown);
-  generatedGammaPrompt = extractGammaPrompt(generatedReportMarkdown);
   generatedSlideHtml = extractSlideHtml(generatedReportMarkdown);
 
   document.getElementById("nblm-prompt-code").textContent = generatedNblmPrompt || "未能擷取到特定提示詞區塊，請參閱下方全文報告。";
-  
-  const gammaCodeEl = document.getElementById("gamma-prompt-code");
-  if (gammaCodeEl) {
-    gammaCodeEl.textContent = generatedGammaPrompt || "未能擷取到特定 Gamma 指令，請參閱完整規範報告。";
-  }
 
   // 更新投影片預覽視窗
   currentComparisonPage = 0;
@@ -1064,24 +1017,9 @@ function extractNblmPrompt(markdown) {
   return firstBlock ? firstBlock[1].trim() : markdown;
 }
 
-function extractGammaPrompt(markdown) {
-  if (markdown.includes("## 4. 🚀 Gamma") || markdown.includes("Gamma AI")) {
-    const parts = markdown.split(/## 4\..*?Gamma.*?/i);
-    if (parts.length > 1) {
-      const section = parts[1].split(/## 5\./)[0];
-      const codeMatch = section.match(/```(?:markdown)?([\s\S]*?)```/);
-      if (codeMatch && codeMatch[1]) {
-        return codeMatch[1].trim();
-      }
-      return section.trim();
-    }
-  }
-  return "";
-}
-
 function extractSlideHtml(markdown) {
-  if (markdown.includes("## 5. 💻") || markdown.includes("HTML / Tailwind") || markdown.includes("HTML 代碼")) {
-    const parts = markdown.split(/## 5\..*?HTML.*?/i);
+  if (markdown.includes("HTML / Tailwind") || markdown.includes("HTML 代碼") || markdown.includes("## 4. 💻") || markdown.includes("## 5. 💻")) {
+    const parts = markdown.split(/## (?:4|5)\..*?HTML.*?/i);
     if (parts.length > 1) {
       const section = parts[1].split(/---/)[0];
       const codeMatch = section.match(/```(?:html)?([\s\S]*?)```/i);
