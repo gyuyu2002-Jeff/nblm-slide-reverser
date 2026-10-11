@@ -204,10 +204,6 @@ function setupEventListeners() {
     showToast("Google 通行證已就緒！請拖入投影片開始分析", "success");
   });
 
-  // 免金鑰體驗實例按鈕監聽
-  on("btn-load-demo", "click", loadDemoPresentation);
-  on("btn-onboarding-try-demo", "click", loadDemoPresentation);
-
   // 一鍵貼上剪貼簿監聽
   on("btn-paste-onboarding-key", "click", () => pasteClipboardToInput("input-onboarding-key"));
   on("btn-paste-modal-key", "click", () => pasteClipboardToInput("input-api-key"));
@@ -576,7 +572,7 @@ async function parsePdfClientSide(file) {
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const totalPages = pdf.numPages;
   const pages = [];
-  const maxPages = Math.min(totalPages, 6);
+  const maxPages = Math.min(totalPages, 12);
   for (let i = 1; i <= maxPages; i++) {
     const page = await pdf.getPage(i);
     const viewport = page.getViewport({ scale: 1.5 });
@@ -587,6 +583,11 @@ async function parsePdfClientSide(file) {
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
     pages.push({ page: i, image: dataUrl });
+  }
+  if (totalPages > 12) {
+    setTimeout(() => {
+      showToast(`檢測到此簡報共有 ${totalPages} 頁，已為您自動載入前 12 頁核心版型`, "info");
+    }, 500);
   }
   return { total_pages: totalPages, preview_pages: pages };
 }
@@ -1281,33 +1282,6 @@ async function handleStartAnalyze() {
   }
 
   const apiKey = getApiKey(currentProvider);
-
-  // 若尚未設定通行證金鑰，但使用者已載入示範投影片，提供流暢的免金鑰示範解析體驗
-  const isDemoActive = uploadedSlidePages.length > 0 && uploadedSlidePages[0].image && uploadedSlidePages[0].image.includes("demo/slide_");
-  if (!apiKey && isDemoActive) {
-    document.getElementById("panel-idle").classList.add("hidden");
-    document.getElementById("panel-result").classList.add("hidden");
-    document.getElementById("panel-loading").classList.remove("hidden");
-    startProgressPipeline();
-
-    const startBtn = document.getElementById("btn-start-analyze");
-    startBtn.disabled = true;
-    startBtn.classList.add("opacity-50");
-
-    setTimeout(() => {
-      completeProgressPipeline();
-      setTimeout(() => {
-        renderAnalysisResult(DEMO_ANALYSIS_DATA);
-        stopProgressPipeline();
-        document.getElementById("panel-loading").classList.add("hidden");
-        startBtn.disabled = false;
-        startBtn.classList.remove("opacity-50");
-        showToast("✨ 已為您呈現「手繪筆記塗鴉風」示範解析成果！", "success");
-      }, 400);
-    }, 1200);
-    return;
-  }
-
   if (!apiKey) {
     showToast(`請先輸入您的 ${PROVIDER_CONFIG[currentProvider].name} 官方免費通行證 (API Key)`, "warning");
     openApiKeyModal(currentProvider);
