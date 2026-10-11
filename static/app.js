@@ -148,6 +148,36 @@ function setupEventListeners() {
     showToast("已清空選擇檔案", "info");
   });
 
+  // 模型切換白話文說明
+  const modelSelect = document.getElementById("model-select");
+  const modelDescTitle = document.getElementById("model-desc-title");
+  const modelDescText = document.getElementById("model-desc-text");
+
+  const modelDescriptions = {
+    "auto": {
+      title: "⚡ 智慧自動判定模式（免動腦首選）",
+      text: "系統自動偵測投影片總頁數與元素密度：少於 10 頁時以 3 秒極速模型快速推導；長篇大報告則自動切換至百萬上下文 Pro 模型進行深度推論。"
+    },
+    "gemini-2.5-flash": {
+      title: "🚀 Gemini 2.5 Flash（日常極速首選）",
+      text: "速度約 3~5 秒。適合 1~10 頁精選截圖或一般投影片。色彩 Hex 與排版網格萃取精準，Google 免費額度最高、幾乎不觸發頻率限制。"
+    },
+    "gemini-1.5-pro": {
+      title: "🧠 Gemini 1.5 Pro（深度推論與長篇首選）",
+      text: "耗時約 12~20 秒。具備百萬 Token 超大上下文能力。專門應對 30+ 頁超長簡報、麥肯錫諮詢風密集圖表、或極度講求微光影與字距排印學的情境。"
+    },
+    "gemini-2.0-flash": {
+      title: "⚡ Gemini 2.0 Flash（次世代極速模型）",
+      text: "反應敏捷（約 3 秒完成）。專注於結構標籤快速推導，適合快速連續測試不同投影片風格。"
+    }
+  };
+
+  modelSelect.addEventListener("change", (e) => {
+    const desc = modelDescriptions[e.target.value] || modelDescriptions["auto"];
+    modelDescTitle.textContent = desc.title;
+    modelDescText.textContent = desc.text;
+  });
+
   // 開始分析按鈕
   document.getElementById("btn-start-analyze").addEventListener("click", handleStartAnalyze);
 
@@ -348,8 +378,19 @@ function renderAnalysisResult(data) {
   // 2. 結構化色票與標籤
   const meta = data.structured_meta || fallbackExtractMeta(generatedReportMarkdown);
   
-  // 風格名稱
+  // 風格名稱與自動判定標籤
   document.getElementById("result-style-name").textContent = meta.style_name || "簡報視覺風格解析報告";
+
+  const autoBadge = document.getElementById("result-auto-badge");
+  if (data.auto_reason) {
+    autoBadge.textContent = data.auto_reason;
+    autoBadge.classList.remove("hidden");
+  } else if (data.model_used) {
+    autoBadge.textContent = `模型: ${data.model_used}`;
+    autoBadge.classList.remove("hidden");
+  } else {
+    autoBadge.classList.add("hidden");
+  }
 
   // 風格標籤
   const tagsContainer = document.getElementById("result-tags-container");

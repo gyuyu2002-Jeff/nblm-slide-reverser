@@ -136,12 +136,27 @@
 
         <!-- 模型選擇 -->
         <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1.5">視覺多模態模型 (Gemini Vision)</label>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-xs font-medium text-slate-300">視覺多模態模型 (Gemini Vision)</label>
+            <span class="text-[11px] text-indigo-400 font-medium">支援智慧自適應</span>
+          </div>
           <select id="model-select" class="w-full bg-surface-850 border border-slate-700/80 text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500">
-            <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash（推薦：極速、高精確度、免費額度充足）</option>
-            <option value="gemini-1.5-pro">Gemini 1.5 Pro（深度推論：超大上下文與繁複細節剖析）</option>
-            <option value="gemini-2.0-flash">Gemini 2.0 Flash（次世代極速模型）</option>
+            <option value="auto" selected>⚡ 智慧自動判定（推薦首選：依投影片長度自動適配）</option>
+            <option value="gemini-2.5-flash">🚀 Gemini 2.5 Flash（日常首選：少頁截圖、3秒極速、額度最充裕）</option>
+            <option value="gemini-1.5-pro">🧠 Gemini 1.5 Pro（深度解析：10+ 頁超長簡報、複雜圖表剖析）</option>
+            <option value="gemini-2.0-flash">⚡ Gemini 2.0 Flash（次世代極速：快速推導排版與標籤）</option>
           </select>
+
+          <!-- 動態模型白話說明卡片 -->
+          <div id="model-desc-card" class="mt-2 p-2.5 rounded-lg bg-surface-850/80 border border-slate-800 text-[11px] space-y-1 text-slate-400">
+            <div class="text-indigo-300 font-semibold flex items-center gap-1.5">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+              <span id="model-desc-title">⚡ 智慧自動判定模式（免動腦首選）</span>
+            </div>
+            <p id="model-desc-text" class="leading-relaxed text-slate-300">
+              系統會自動偵測您上傳的投影片長度：少於 10 頁時以 3 秒極速模型快速推導；長篇大報告則自動切換至百萬上下文 Pro 模型進行深度推論。
+            </p>
+          </div>
         </div>
 
         <!-- 特別著重維度 (選填) -->
@@ -233,8 +248,11 @@
         <div class="bg-surface-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
-              <span class="text-xs font-medium text-indigo-400 uppercase tracking-wider">風格逆向完成</span>
-              <h2 id="result-style-name" class="text-lg font-bold text-white mt-0.5">風格名稱</h2>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-medium text-indigo-400 uppercase tracking-wider">風格逆向完成</span>
+                <span id="result-auto-badge" class="hidden text-[11px] px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-medium"></span>
+              </div>
+              <h2 id="result-style-name" class="text-lg font-bold text-white mt-1">風格名稱</h2>
             </div>
             <div class="flex gap-2">
               <button id="btn-export-markdown" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 flex items-center gap-1.5 transition-all">

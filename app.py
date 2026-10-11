@@ -181,6 +181,7 @@ async def analyze_style(
 
     gemini_parts = []
     pptx_summaries = []
+    total_detected_pages = 0
     
     try:
         for uploaded_file in files:
@@ -188,9 +189,9 @@ async def analyze_style(
             filename = uploaded_file.filename.lower()
             
             if filename.endswith(".pptx"):
-                # 處理 PPTX 簡報
                 pptx_res = process_pptx_presentation(content)
                 pptx_summaries.append(pptx_res["structure_summary"])
+                total_detected_pages += pptx_res["total_slides"]
                 
                 # 附加上前 4 頁投影片的視覺佈局縮圖
                 for page in pptx_res["preview_pages"][:4]:
@@ -206,6 +207,7 @@ async def analyze_style(
                 
                 try:
                     doc = fitz.open(stream=content, filetype="pdf")
+                    total_detected_pages += len(doc)
                     sample_pages = min(len(doc), 3)
                     for p in range(sample_pages):
                         page = doc.load_page(p)
@@ -221,6 +223,7 @@ async def analyze_style(
                 if filename.endswith(".webp"):
                     mime_type = "image/webp"
                 
+                total_detected_pages += 1
                 part = types.Part.from_bytes(data=content, mime_type=mime_type)
                 gemini_parts.append(part)
             else:
@@ -238,14 +241,25 @@ async def analyze_style(
         user_part = types.Part.from_text(text=user_prompt_text)
         gemini_parts.append(user_part)
 
+        # 模型選擇（支援智慧自動判定）
+        auto_reason = None
+        if model == "auto":
+            # 統計估算頁數與複雜度
+            is_complex = (total_detected_pages > 10) or (len(gemini_parts) >= 6)
+            if is_complex:
+                selected_model = "gemini-1.5-pro"
+                auto_reason = f"⚡ 智慧判定：檢測到投影片頁數較多或結構繁複（約 {total_detected_pages} 頁），已自動啟用深度推論模型 Gemini 1.5 Pro 進行全域剖析。"
+            else:
+                selected_model = "gemini-2.5-flash"
+                auto_reason = "⚡ 智慧判定：檢測為精選投影片截圖（少於 10 頁），已自動選用極速高精準的 Gemini 2.5 Flash（約 3~5 秒完成，免費額度最充裕）。"
+        else:
+            supported_models = ["gemini-2.5-flash", "gemini-1.5-pro", "gemini-2.5-pro", "gemini-2.0-flash"]
+            selected_model = model if model in supported_models else "gemini-2.5-flash"
+
         # 初始化 Gemini 客戶端 (使用當次請求的 API Key)
         client = genai.Client(api_key=api_key)
 
-        # 驗證模型名稱
-        supported_models = ["gemini-2.5-flash", "gemini-1.5-pro", "gemini-2.5-pro", "gemini-2.0-flash"]
-        selected_model = model if model in supported_models else "gemini-2.5-flash"
-
-        logger.info(f"發起風格逆向分析，使用模型: {selected_model}，上傳元件數: {len(gemini_parts)}")
+        logger.info(f"發起風格逆向分析，使用模型: {selected_model} (auto={model=='auto'})，上傳元件數: {len(gemini_parts)}")
 
         # 呼叫 Gemini 生成分析結果
         response = client.models.generate_content(
@@ -271,6 +285,7 @@ async def analyze_style(
         return {
             "status": "success",
             "model_used": selected_model,
+            "auto_reason": auto_reason,
             "markdown_report": analysis_text,
             "structured_meta": parsed_json
         }
