@@ -138,13 +138,13 @@ function switchProvider(newProvider) {
   currentProvider = newProvider;
   localStorage.setItem("active_provider", newProvider);
 
-  // 更新主面板供應商標籤外觀 (高階白底顧問風)
+  // 更新主面板供應商標籤外觀 (護眼深色風格)
   document.querySelectorAll("#provider-selector .provider-tab").forEach(btn => {
     const p = btn.getAttribute("data-provider");
     if (p === newProvider) {
-      btn.className = "provider-tab px-2 py-1.5 rounded-lg text-xs font-bold transition-all text-center bg-white text-slate-900 shadow-sm border border-slate-200 cursor-pointer";
+      btn.className = "provider-tab px-2 py-1.5 rounded-lg text-xs font-bold transition-all text-center bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer";
     } else {
-      btn.className = "provider-tab px-2 py-1.5 rounded-lg text-xs font-semibold transition-all text-center text-slate-600 hover:text-slate-900 cursor-pointer";
+      btn.className = "provider-tab px-2 py-1.5 rounded-lg text-xs font-semibold transition-all text-center text-slate-400 hover:text-slate-200 cursor-pointer";
     }
   });
 
@@ -275,9 +275,9 @@ function setupEventListeners() {
     btn.addEventListener("click", () => {
       const tut = btn.getAttribute("data-tut");
       document.querySelectorAll(".tut-tab-btn").forEach(b => {
-        b.className = "tut-tab-btn py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 cursor-pointer";
+        b.className = "tut-tab-btn py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 cursor-pointer";
       });
-      btn.className = "tut-tab-btn py-2 border-b-2 border-[#0E3B5D] text-[#0E3B5D] font-bold cursor-pointer";
+      btn.className = "tut-tab-btn py-2 border-b-2 border-sky-400 text-sky-400 font-bold cursor-pointer";
 
       document.getElementById("tut-content-gemini").classList.add("hidden");
       document.getElementById("tut-content-openai").classList.add("hidden");
@@ -287,6 +287,24 @@ function setupEventListeners() {
     });
   });
 
+  // 折疊/展開 AI 進階設定
+  const toggleModelBtn = document.getElementById("btn-toggle-model-settings");
+  const collapsibleSection = document.getElementById("collapsible-model-section");
+  const labelToggle = document.getElementById("label-toggle-model");
+  const iconToggle = document.getElementById("icon-toggle-model");
+  if (toggleModelBtn && collapsibleSection) {
+    toggleModelBtn.addEventListener("click", () => {
+      const isHidden = collapsibleSection.classList.toggle("hidden");
+      if (isHidden) {
+        if (labelToggle) labelToggle.textContent = "展開進階選項";
+        if (iconToggle) iconToggle.classList.remove("rotate-180");
+      } else {
+        if (labelToggle) labelToggle.textContent = "收起進階選項";
+        if (iconToggle) iconToggle.classList.add("rotate-180");
+      }
+    });
+  }
+
   // 拖曳上傳與檔案選擇
   const dropZone = document.getElementById("drop-zone");
   const fileInput = document.getElementById("file-input");
@@ -295,16 +313,16 @@ function setupEventListeners() {
 
   dropZone.addEventListener("dragover", (e) => {
     e.preventDefault();
-    dropZone.classList.add("border-[#0E3B5D]", "bg-slate-100/60");
+    dropZone.classList.add("border-sky-400", "bg-slate-800/60");
   });
 
   dropZone.addEventListener("dragleave", () => {
-    dropZone.classList.remove("border-[#0E3B5D]", "bg-slate-100/60");
+    dropZone.classList.remove("border-sky-400", "bg-slate-800/60");
   });
 
   dropZone.addEventListener("drop", (e) => {
     e.preventDefault();
-    dropZone.classList.remove("border-[#0E3B5D]", "bg-slate-100/60");
+    dropZone.classList.remove("border-sky-400", "bg-slate-800/60");
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFilesAdded(Array.from(e.dataTransfer.files));
     }
@@ -382,6 +400,36 @@ function setupEventListeners() {
     });
   }
 
+  // 直達工作流按鈕：複製並開啟 NotebookLM
+  const copyAndOpenNblmBtn = document.getElementById("btn-copy-and-open-nblm");
+  if (copyAndOpenNblmBtn) {
+    copyAndOpenNblmBtn.addEventListener("click", () => {
+      if (!generatedNblmPrompt) {
+        showToast("尚未產生提示詞，請先上傳簡報進行分析", "warning");
+        return;
+      }
+      navigator.clipboard.writeText(generatedNblmPrompt).then(() => {
+        showToast("已複製提示詞！正在為您開啟 NotebookLM...", "success");
+        window.open("https://notebooklm.google.com/", "_blank");
+      });
+    });
+  }
+
+  // 直達工作流按鈕：複製並開啟 Gamma
+  const copyAndOpenGammaBtn = document.getElementById("btn-copy-and-open-gamma");
+  if (copyAndOpenGammaBtn) {
+    copyAndOpenGammaBtn.addEventListener("click", () => {
+      if (!generatedGammaPrompt) {
+        showToast("尚未產生 Gamma 指令，請先上傳簡報進行分析", "warning");
+        return;
+      }
+      navigator.clipboard.writeText(generatedGammaPrompt).then(() => {
+        showToast("已複製 Gamma 風格指令！正在為您開啟 Gamma...", "success");
+        window.open("https://gamma.app/", "_blank");
+      });
+    });
+  }
+
   const copyHtmlBtn = document.getElementById("btn-copy-html-code");
   if (copyHtmlBtn) {
     copyHtmlBtn.addEventListener("click", () => {
@@ -440,9 +488,9 @@ function openApiKeyModal(provider) {
   document.querySelectorAll("#modal-provider-selector .modal-provider-btn").forEach(btn => {
     const p = btn.getAttribute("data-modal-provider");
     if (p === provider) {
-      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-bold border transition-all text-center bg-[#0E3B5D] text-white border-[#0E3B5D] cursor-pointer";
+      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-bold border transition-all text-center bg-sky-600 text-white border-sky-600 cursor-pointer";
     } else {
-      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-bold border transition-all text-center bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 cursor-pointer";
+      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-bold border transition-all text-center bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-750 cursor-pointer";
     }
   });
 
@@ -483,13 +531,13 @@ async function handleFilesAdded(files) {
     
     if (ext === ".pdf" || ext === ".pptx") {
       const previewCard = document.createElement("div");
-      previewCard.className = "relative rounded-xl border border-slate-200 bg-slate-50 p-2 flex flex-col items-center justify-center text-center text-xs text-slate-600 shadow-sm";
+      previewCard.className = "relative rounded-xl border border-slate-700 bg-slate-900/80 p-2 flex flex-col items-center justify-center text-center text-xs text-slate-300 shadow-sm";
       const fileIcon = ext === ".pptx" ? "presentation" : "file-text";
       previewCard.innerHTML = `
         <div class="animate-pulse flex flex-col items-center py-3">
-          <i data-lucide="${fileIcon}" class="w-6 h-6 text-[#0E3B5D] mb-1"></i>
-          <span class="truncate max-w-[85px] font-mono text-[10px] text-slate-700">${file.name}</span>
-          <span class="text-[9px] text-slate-400 mt-0.5">解析投影片...</span>
+          <i data-lucide="${fileIcon}" class="w-6 h-6 text-sky-400 mb-1"></i>
+          <span class="truncate max-w-[85px] font-mono text-[10px] text-slate-300">${file.name}</span>
+          <span class="text-[9px] text-slate-500 mt-0.5">解析投影片...</span>
         </div>
       `;
       gallery.appendChild(previewCard);
@@ -509,13 +557,13 @@ async function handleFilesAdded(files) {
           uploadedSlidePages.push(...data.preview_pages);
           
           previewCard.innerHTML = `
-            <div class="relative w-full h-20 overflow-hidden rounded-lg bg-slate-200 border border-slate-200">
+            <div class="relative w-full h-20 overflow-hidden rounded-lg bg-slate-800 border border-slate-700">
               <img src="${data.preview_pages[0].image}" class="w-full h-full object-cover">
               <span class="absolute bottom-1 right-1 bg-black/75 text-[9px] px-1 py-0.2 rounded text-white font-mono">
                 ${data.total_pages} 頁
               </span>
             </div>
-            <span class="truncate max-w-[90px] text-[10px] text-slate-700 mt-1 font-medium">${file.name}</span>
+            <span class="truncate max-w-[90px] text-[10px] text-slate-300 mt-1 font-medium">${file.name}</span>
           `;
         }
       } catch (err) {
@@ -531,12 +579,12 @@ async function handleFilesAdded(files) {
         });
 
         const card = document.createElement("div");
-        card.className = "relative rounded-xl border border-slate-200 bg-slate-50 p-1 flex flex-col items-center shadow-sm";
+        card.className = "relative rounded-xl border border-slate-700 bg-slate-900/80 p-1 flex flex-col items-center shadow-sm";
         card.innerHTML = `
-          <div class="w-full h-20 overflow-hidden rounded-lg bg-slate-200 border border-slate-200">
+          <div class="w-full h-20 overflow-hidden rounded-lg bg-slate-800 border border-slate-700">
             <img src="${e.target.result}" class="w-full h-full object-cover">
           </div>
-          <span class="truncate max-w-[90px] text-[10px] text-slate-700 mt-1 font-medium">${file.name}</span>
+          <span class="truncate max-w-[90px] text-[10px] text-slate-300 mt-1 font-medium">${file.name}</span>
         `;
         gallery.appendChild(card);
       };
@@ -661,7 +709,7 @@ function renderAnalysisResult(data) {
   tagsContainer.innerHTML = "";
   (meta.tags || ["麥肯錫架構", "純2D扁平", "三欄線框卡片", "同心圓模型"]).forEach(tag => {
     const span = document.createElement("span");
-    span.className = "px-2.5 py-1 text-xs rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-semibold";
+    span.className = "px-2.5 py-1 text-xs rounded-lg bg-slate-800 text-slate-300 border border-slate-700 font-semibold";
     span.textContent = `# ${tag}`;
     tagsContainer.appendChild(span);
   });
@@ -730,21 +778,21 @@ function setComparisonMode(mode) {
   const btnOriginal = document.getElementById("mode-btn-original");
 
   [btnSplit, btnReconstruct, btnOriginal].forEach(btn => {
-    btn.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 cursor-pointer transition-all flex items-center gap-1 text-xs font-semibold";
+    btn.className = "px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 cursor-pointer transition-all flex items-center gap-1 text-xs font-semibold";
   });
 
   if (mode === "split") {
-    btnSplit.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm border border-slate-200 cursor-pointer transition-all flex items-center gap-1 text-xs font-bold";
+    btnSplit.className = "px-3 py-1.5 rounded-lg bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer transition-all flex items-center gap-1 text-xs font-bold";
     grid.className = "grid grid-cols-1 md:grid-cols-2 gap-4 pt-1";
     paneOriginal.classList.remove("hidden");
     paneReconstruct.classList.remove("hidden");
   } else if (mode === "reconstruct") {
-    btnReconstruct.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm border border-slate-200 cursor-pointer transition-all flex items-center gap-1 text-xs font-bold";
+    btnReconstruct.className = "px-3 py-1.5 rounded-lg bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer transition-all flex items-center gap-1 text-xs font-bold";
     grid.className = "grid grid-cols-1 gap-4 pt-1";
     paneOriginal.classList.add("hidden");
     paneReconstruct.classList.remove("hidden");
   } else if (mode === "original") {
-    btnOriginal.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm border border-slate-200 cursor-pointer transition-all flex items-center gap-1 text-xs font-bold";
+    btnOriginal.className = "px-3 py-1.5 rounded-lg bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer transition-all flex items-center gap-1 text-xs font-bold";
     grid.className = "grid grid-cols-1 gap-4 pt-1";
     paneOriginal.classList.remove("hidden");
     paneReconstruct.classList.add("hidden");
@@ -756,9 +804,9 @@ function switchResultTab(tabName) {
   document.querySelectorAll(".result-tab-btn").forEach(btn => {
     const t = btn.getAttribute("data-result-tab");
     if (t === tabName) {
-      btn.className = "result-tab-btn active px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all bg-white text-[#0E3B5D] shadow-sm border border-slate-200 cursor-pointer";
+      btn.className = "result-tab-btn active px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer";
     } else {
-      btn.className = "result-tab-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer";
+      btn.className = "result-tab-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 cursor-pointer";
     }
   });
 
@@ -834,8 +882,8 @@ function buildFullSlideHtml(rawHtml) {
     body { font-family: 'Noto Sans TC', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
   </style>
 </head>
-<body class="bg-slate-100 min-h-screen flex items-center justify-center p-2 sm:p-4">
-  <div class="w-full max-w-5xl bg-white shadow-xl rounded-xl overflow-hidden aspect-video flex flex-col justify-center border border-slate-200">
+<body class="bg-slate-950 min-h-screen flex items-center justify-center p-2 sm:p-4">
+  <div class="w-full max-w-5xl shadow-2xl rounded-xl overflow-hidden aspect-video flex flex-col justify-center border border-slate-850">
     ${rawHtml}
   </div>
 </body>
@@ -849,14 +897,14 @@ function renderColorPalette(palette) {
 
   palette.forEach(color => {
     const card = document.createElement("div");
-    card.className = "group bg-slate-50 hover:bg-slate-100/90 border border-slate-200/90 rounded-xl p-3 flex flex-col justify-between transition-all cursor-pointer shadow-sm hover:border-slate-300";
+    card.className = "group bg-slate-900/80 hover:bg-slate-800/90 border border-slate-700 rounded-xl p-3 flex flex-col justify-between transition-all cursor-pointer shadow-sm hover:border-slate-600";
     card.title = "點擊複製 Hex 色碼";
     
     card.innerHTML = `
-      <div class="w-full h-9 rounded-lg shadow-inner border border-black/10 mb-2.5" style="background-color: ${color.hex}"></div>
+      <div class="w-full h-9 rounded-lg shadow-inner border border-black/30 mb-2.5" style="background-color: ${color.hex}"></div>
       <div>
-        <div class="text-[11px] font-bold text-slate-800 truncate">${color.role || color.name}</div>
-        <div class="text-[11px] font-mono font-semibold text-[#0E3B5D] flex items-center justify-between mt-0.5">
+        <div class="text-[11px] font-bold text-slate-200 truncate">${color.role || color.name}</div>
+        <div class="text-[11px] font-mono font-semibold text-sky-400 flex items-center justify-between mt-0.5">
           <span>${color.hex}</span>
           <i data-lucide="copy" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400"></i>
         </div>
@@ -877,10 +925,10 @@ function fallbackExtractMeta(markdown) {
   const hexMatches = markdown.match(/#[0-9a-fA-F]{6}/g) || ["#FFFFFF", "#0E3B5D", "#C59B27", "#F3F4F6"];
   const uniqueHex = Array.from(new Set(hexMatches)).slice(0, 4);
   return {
-    style_name: "麥肯錫顧問架構風",
-    tags: ["幾何拓撲", "三欄線框卡片", "同心圓模型", "純2D扁平"],
+    style_name: "高階商業顧問排版",
+    tags: ["版面骨架", "三欄卡片", "同心圓模型", "純2D扁平"],
     palette: uniqueHex.map((hex, idx) => ({
-      role: idx === 0 ? "畫布底色" : idx === 1 ? "主標題與邊框" : idx === 2 ? "核心強調金" : "斑馬條塊色",
+      role: idx === 0 ? "畫布底色" : idx === 1 ? "主標題與邊框" : idx === 2 ? "核心強調色" : "輔助色塊",
       hex: hex,
       name: "提取色"
     })),
