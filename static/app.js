@@ -2,6 +2,8 @@
 let selectedFiles = [];
 let generatedReportMarkdown = "";
 let generatedNblmPrompt = "";
+let generatedGammaPrompt = "";
+let generatedSlideHtml = "";
 let currentProvider = localStorage.getItem("active_provider") || "gemini";
 let modalSelectedProvider = currentProvider;
 
@@ -319,6 +321,14 @@ function setupEventListeners() {
     showToast("已清空選擇檔案", "info");
   });
 
+  // 結果頁籤切換監聽
+  document.querySelectorAll(".result-tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tab = btn.getAttribute("data-result-tab");
+      switchResultTab(tab);
+    });
+  });
+
   // 開始分析按鈕
   document.getElementById("btn-start-analyze").addEventListener("click", handleStartAnalyze);
 
@@ -333,6 +343,50 @@ function setupEventListeners() {
       setTimeout(() => label.textContent = originalText, 2000);
     });
   });
+
+  // 複製 Gamma 指令
+  const copyGammaBtn = document.getElementById("btn-copy-gamma");
+  if (copyGammaBtn) {
+    copyGammaBtn.addEventListener("click", () => {
+      if (!generatedGammaPrompt) return;
+      navigator.clipboard.writeText(generatedGammaPrompt).then(() => {
+        const label = document.getElementById("copy-gamma-label");
+        const originalText = label.textContent;
+        label.textContent = "已複製！";
+        showToast("已複製 Gamma AI 簡報風格指令！", "success");
+        setTimeout(() => label.textContent = originalText, 2000);
+      });
+    });
+  }
+
+  // 複製 HTML 投影片源碼
+  const copyHtmlBtn = document.getElementById("btn-copy-html-code");
+  if (copyHtmlBtn) {
+    copyHtmlBtn.addEventListener("click", () => {
+      if (!generatedSlideHtml) return;
+      navigator.clipboard.writeText(generatedSlideHtml).then(() => {
+        const label = document.getElementById("copy-html-label");
+        const originalText = label.textContent;
+        label.textContent = "已複製！";
+        showToast("已複製 1:1 還原之 HTML / Tailwind 投影片代碼！", "success");
+        setTimeout(() => label.textContent = originalText, 2000);
+      });
+    });
+  }
+
+  // 獨立全螢幕開新視窗預覽
+  const openWindowBtn = document.getElementById("btn-open-preview-window");
+  if (openWindowBtn) {
+    openWindowBtn.addEventListener("click", () => {
+      if (!generatedSlideHtml) {
+        showToast("尚未產生投影片代碼", "warning");
+        return;
+      }
+      const win = window.open("", "_blank");
+      win.document.write(buildFullSlideHtml(generatedSlideHtml));
+      win.document.close();
+    });
+  }
 
   document.getElementById("btn-copy-all-report").addEventListener("click", () => {
     if (!generatedReportMarkdown) return;
@@ -532,8 +586,30 @@ function renderAnalysisResult(data) {
   document.getElementById("panel-loading").classList.add("hidden");
   document.getElementById("panel-result").classList.remove("hidden");
 
+  // 萃取各項產出
   generatedNblmPrompt = extractNblmPrompt(generatedReportMarkdown);
+  generatedGammaPrompt = extractGammaPrompt(generatedReportMarkdown);
+  generatedSlideHtml = extractSlideHtml(generatedReportMarkdown);
+
   document.getElementById("nblm-prompt-code").textContent = generatedNblmPrompt || "未能擷取到特定提示詞區塊，請參閱下方全文報告。";
+  
+  const gammaCodeEl = document.getElementById("gamma-prompt-code");
+  if (gammaCodeEl) {
+    gammaCodeEl.textContent = generatedGammaPrompt || "未能擷取到特定 Gamma 指令，請參閱完整規範報告。";
+  }
+
+  if (generatedSlideHtml) {
+    const htmlSrcEl = document.getElementById("html-source-code");
+    if (htmlSrcEl) htmlSrcEl.textContent = generatedSlideHtml;
+    
+    const iframe = document.getElementById("slide-preview-iframe");
+    if (iframe) {
+      iframe.srcdoc = buildFullSlideHtml(generatedSlideHtml);
+    }
+  }
+
+  // 預設切換至 NotebookLM 提示詞頁籤
+  switchResultTab("nblm");
 
   const meta = data.structured_meta || fallbackExtractMeta(generatedReportMarkdown);
   
@@ -576,8 +652,28 @@ function renderAnalysisResult(data) {
   lucide.createIcons();
 }
 
+function switchResultTab(tabName) {
+  document.querySelectorAll(".result-tab-btn").forEach(btn => {
+    const t = btn.getAttribute("data-result-tab");
+    if (t === tabName) {
+      btn.className = "result-tab-btn active px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all bg-indigo-600 text-white shadow-md shadow-indigo-600/30";
+    } else {
+      btn.className = "result-tab-btn px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-surface-850";
+    }
+  });
+
+  document.querySelectorAll(".result-tab-pane").forEach(pane => {
+    pane.classList.add("hidden");
+  });
+  const targetPane = document.getElementById(`tab-pane-${tabName}`);
+  if (targetPane) {
+    targetPane.classList.remove("hidden");
+  }
+  lucide.createIcons();
+}
+
 function extractNblmPrompt(markdown) {
-  if (markdown.includes("## 3. 📋 NotebookLM 專用簡報引導提示詞") || markdown.includes("NotebookLM 專用")) {
+  if (markdown.includes("## 3. 📋 NotebookLM 專用") || markdown.includes("NotebookLM 專用")) {
     const parts = markdown.split(/## 3\..*?NotebookLM.*?/i);
     if (parts.length > 1) {
       const section = parts[1].split(/## 4\./)[0];
@@ -590,6 +686,60 @@ function extractNblmPrompt(markdown) {
   }
   const firstBlock = markdown.match(/```(?:markdown)?([\s\S]*?)```/);
   return firstBlock ? firstBlock[1].trim() : markdown;
+}
+
+function extractGammaPrompt(markdown) {
+  if (markdown.includes("## 4. 🚀 Gamma") || markdown.includes("Gamma AI")) {
+    const parts = markdown.split(/## 4\..*?Gamma.*?/i);
+    if (parts.length > 1) {
+      const section = parts[1].split(/## 5\./)[0];
+      const codeMatch = section.match(/```(?:markdown)?([\s\S]*?)```/);
+      if (codeMatch && codeMatch[1]) {
+        return codeMatch[1].trim();
+      }
+      return section.trim();
+    }
+  }
+  return "";
+}
+
+function extractSlideHtml(markdown) {
+  if (markdown.includes("## 5. 💻") || markdown.includes("HTML / Tailwind") || markdown.includes("HTML 代碼")) {
+    const parts = markdown.split(/## 5\..*?HTML.*?/i);
+    if (parts.length > 1) {
+      const section = parts[1].split(/---/)[0];
+      const codeMatch = section.match(/```(?:html)?([\s\S]*?)```/i);
+      if (codeMatch && codeMatch[1]) {
+        return codeMatch[1].trim();
+      }
+    }
+  }
+  const anyHtml = markdown.match(/```html([\s\S]*?)```/i);
+  return anyHtml ? anyHtml[1].trim() : "";
+}
+
+function buildFullSlideHtml(rawHtml) {
+  if (rawHtml.includes("<!DOCTYPE html") || rawHtml.includes("<html")) {
+    return rawHtml;
+  }
+  return `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1:1 投影片視覺還原預覽</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+  </style>
+</head>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-2 sm:p-6">
+  <div class="w-full max-w-5xl bg-white shadow-2xl rounded-2xl overflow-hidden aspect-video flex flex-col justify-center">
+    ${rawHtml}
+  </div>
+</body>
+</html>`;
 }
 
 function renderColorPalette(palette) {

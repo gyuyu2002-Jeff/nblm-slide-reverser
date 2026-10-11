@@ -289,43 +289,141 @@
           </div>
         </div>
 
-        <!-- NotebookLM 提示詞專屬大卡片 (重點醒目) -->
-        <div class="bg-gradient-to-b from-indigo-950/40 via-surface-900 to-surface-900 border border-indigo-500/40 rounded-2xl p-5 shadow-2xl space-y-3 relative overflow-hidden">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
-                <i data-lucide="terminal" class="w-4 h-4"></i>
+        <!-- 多功能成果展示區（頁籤切換） -->
+        <div class="bg-surface-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+          
+          <!-- 頁籤切換按鈕列 -->
+          <div class="flex items-center border-b border-slate-800 bg-surface-950/60 p-2 gap-1.5 overflow-x-auto custom-scrollbar">
+            <button type="button" data-result-tab="nblm" class="result-tab-btn active px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all bg-indigo-600 text-white shadow-md shadow-indigo-600/30">
+              <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+              <span>NotebookLM 提示詞</span>
+            </button>
+            <button type="button" data-result-tab="gamma" class="result-tab-btn px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-surface-850">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-400"></i>
+              <span>Gamma AI 簡報指令</span>
+            </button>
+            <button type="button" data-result-tab="preview" class="result-tab-btn px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-surface-850">
+              <i data-lucide="monitor" class="w-3.5 h-3.5 text-emerald-400"></i>
+              <span>🖥️ 1:1 投影片視覺還原</span>
+              <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">Live</span>
+            </button>
+            <button type="button" data-result-tab="report" class="result-tab-btn px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-surface-850">
+              <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-400"></i>
+              <span>完整設計規範報告</span>
+            </button>
+          </div>
+
+          <!-- 頁籤內容區塊 -->
+          <div class="p-5">
+
+            <!-- 頁籤 1：NotebookLM 專用提示詞 -->
+            <div id="tab-pane-nblm" class="result-tab-pane space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i data-lucide="terminal" class="w-4 h-4 text-indigo-400"></i>
+                    NotebookLM 1:1 幾何骨架引導提示詞
+                  </h3>
+                  <p class="text-xs text-slate-400 mt-0.5">直接複製並貼至 NotebookLM 筆記指引或對話中，使輸出的投影片大綱忠實填入對應槽位。</p>
+                </div>
+                <button id="btn-copy-nblm" class="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow-md shadow-indigo-600/30 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                  <span id="copy-btn-label">一鍵複製提示詞</span>
+                </button>
               </div>
-              <div>
-                <h3 class="text-sm font-bold text-white">NotebookLM 專用引導提示詞</h3>
-                <p class="text-xs text-indigo-300/80">可直接貼至 NotebookLM 的自訂筆記引導或聊天指令</p>
+
+              <div class="relative">
+                <pre id="nblm-prompt-code" class="bg-surface-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono overflow-x-auto max-h-96 custom-scrollbar leading-relaxed whitespace-pre-wrap"></pre>
+              </div>
+
+              <div class="p-3 rounded-xl bg-indigo-950/20 border border-indigo-500/20 text-xs text-indigo-300 flex items-start gap-2">
+                <i data-lucide="info" class="w-4 h-4 text-indigo-400 shrink-0 mt-0.5"></i>
+                <span>已內嵌嚴格負向約束：強制排除幻覺巨型數字，要求 NotebookLM 嚴格依照該簡報的真實幾何架構槽位填寫文案。</span>
               </div>
             </div>
-            <button id="btn-copy-nblm" class="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow-md shadow-indigo-600/30 flex items-center gap-1.5 transition-all active:scale-95">
-              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-              <span id="copy-btn-label">一鍵複製提示詞</span>
-            </button>
-          </div>
 
-          <div class="relative">
-            <pre id="nblm-prompt-code" class="bg-surface-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono overflow-x-auto max-h-72 custom-scrollbar leading-relaxed whitespace-pre-wrap"></pre>
-          </div>
-        </div>
+            <!-- 頁籤 2：Gamma AI 專用風格指令 -->
+            <div id="tab-pane-gamma" class="result-tab-pane hidden space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-purple-400"></i>
+                    Gamma AI / AI 簡報工具專用風格指令
+                  </h3>
+                  <p class="text-xs text-slate-400 mt-0.5">在 Gamma、Marp 或其他簡報工具建立簡報時貼入此風格指令，一鍵套用同款主題。</p>
+                </div>
+                <button id="btn-copy-gamma" class="px-3.5 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white rounded-lg shadow-md shadow-purple-600/30 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                  <span id="copy-gamma-label">一鍵複製 Gamma 指令</span>
+                </button>
+              </div>
 
-        <!-- 完整深度報告 (Markdown 呈現) -->
-        <div class="bg-surface-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i>
-              完整設計規範與轉譯報告
-            </h3>
-            <button id="btn-copy-all-report" class="text-xs text-slate-400 hover:text-white flex items-center gap-1">
-              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-              複製全文
-            </button>
-          </div>
-          <div id="full-report-markdown" class="prose prose-invert prose-sm max-w-none prose-headings:font-bold prose-headings:text-slate-100 prose-p:text-slate-300 prose-li:text-slate-300 leading-relaxed">
-            <!-- 渲染 Markdown -->
+              <div class="relative">
+                <pre id="gamma-prompt-code" class="bg-surface-950 border border-slate-800 rounded-xl p-4 text-xs text-purple-200 font-mono overflow-x-auto max-h-96 custom-scrollbar leading-relaxed whitespace-pre-wrap"></pre>
+              </div>
+
+              <div class="p-3 rounded-xl bg-purple-950/20 border border-purple-500/20 text-xs text-purple-300 flex items-start gap-2">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-purple-400 shrink-0 mt-0.5"></i>
+                <span>包含容器線條粗細（1.5px）、去除陰影規範、斑馬紋條列區塊指示與負向詞（Negative Prompts）。</span>
+              </div>
+            </div>
+
+            <!-- 頁籤 3：🖥️ 1:1 投影片視覺還原預覽 -->
+            <div id="tab-pane-preview" class="result-tab-pane hidden space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i data-lucide="monitor" class="w-4 h-4 text-emerald-400"></i>
+                    1:1 投影片幾何視覺即時還原 (Live Slide Preview)
+                  </h3>
+                  <p class="text-xs text-slate-400 mt-0.5">系統逆向生成的 HTML/Tailwind 投影片，在瀏覽器中即時精準呈現，驗證版面真確度。</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button id="btn-open-preview-window" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 flex items-center gap-1.5 transition-all cursor-pointer">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                    獨立全螢幕開新視窗
+                  </button>
+                  <button id="btn-copy-html-code" class="px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-md shadow-emerald-600/30 flex items-center gap-1.5 transition-all cursor-pointer">
+                    <i data-lucide="code" class="w-3.5 h-3.5"></i>
+                    <span id="copy-html-label">複製 HTML 碼</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 投影片渲染容器 (16:9 比例) -->
+              <div class="relative w-full aspect-video rounded-xl border border-slate-700/80 bg-white overflow-hidden shadow-2xl">
+                <iframe id="slide-preview-iframe" class="w-full h-full border-0" sandbox="allow-scripts allow-same-origin"></iframe>
+              </div>
+
+              <!-- 查看源碼收合框 -->
+              <details class="bg-surface-950 border border-slate-800 rounded-xl p-3 text-xs">
+                <summary class="cursor-pointer text-slate-400 hover:text-slate-200 font-medium select-none flex items-center gap-1.5">
+                  <i data-lucide="file-code-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+                  <span>查看完整 HTML / Tailwind 投影片原始碼</span>
+                </summary>
+                <div class="mt-3 relative">
+                  <pre id="html-source-code" class="bg-surface-900 border border-slate-800 rounded-lg p-3 text-xs text-emerald-300 font-mono overflow-x-auto max-h-60 custom-scrollbar whitespace-pre-wrap"></pre>
+                </div>
+              </details>
+            </div>
+
+            <!-- 頁籤 4：完整設計規範報告 -->
+            <div id="tab-pane-report" class="result-tab-pane hidden space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                  <i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i>
+                  完整設計規範與轉譯報告
+                </h3>
+                <button id="btn-copy-all-report" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                  複製全文
+                </button>
+              </div>
+              <div id="full-report-markdown" class="prose prose-invert prose-sm max-w-none prose-headings:font-bold prose-headings:text-slate-100 prose-p:text-slate-300 prose-li:text-slate-300 leading-relaxed">
+                <!-- 渲染 Markdown -->
+              </div>
+            </div>
+
           </div>
         </div>
 
