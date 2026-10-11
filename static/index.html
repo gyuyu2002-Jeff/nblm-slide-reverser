@@ -26,8 +26,14 @@
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Marked.js for Markdown Rendering -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=2.4">
+  <!-- PDF.js Client-Side Rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+  <link rel="stylesheet" href="style.css?v=3.0">
 </head>
 <body class="bg-[#0B0F19] text-slate-100 min-h-screen flex flex-col font-sans selection:bg-blue-600 selection:text-white">
 
@@ -125,58 +131,23 @@
         </div>
       </div>
 
-      <!-- 2. AI 服務與模式 (預設極簡折疊，不干擾使用者) -->
-      <div class="bg-[#161F30] rounded-2xl p-4 card-soft-shadow border border-slate-750 space-y-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
+      <!-- 2. 操作卡片：開始解析按鈕與狀態 -->
+      <div class="bg-[#161F30] rounded-2xl p-5 card-soft-shadow border border-slate-750 space-y-3">
+        <!-- 一鍵解析按鈕 (超醒目高對比主按鈕) -->
+        <button id="btn-start-analyze" class="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-500/25 flex items-center justify-center space-x-2 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+          <i data-lucide="wand-2" class="w-4 h-4 text-amber-300"></i>
+          <span>開始逆向解析風格</span>
+        </button>
+
+        <div class="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-0.5">
+          <span class="flex items-center gap-1.5 text-slate-300 font-medium">
             <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span class="text-xs font-bold text-slate-200">使用模式：自動推薦</span>
-          </div>
-          <button id="btn-toggle-model-settings" class="text-xs text-slate-400 hover:text-slate-200 font-medium flex items-center gap-1 cursor-pointer">
-            <span id="label-toggle-model">展開進階選項</span>
-            <i data-lucide="chevron-down" id="icon-toggle-model" class="w-3.5 h-3.5 transition-transform duration-200"></i>
+            <span id="active-engine-badge">智慧全自動分析模式</span>
+          </span>
+          <button type="button" id="btn-open-apikey-quick" class="text-sky-400 hover:text-sky-300 hover:underline cursor-pointer font-medium">
+            更換帳號 / 金鑰
           </button>
         </div>
-
-        <p class="text-[11px] text-slate-400 leading-relaxed" id="summary-model-text">
-          ⚡ 系統預設採用 Google 免費極速模式，自動根據頁數選擇最聰明的解析方式。
-        </p>
-
-        <!-- 折疊的進階選項 -->
-        <div id="collapsible-model-section" class="hidden space-y-3 pt-2 border-t border-slate-700/80">
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1.5">更換 AI 服務商：</label>
-            <div class="grid grid-cols-3 gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800" id="provider-selector">
-              <button type="button" data-provider="gemini" class="provider-tab px-2 py-1.5 rounded-lg text-xs font-bold transition-all text-center bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer">
-                Google
-              </button>
-              <button type="button" data-provider="openai" class="provider-tab px-2 py-1.5 rounded-lg text-xs font-semibold transition-all text-center text-slate-400 hover:text-slate-200 cursor-pointer">
-                OpenAI
-              </button>
-              <button type="button" data-provider="anthropic" class="provider-tab px-2 py-1.5 rounded-lg text-xs font-semibold transition-all text-center text-slate-400 hover:text-slate-200 cursor-pointer">
-                Claude
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">特定模型版本：</label>
-            <select id="model-select" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-sky-400 cursor-pointer font-medium">
-              <!-- 動態載入 -->
-            </select>
-          </div>
-
-          <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400 space-y-1">
-            <div class="font-bold text-slate-200" id="model-desc-title">模型特性</div>
-            <p class="leading-relaxed" id="model-desc-text">系統自動判定頁數與排版難度</p>
-          </div>
-        </div>
-
-        <!-- 一鍵擷取按鈕 (超醒目高對比主按鈕) -->
-        <button id="btn-start-analyze" class="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-500/20 flex items-center justify-center space-x-2 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
-          <i data-lucide="wand-2" class="w-4 h-4 text-amber-300"></i>
-          <span>一鍵擷取簡報格式</span>
-        </button>
       </div>
 
       <!-- 貼心小說明 -->
@@ -657,7 +628,7 @@
     <span id="toast-text">通知內容</span>
   </div>
 
-  <script src="app.js?v=2.4"></script>
+  <script src="app.js?v=3.0"></script>
   <script>
     lucide.createIcons();
   </script>

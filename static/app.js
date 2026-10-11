@@ -10,93 +10,129 @@ let generatedSlideHtml = "";
 let currentProvider = localStorage.getItem("active_provider") || "gemini";
 let modalSelectedProvider = currentProvider;
 
-// 模型規格資料庫
+// 系統逆向工程 Prompt (真確幾何骨架與視覺還原專用引擎 - 零幻覺標準)
+const CLIENT_SYSTEM_INSTRUCTION = `你是一位世界頂級的簡報視覺逆向架構師（Presentation Layout Reverse-Engineer）與幾何排版專家。
+你的使命是【像素級與拓撲級真實還原】使用者上傳的簡報範例（PDF、PPTX 或投影片截圖），徹底洞察其「真實幾何骨架、圖解隱喻、邊框材質、文字節奏與色彩系統」，並轉譯為能 100% 忠實對齊的 NotebookLM 提示詞、Gamma/AI 簡報生成指令、以及可直接渲染的 HTML/Tailwind 投影片代碼。
+
+⚠️【最高原則：實事求是、零幻覺還原（Zero-Hallucination Constraints）】：
+1. 🚫【嚴禁無中生有幻覺「巨型 KPI 統計大數字」】：
+   - 很多 AI 會預設套用現代 SaaS/儀表板風格，在畫面上胡亂放大數字（例如「100 小時」、「25%」等）。
+   - 【鐵律】：除非原始投影片頁面上本來就存在該巨型統計數字，否則【絕對嚴格禁止】在提示詞或結構中加入任何巨型 KPI 大數字！
+   - 若原稿是企管架構、培訓模型、進程導軌、組織樹或條理清單，必須 100% 忠實還原其圖解幾何形態！
+2. 🚫【嚴格區分「線框卡片」與「色塊卡片」】：
+   - 仔細觀察卡片是「純白底 + 1px~1.5px 深色細邊框」，還是「灰色色塊填充」。絕不可將線框卡片誤判或簡化為色塊卡片。
+3. 🚫【精準還原列表形式（斑馬條紋 vs 圓點清單）】：
+   - 若卡片內條目是「水平灰白相間的斑馬紋條塊 (Zebra Stripe Rows / Pills)」，必須明確指認並記錄，不可粗糙降級為普通圓點 (Bullet points)。
+4. 🚫【精確提取核心幾何圖解隱喻】：
+   - 若畫面中包含「同心圓靶心 (Concentric Rings)」、「水平箭頭進程軸 (Milestone Timeline)」、「金字塔」、「組織架構樹」、「象限矩陣」或「雙色 Icon」，必須精準拆解其層級數、節點數與連線邏輯！
+5. 🚫【致命防護：嚴禁「主題語意風格污染」(Anti-Topic Semantic Bias)】：
+   - 當使用者日後拿提示詞去生成不同主題（例如「AI 科技」、「雲端大數據」）時，下游簡報工具常會「自動腦補擅自加戲」（例如自動加上：工程方格紙背景、刻度標尺、十字座標、3D 立體陰影、45 度斜向發射導軌、化學燒杯或賽博科幻分子）！
+   - 【鐵律約束】：提示詞必須包含【視覺風格鎖定契約 (Visual Style Lock Contract)】與【強力負向排除詞 (Negative Style Directives)】，強制要求下游工具：
+     * 背景必須 100% 保持乾淨純色畫布（如純白 #FFFFFF），嚴禁網格方格紙、工程線條、刻度尺、十字標記。
+     * 所有圖解必須嚴格保持純 2D 平面向量 (Strictly Flat 2D)，嚴禁 3D 陰影、立體圓環與擬物立體感。
+     * 時間軸必須嚴格保持水平對齊 (Strictly Horizontal)，嚴禁 45 度斜向飛行發射導軌。
+     * 色彩必須牢牢鎖定本簡報原色的 Hex 色碼（如海軍藍 #0E3B5D + 赭石金 #C59B27），嚴禁因為主題是 AI 就擅自漂移成冰冷賽博藍。
+     * 圖示必須維持簡約商務雙色 Icon，嚴禁出現與主題硬湊的科幻燒杯、分子等雜亂元素。
+
+請以繁體中文（台灣習慣用語）輸出以下結構化報告：
+
+# 🎨 簡報風格精準逆向報告
+
+## 1. 逐頁版面拓撲與幾何骨架 (Slide-by-Slide Topology)
+[對上傳的每頁投影片進行精準幾何拆解，實事求是，忠實對應上傳內容]
+- **第 1 頁拓撲**：
+  - 佈局結構：(指認版面結構，例如「左右 50/50 分割 + 中央 1px 深色垂直分割線」)
+  - 幾何圖解與組件：(詳細描述圖解形態，例如「左側同心圓靶心圖 (3 層圓環由外而內，右側水平箭線引出文字標籤)；右側橫向金色箭頭進程軸，串接 4 個雙色圓形徽章節點」)
+  - 容器與材質：(背景顏色、線條粗細與色碼)
+(若有更多頁面，請依序逐頁精確拆解)
+
+## 2. 精確設計系統規範 (Design System)
+- **色彩系統 (Exact Hex Palette)**：
+  - 畫布背景色：#XXXXXX (精準提取底色)
+  - 主文字色：#XXXXXX (主要標題與深色文字)
+  - 核心強調色 (Accent)：#XXXXXX (品牌金/藍等重點用色)
+  - 線框與分割線色：#XXXXXX (卡片邊框與線條用色)
+  - 條塊背景色：#XXXXXX (卡片內斑馬紋條列灰底用色，如 #F3F4F6)
+- **字型與排印層級**：標題字重、卡片標題字級、內文字距與對齊方式
+- **圖示系統 (Iconography)**：圖示風格（雙色幾何向量、線條等）、主次顏色配比、尺寸規格與擺放位置
+
+## 3. 📋 NotebookLM 專用 1:1 骨架還原提示詞 (System Prompt)
+> 複製以下指令貼入 NotebookLM。它將強制 NotebookLM 根據您的筆記來源，100% 依循原始簡報的「幾何骨架槽位」輸出投影片文案，徹底杜絕巨型數字幻覺：
+
+\`\`\`markdown
+[在此輸出一段為 NotebookLM 量身打造的高階引導指令。
+必須包含：
+1. 角色設定：高階簡報內容架構師。
+2. 全局原則與視覺風格保護鎖：
+   - 嚴格維持簡報的高雅專業性與留白節奏。
+   - 🚫【絕對禁令】：嚴禁無中生有生成巨型 KPI 統計大數字！重點在於概念框架、邏輯推導與條理清單。
+   - 🚫【視覺鎖定】：背景保持 100% 純白無雜訊；嚴禁方格網格紙；圖解嚴格保持純 2D 平面；時間軸嚴格保持水平對齊。
+   - 每頁投影片輸出必須明確標記其【版面幾何結構標籤】與對應插槽。
+3. 根據上述「第 1 節實際辨識到的各頁幾何拓撲」，精確產生對應的投影片型態骨架插槽！]
+\`\`\`
+
+## 4. 🚀 Gamma AI 簡報工具專用風格指令 (Gamma Prompt)
+> 複製以下指令貼給 Gamma AI 或其他簡報工具，直接生成風格與版面 1:1 一致的投影片：
+
+\`\`\`markdown
+[在此輸出專門給 Gamma AI、Marp 或 AI 簡報工具的主題與排版指令。
+包含：
+- Style Directive (風格流派：高雅麥肯錫企管顧問極簡風)
+- Background & Exact Color Hex Palette
+- 2D Flat Constraint (所有圖表強制純 2D 平面向量，時間軸強制水平水平橫向)
+- Container & Card Style (明確指示 1.5px 俐落邊框、純白底、無陰影)
+- List & Content Style (明確指示斑馬紋條列水平色塊，替代普通圓點)
+- Iconography Style (頂部居中雙色向量圖示)
+- Strict Negative Prompt (嚴格排除：blueprint, grid paper, ruler, crosshair, 3d render, shadows, sci-fi, cyberpunk, neon, tilted arrow, giant KPI numbers)]
+\`\`\`
+
+## 5. 💻 1:1 還原之 HTML / Tailwind 投影片結構碼 (可直接複製使用)
+\`\`\`html
+<!-- 完整、乾淨、可以直接在瀏覽器獨立運行的 HTML 代碼，包含 Tailwind CSS CDN 與內聯樣式，100% 忠實重現上述投影片的真實幾何圖解與版面 -->
+\`\`\`
+
+---
+最後，請附上下方的 JSON 區塊，提供前端色票與標籤展示：
+\`\`\`json
+{
+  "style_name": "精準風格名稱",
+  "tags": ["幾何拓撲標籤1", "標籤2", "標籤3", "標籤4"],
+  "palette": [
+    {"role": "畫布背景", "hex": "#XXXXXX", "name": "顏色名稱"},
+    {"role": "主要文字", "hex": "#XXXXXX", "name": "顏色名稱"},
+    {"role": "核心強調色", "hex": "#XXXXXX", "name": "顏色名稱"},
+    {"role": "線框與分割", "hex": "#XXXXXX", "name": "顏色名稱"}
+  ],
+  "white_space_ratio": "70%",
+  "density": "結構化條理型"
+}
+\`\`\``;
+
+// 服務商配置
 const PROVIDER_CONFIG = {
   gemini: {
     name: "Google Gemini",
     defaultPlaceholder: "AIzaSy...",
     portalText: "前往 Google AI Studio 免費申請",
-    portalUrl: "https://aistudio.google.com/app/apikey",
-    models: [
-      { id: "auto", name: "⚡ 智慧自動判定（依簡報長度自動適配）" },
-      { id: "gemini-2.5-flash", name: "🚀 Gemini 2.5 Flash（3秒極速、額度最充裕）" },
-      { id: "gemini-1.5-pro", name: "🧠 Gemini 1.5 Pro（深度解析、10+ 頁複雜簡報）" },
-      { id: "gemini-2.0-flash", name: "⚡ Gemini 2.0 Flash（次世代極速推導）" }
-    ],
-    descriptions: {
-      "auto": {
-        title: "⚡ 智慧自動判定模式（免動腦首選）",
-        text: "系統自動偵測投影片總頁數：少於 10 頁時以 3 秒極速模型快速推導；長篇大報告則自動切換至百萬上下文 Pro 模型進行深度推論。"
-      },
-      "gemini-2.5-flash": {
-        title: "🚀 Gemini 2.5 Flash（日常極速首選）",
-        text: "速度約 3~5 秒。色彩 Hex 與排版網格萃取精準，Google 免費額度最高、幾乎不觸發頻率限制。"
-      },
-      "gemini-1.5-pro": {
-        title: "🧠 Gemini 1.5 Pro（深度推論與長篇首選）",
-        text: "具備百萬 Token 超大上下文能力。專門應對超長簡報、麥肯錫諮詢風密集圖表、或微光影排印學情境。"
-      },
-      "gemini-2.0-flash": {
-        title: "⚡ Gemini 2.0 Flash（次世代極速模型）",
-        text: "反應敏捷（約 3 秒完成）。專注於結構標籤快速推導，適合快速連續測試。"
-      }
-    }
+    portalUrl: "https://aistudio.google.com/app/apikey"
   },
   openai: {
     name: "OpenAI",
     defaultPlaceholder: "sk-proj-...",
     portalText: "前往 OpenAI Platform 建立 Key",
-    portalUrl: "https://platform.openai.com/api-keys",
-    models: [
-      { id: "auto", name: "⚡ 智慧自動判定（推薦首選）" },
-      { id: "gpt-4o", name: "🧠 GPT-4o（旗艦深度：高精準視覺理解）" },
-      { id: "gpt-4o-mini", name: "🚀 GPT-4o mini（極速輕量：秒級分析）" }
-    ],
-    descriptions: {
-      "auto": {
-        title: "⚡ 智慧自動判定模式（OpenAI）",
-        text: "系統將自動依據頁數與複雜度，在 GPT-4o 旗艦模型與 GPT-4o mini 極速模型之間切換。"
-      },
-      "gpt-4o": {
-        title: "🧠 GPT-4o（OpenAI 旗艦多模態視覺）",
-        text: "全球頂級多模態模型，對高複雜排版與色彩反差有極高敏銳度，適合精準逆向專業簡報。"
-      },
-      "gpt-4o-mini": {
-        title: "🚀 GPT-4o mini（極速輕量）",
-        text: "極低成本、回應極快，適合日常投影片快速擷取色票與大綱。"
-      }
-    }
+    portalUrl: "https://platform.openai.com/api-keys"
   },
   anthropic: {
     name: "Anthropic Claude",
     defaultPlaceholder: "sk-ant-...",
     portalText: "前往 Anthropic Console 建立 Key",
-    portalUrl: "https://console.anthropic.com/settings/keys",
-    models: [
-      { id: "auto", name: "⚡ 智慧自動判定（推薦首選）" },
-      { id: "claude-3-5-sonnet-20241022", name: "🧠 Claude 3.5 Sonnet（美學旗艦：極致排版語感）" },
-      { id: "claude-3-5-haiku-20241022", name: "🚀 Claude 3.5 Haiku（極速輕量：快速架構萃取）" }
-    ],
-    descriptions: {
-      "auto": {
-        title: "⚡ 智慧自動判定模式（Claude）",
-        text: "系統預設使用被譽為設計審美最強的 Claude 3.5 Sonnet 模型為您進行風格逆向。"
-      },
-      "claude-3-5-sonnet-20241022": {
-        title: "🧠 Claude 3.5 Sonnet（設計美學首選）",
-        text: "業界公認文字品味、排版語言理解與 Markdown 規範遵循度最高的頂級視覺模型。"
-      },
-      "claude-3-5-haiku-20241022": {
-        title: "🚀 Claude 3.5 Haiku（極速輕量）",
-        text: "速度極快，兼顧優質文筆與架構提煉能力。"
-      }
-    }
+    portalUrl: "https://console.anthropic.com/settings/keys"
   }
 };
 
 // DOM 初始化
 document.addEventListener("DOMContentLoaded", () => {
-  initProviderAndModels();
+  initProvider();
   initApiKeyStatus();
   setupEventListeners();
   updateUiState();
@@ -120,72 +156,38 @@ function initApiKeyStatus() {
   const key = getApiKey(currentProvider);
   const dot = document.getElementById("status-indicator-dot");
   const text = document.getElementById("status-indicator-text");
-  const config = PROVIDER_CONFIG[currentProvider];
+  const badge = document.getElementById("active-engine-badge");
+  const config = PROVIDER_CONFIG[currentProvider] || PROVIDER_CONFIG.gemini;
   
   if (key) {
-    dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
-    text.textContent = `${config.name} 就緒`;
-    text.className = "text-emerald-700 font-semibold";
+    if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+    if (text) {
+      text.textContent = `${config.name} 就緒`;
+      text.className = "text-emerald-400 font-semibold";
+    }
+    if (badge) {
+      badge.textContent = `${config.name} · 智慧全自動適配`;
+    }
   } else {
-    dot.className = "w-2 h-2 rounded-full bg-amber-500";
-    text.textContent = `設定 ${config.name} Key`;
-    text.className = "text-slate-700 font-semibold";
+    if (dot) dot.className = "w-2 h-2 rounded-full bg-amber-400";
+    if (text) {
+      text.textContent = `設定 ${config.name} Key`;
+      text.className = "text-slate-200 font-semibold";
+    }
+    if (badge) {
+      badge.textContent = `尚未設定金鑰 · 點此設定`;
+    }
   }
 }
 
-// 切換供應商與更新模型下拉清單
+// 切換服務商（僅在彈窗內切換，主畫面自動同步）
 function switchProvider(newProvider) {
   currentProvider = newProvider;
   localStorage.setItem("active_provider", newProvider);
-
-  // 更新主面板供應商標籤外觀 (護眼深色風格)
-  document.querySelectorAll("#provider-selector .provider-tab").forEach(btn => {
-    const p = btn.getAttribute("data-provider");
-    if (p === newProvider) {
-      btn.className = "provider-tab px-2 py-1.5 rounded-lg text-xs font-bold transition-all text-center bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer";
-    } else {
-      btn.className = "provider-tab px-2 py-1.5 rounded-lg text-xs font-semibold transition-all text-center text-slate-400 hover:text-slate-200 cursor-pointer";
-    }
-  });
-
-  // 更新模型選單
-  const config = PROVIDER_CONFIG[newProvider];
-  const modelSelect = document.getElementById("model-select");
-  modelSelect.innerHTML = "";
-  config.models.forEach(m => {
-    const opt = document.createElement("option");
-    opt.value = m.id;
-    opt.textContent = m.name;
-    modelSelect.appendChild(opt);
-  });
-
-  updateModelDescription();
   initApiKeyStatus();
-  lucide.createIcons();
 }
 
-function updateModelDescription() {
-  const config = PROVIDER_CONFIG[currentProvider];
-  if (!config) return;
-
-  const modelSelect = document.getElementById("model-select");
-  const selectedModelId = modelSelect ? (modelSelect.value || "auto") : "auto";
-  const desc = (config.descriptions && config.descriptions[selectedModelId]) || 
-               (config.descriptions && config.descriptions["auto"]) || 
-               { title: "智慧自動判定", text: "系統自動判定投影片長度與排版複雜度。" };
-
-  const titleEl = document.getElementById("model-desc-title");
-  const textEl = document.getElementById("model-desc-text");
-  const summaryEl = document.getElementById("summary-model-text");
-
-  if (titleEl) titleEl.textContent = desc.title;
-  if (textEl) textEl.textContent = desc.text;
-  if (summaryEl && desc.text) {
-    summaryEl.textContent = desc.text;
-  }
-}
-
-function initProviderAndModels() {
+function initProvider() {
   switchProvider(currentProvider);
 }
 
@@ -313,23 +315,10 @@ function setupEventListeners() {
     });
   });
 
-  // 折疊/展開 AI 進階設定
-  const toggleModelBtn = document.getElementById("btn-toggle-model-settings");
-  const collapsibleSection = document.getElementById("collapsible-model-section");
-  const labelToggle = document.getElementById("label-toggle-model");
-  const iconToggle = document.getElementById("icon-toggle-model");
-  if (toggleModelBtn && collapsibleSection) {
-    toggleModelBtn.addEventListener("click", () => {
-      const isHidden = collapsibleSection.classList.toggle("hidden");
-      if (isHidden) {
-        if (labelToggle) labelToggle.textContent = "展開進階選項";
-        if (iconToggle) iconToggle.classList.remove("rotate-180");
-      } else {
-        if (labelToggle) labelToggle.textContent = "收起進階選項";
-        if (iconToggle) iconToggle.classList.add("rotate-180");
-      }
-    });
-  }
+  // 快捷開啟金鑰設定
+  on("btn-open-apikey-quick", "click", () => {
+    openApiKeyModal(currentProvider);
+  });
 
   // 拖曳上傳與檔案選擇
   const dropZone = document.getElementById("drop-zone");
@@ -538,6 +527,30 @@ function openApiKeyModal(provider) {
   lucide.createIcons();
 }
 
+// 純前端渲染 PDF 縮圖（支援 GitHub Pages 離線/無伺服器環境）
+async function parsePdfClientSide(file) {
+  if (typeof pdfjsLib === "undefined") {
+    throw new Error("PDF 解析模組載入中，請稍候重試");
+  }
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const totalPages = pdf.numPages;
+  const pages = [];
+  const maxPages = Math.min(totalPages, 6);
+  for (let i = 1; i <= maxPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 1.5 });
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    pages.push({ page: i, image: dataUrl });
+  }
+  return { total_pages: totalPages, preview_pages: pages };
+}
+
 // === 3. 檔案處理與縮圖收集 ===
 async function handleFilesAdded(files) {
   const validExtensions = [".pptx", ".pdf", ".png", ".jpg", ".jpeg", ".webp"];
@@ -547,7 +560,7 @@ async function handleFilesAdded(files) {
   });
 
   if (newFiles.length === 0) {
-    showToast("未檢測到支援的簡報檔案，請上傳 PPTX、PDF 或圖片", "warning");
+    showToast("未檢測到支援的簡報檔案，請上傳 PDF、PPTX 或圖片", "warning");
     return;
   }
 
@@ -560,45 +573,114 @@ async function handleFilesAdded(files) {
   for (const file of newFiles) {
     const ext = "." + file.name.split(".").pop().toLowerCase();
     
-    if (ext === ".pdf" || ext === ".pptx") {
+    if (ext === ".pdf") {
       const previewCard = document.createElement("div");
       previewCard.className = "relative rounded-xl border border-slate-700 bg-slate-900/80 p-2 flex flex-col items-center justify-center text-center text-xs text-slate-300 shadow-sm";
-      const fileIcon = ext === ".pptx" ? "presentation" : "file-text";
       previewCard.innerHTML = `
         <div class="animate-pulse flex flex-col items-center py-3">
-          <i data-lucide="${fileIcon}" class="w-6 h-6 text-sky-400 mb-1"></i>
+          <i data-lucide="file-text" class="w-6 h-6 text-sky-400 mb-1"></i>
           <span class="truncate max-w-[85px] font-mono text-[10px] text-slate-300">${file.name}</span>
-          <span class="text-[9px] text-slate-500 mt-0.5">解析投影片...</span>
+          <span class="text-[9px] text-slate-500 mt-0.5">解析 PDF 頁面...</span>
         </div>
       `;
       gallery.appendChild(previewCard);
       lucide.createIcons();
 
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-        const resp = await fetch("/api/preview", {
-          method: "POST",
-          body: formData
-        });
-        const data = await resp.json();
-        
-        if (data.status === "success" && data.preview_pages && data.preview_pages.length > 0) {
-          // 儲存頁面縮圖給雙欄對比視窗使用
-          uploadedSlidePages.push(...data.preview_pages);
-          
+        let pdfData = null;
+        // 優先使用純前端快速解析
+        if (typeof pdfjsLib !== "undefined") {
+          try {
+            pdfData = await parsePdfClientSide(file);
+          } catch (e) {
+            console.warn("前端 PDF 渲染異常，嘗試後端:", e);
+          }
+        }
+        // 若純前端無法解析且為本地環境，嘗試調用後端
+        if (!pdfData && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+          const formData = new FormData();
+          formData.append("file", file);
+          const resp = await fetch("/api/preview", { method: "POST", body: formData });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.status === "success") pdfData = data;
+          }
+        }
+
+        if (pdfData && pdfData.preview_pages && pdfData.preview_pages.length > 0) {
+          uploadedSlidePages.push(...pdfData.preview_pages);
           previewCard.innerHTML = `
             <div class="relative w-full h-20 overflow-hidden rounded-lg bg-slate-800 border border-slate-700">
-              <img src="${data.preview_pages[0].image}" class="w-full h-full object-cover">
+              <img src="${pdfData.preview_pages[0].image}" class="w-full h-full object-cover">
               <span class="absolute bottom-1 right-1 bg-black/75 text-[9px] px-1 py-0.2 rounded text-white font-mono">
-                ${data.total_pages} 頁
+                ${pdfData.total_pages} 頁
               </span>
             </div>
             <span class="truncate max-w-[90px] text-[10px] text-slate-300 mt-1 font-medium">${file.name}</span>
           `;
+        } else {
+          previewCard.innerHTML = `
+            <div class="flex flex-col items-center py-3 text-amber-400">
+              <i data-lucide="alert-triangle" class="w-6 h-6 mb-1"></i>
+              <span class="truncate max-w-[85px] text-[10px]">${file.name}</span>
+              <span class="text-[9px] text-slate-400">請改傳圖片</span>
+            </div>
+          `;
+          lucide.createIcons();
         }
       } catch (err) {
         console.warn("無法取得縮圖:", err);
+      }
+
+    } else if (ext === ".pptx") {
+      const previewCard = document.createElement("div");
+      previewCard.className = "relative rounded-xl border border-slate-700 bg-slate-900/80 p-2 flex flex-col items-center justify-center text-center text-xs text-slate-300 shadow-sm";
+      previewCard.innerHTML = `
+        <div class="animate-pulse flex flex-col items-center py-3">
+          <i data-lucide="presentation" class="w-6 h-6 text-sky-400 mb-1"></i>
+          <span class="truncate max-w-[85px] font-mono text-[10px] text-slate-300">${file.name}</span>
+          <span class="text-[9px] text-slate-500 mt-0.5">解析 PPTX...</span>
+        </div>
+      `;
+      gallery.appendChild(previewCard);
+      lucide.createIcons();
+
+      try {
+        let pptxSuccess = false;
+        if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+          const formData = new FormData();
+          formData.append("file", file);
+          const resp = await fetch("/api/preview", { method: "POST", body: formData });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.status === "success" && data.preview_pages && data.preview_pages.length > 0) {
+              uploadedSlidePages.push(...data.preview_pages);
+              pptxSuccess = true;
+              previewCard.innerHTML = `
+                <div class="relative w-full h-20 overflow-hidden rounded-lg bg-slate-800 border border-slate-700">
+                  <img src="${data.preview_pages[0].image}" class="w-full h-full object-cover">
+                  <span class="absolute bottom-1 right-1 bg-black/75 text-[9px] px-1 py-0.2 rounded text-white font-mono">
+                    ${data.total_pages} 頁
+                  </span>
+                </div>
+                <span class="truncate max-w-[90px] text-[10px] text-slate-300 mt-1 font-medium">${file.name}</span>
+              `;
+            }
+          }
+        }
+        if (!pptxSuccess) {
+          previewCard.innerHTML = `
+            <div class="flex flex-col items-center py-3 text-sky-300">
+              <i data-lucide="presentation" class="w-6 h-6 mb-1"></i>
+              <span class="truncate max-w-[85px] text-[10px]">${file.name}</span>
+              <span class="text-[9px] text-slate-400">已加入待分析</span>
+            </div>
+          `;
+          lucide.createIcons();
+          showToast("💡 提示：在線上版本，建議將 PPT 匯出為 PDF 或直接截圖上傳，效果最為即時精準！", "info");
+        }
+      } catch (err) {
+        console.warn("無法取得 PPTX 縮圖:", err);
       }
 
     } else {
@@ -624,10 +706,139 @@ async function handleFilesAdded(files) {
   }
 }
 
-// === 4. 開始發起分析流程 ===
+// === 4. 純瀏覽器端 AI 直連呼叫引擎 (支援 GitHub Pages Serverless) ===
+async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText) {
+  let modelName = selectedModel || "auto";
+  if (modelName === "auto") {
+    modelName = slideImages.length >= 5 ? "gemini-1.5-pro" : "gemini-2.5-flash";
+  }
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+  const parts = [];
+  // 取出最多 6 頁投影片縮圖
+  for (const page of slideImages.slice(0, 6)) {
+    if (page.image && page.image.startsWith("data:")) {
+      const mimeMatch = page.image.match(/^data:([^;]+);base64,/);
+      const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+      const b64 = page.image.replace(/^data:[^;]+;base64,/, "");
+      parts.push({
+        inlineData: {
+          mimeType: mime,
+          data: b64
+        }
+      });
+    }
+  }
+
+  parts.push({ text: promptText });
+
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: parts
+      }
+    ],
+    systemInstruction: {
+      parts: [
+        { text: CLIENT_SYSTEM_INSTRUCTION }
+      ]
+    },
+    generationConfig: {
+      temperature: 0.4
+    }
+  };
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const resJson = await response.json();
+  if (!response.ok) {
+    const msg = resJson.error ? resJson.error.message : "Gemini API 請求失敗";
+    throw new Error(`Google Gemini API 錯誤: ${msg}`);
+  }
+
+  const text = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("Gemini 未返回分析文字，請確認 API Key 是否有效。");
+  }
+
+  return {
+    status: "success",
+    provider: "Google Gemini",
+    model_used: modelName,
+    markdown_report: text,
+    structured_meta: fallbackExtractMeta(text)
+  };
+}
+
+async function callOpenAiDirectly(apiKey, selectedModel, slideImages, promptText) {
+  let modelName = selectedModel || "auto";
+  if (modelName === "auto") {
+    modelName = "gpt-4o";
+  }
+
+  const endpoint = "https://api.openai.com/v1/chat/completions";
+  const content = [{ type: "text", text: promptText }];
+
+  for (const page of slideImages.slice(0, 6)) {
+    if (page.image && page.image.startsWith("data:")) {
+      content.push({
+        type: "image_url",
+        image_url: {
+          url: page.image,
+          detail: "high"
+        }
+      });
+    }
+  }
+
+  const payload = {
+    model: modelName,
+    messages: [
+      { role: "system", content: CLIENT_SYSTEM_INSTRUCTION },
+      { role: "user", content: content }
+    ],
+    temperature: 0.4
+  };
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const resJson = await response.json();
+  if (!response.ok) {
+    const msg = resJson.error ? resJson.error.message : "OpenAI API 請求失敗";
+    throw new Error(`OpenAI API 錯誤: ${msg}`);
+  }
+
+  const text = resJson.choices?.[0]?.message?.content;
+  if (!text) {
+    throw new Error("OpenAI 未返回分析文字");
+  }
+
+  return {
+    status: "success",
+    provider: "OpenAI",
+    model_used: modelName,
+    markdown_report: text,
+    structured_meta: fallbackExtractMeta(text)
+  };
+}
+
+// === 5. 開始發起分析流程 ===
 async function handleStartAnalyze() {
   if (selectedFiles.length === 0) {
-    showToast("請先上傳簡報 PPTX、PDF 或投影片圖片！", "warning");
+    showToast("請先上傳簡報 PDF 或投影片圖片！", "warning");
     return;
   }
 
@@ -647,28 +858,54 @@ async function handleStartAnalyze() {
   startBtn.disabled = true;
   startBtn.classList.add("opacity-50");
 
-  const formData = new FormData();
-  selectedFiles.forEach(file => {
-    formData.append("files", file);
-  });
+  const model = "auto";
+  const isGitHubPages = window.location.hostname.includes("github.io") || window.location.protocol === "file:";
 
-  formData.append("provider", currentProvider);
-  const model = document.getElementById("model-select").value || "auto";
-  formData.append("model", model);
+  let data = null;
 
   try {
-    const response = await fetch("/api/analyze", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey
-      },
-      body: formData
-    });
+    // 1. 若非純靜態 GitHub Pages 且處於本地 localhost，先嘗試呼叫 Python 後端
+    if (!isGitHubPages && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      try {
+        const formData = new FormData();
+        selectedFiles.forEach(file => formData.append("files", file));
+        formData.append("provider", currentProvider);
+        formData.append("model", model);
 
-    const data = await response.json();
+        const response = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "x-api-key": apiKey },
+          body: formData
+        });
 
-    if (!response.ok) {
-      throw new Error(data.detail || "分析失敗");
+        if (response.ok) {
+          data = await response.json();
+        }
+      } catch (err) {
+        console.warn("本地後端無法連線，切換為瀏覽器前端直連模式:", err);
+      }
+    }
+
+    // 2. 若處於 GitHub Pages 或本地後端不可用，使用前端瀏覽器直連（Serverless 模式）
+    if (!data) {
+      if (uploadedSlidePages.length === 0) {
+        throw new Error("未檢測到有效投影片影像，請確認上傳了清晰的 PDF 或投影片圖片。");
+      }
+
+      const promptText = "請詳細審視我上傳的簡報投影片，執行深度視覺與幾何拓撲逆向工程。\n" +
+        "【核心使命】：\n" +
+        "1. 必須逐頁精確拆解投影片的真實骨架（如左右分割、同心圓靶心、橫向進程軸、N 欄線框卡片、斑馬紋條列區塊），實事求是，嚴格禁止無中生有幻覺巨型 KPI 統計大數字！\n" +
+        "2. 產出的 NotebookLM 提示詞必須與上傳投影片的真實骨架 1:1 精確對齊，讓使用者貼入 NotebookLM 後能將筆記內容填入對應的幾何槽位中。\n" +
+        "3. 同步產出 Gamma AI 簡報工具專用風格指令，以及一份可直接獨立運行的 HTML/Tailwind 1:1 還原投影片結構代碼。\n" +
+        "4. 請嚴格依照 SYSTEM INSTRUCTION 規定的五大章節與 JSON 格式輸出。";
+
+      if (currentProvider === "gemini") {
+        data = await callGeminiDirectly(apiKey, model, uploadedSlidePages, promptText);
+      } else if (currentProvider === "openai") {
+        data = await callOpenAiDirectly(apiKey, model, uploadedSlidePages, promptText);
+      } else {
+        throw new Error("Anthropic API 因官方安全跨域規範限制，純前端靜態站點請選擇 Google Gemini（推薦，免費且極速）或 OpenAI！");
+      }
     }
 
     renderAnalysisResult(data);

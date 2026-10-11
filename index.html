@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>簡報風格逆向解析 | 拆解專業排版，一鍵套用相同風格</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navy: '#1E293B',
+              accent: '#38BDF8',
+              gold: '#F59E0B',
+              bg: '#0B0F19',
+              card: '#161F30'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Marked.js for Markdown Rendering -->
+  <!-- PDF.js Client-Side Rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+  <link rel="stylesheet" href="style.css?v=3.0">
+</head>
+<body class="bg-[#0B0F19] text-slate-100 min-h-screen flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+
+  <!-- 頂部導航列 (舒適護眼深色底) -->
+  <header class="border-b border-slate-800/80 bg-[#111827]/95 backdrop-blur-md sticky top-0 z-40 shadow-lg shadow-black/20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+          <i data-lucide="wand-2" class="w-5 h-5 text-amber-300"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-bold text-slate-100 tracking-tight">
+              簡報風格逆向解析
+            </h1>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-sky-300 font-semibold border border-slate-700">
+              支援 NotebookLM & Gamma
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">上傳參考投影片，一鍵擷取其排版架構與配色提示詞</p>
+        </div>
+      </div>
+
+      <!-- 右側快捷按鈕 -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <button id="btn-tutorial" class="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 rounded-xl border border-slate-700 shadow-sm transition-all cursor-pointer">
+          <i data-lucide="help-circle" class="w-4 h-4 text-emerald-400"></i>
+          <span>免費 AI 帳號申請</span>
+        </button>
+
+        <button id="btn-security" class="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 rounded-xl border border-slate-700 shadow-sm transition-all cursor-pointer">
+          <i data-lucide="shield-check" class="w-4 h-4 text-sky-400"></i>
+          <span>隱私保證</span>
+        </button>
+
+        <!-- AI 金鑰狀態按鈕 -->
+        <button id="btn-apikey-modal" class="flex items-center space-x-2 px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-700 transition-all shadow-sm cursor-pointer bg-slate-800 hover:bg-slate-750 text-slate-200">
+          <span class="w-2 h-2 rounded-full" id="status-indicator-dot"></span>
+          <span id="status-indicator-text" class="text-slate-200">設定 AI 帳號</span>
+          <i data-lucide="key" class="w-3.5 h-3.5 text-slate-400"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容區 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- 左側面板：上傳與設定 (4 cols) -->
+    <div class="lg:col-span-4 flex flex-col space-y-4">
+      
+      <!-- 1. 上傳卡片 -->
+      <div class="bg-[#161F30] rounded-2xl p-5 card-soft-shadow border border-slate-750 space-y-3.5">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+            <i data-lucide="upload" class="w-4 h-4 text-sky-400"></i>
+            放進你想參考的簡報
+          </h2>
+          <span class="text-[11px] text-slate-400 font-medium">PPTX / PDF / 圖片</span>
+        </div>
+
+        <!-- 檔案上傳原生 Input (與拖曳區同級，避免事件冒泡衝突) -->
+        <input type="file" id="file-input" class="hidden" multiple accept=".pptx,.pdf,.png,.jpg,.jpeg,.webp">
+
+        <!-- 拖曳區域 -->
+        <div id="drop-zone" class="border-2 border-dashed border-slate-700 hover:border-sky-400 bg-[#0F172A]/70 hover:bg-[#0F172A] rounded-xl p-6 text-center cursor-pointer transition-all duration-200 group">
+          <div class="flex flex-col items-center justify-center space-y-2 pointer-events-none">
+            <div class="w-12 h-12 rounded-full bg-slate-800 text-slate-300 group-hover:text-sky-300 group-hover:scale-105 shadow-sm border border-slate-700 flex items-center justify-center transition-all">
+              <i data-lucide="file-up" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <p class="text-xs font-bold text-slate-200 group-hover:text-sky-300">
+                點擊選取或把檔案拉進來
+              </p>
+              <p class="text-[11px] text-slate-400 mt-0.5">
+                支援整份簡報檔或投影片截圖
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 檔案列表與縮圖預覽 -->
+        <div id="file-preview-section" class="hidden space-y-2.5 pt-1">
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span id="file-count-label" class="font-medium">已選取 0 個檔案</span>
+            <button id="btn-clear-files" class="text-rose-400 hover:text-rose-300 flex items-center gap-1 font-semibold cursor-pointer">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              清空
+            </button>
+          </div>
+          <!-- 縮圖滾動區 -->
+          <div id="thumbnail-gallery" class="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto p-1 custom-scrollbar">
+            <!-- 動態插入縮圖 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 操作卡片：開始解析按鈕與狀態 -->
+      <div class="bg-[#161F30] rounded-2xl p-5 card-soft-shadow border border-slate-750 space-y-3">
+        <!-- 一鍵解析按鈕 (超醒目高對比主按鈕) -->
+        <button id="btn-start-analyze" class="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-500/25 flex items-center justify-center space-x-2 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+          <i data-lucide="wand-2" class="w-4 h-4 text-amber-300"></i>
+          <span>開始逆向解析風格</span>
+        </button>
+
+        <div class="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-0.5">
+          <span class="flex items-center gap-1.5 text-slate-300 font-medium">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="active-engine-badge">智慧全自動分析模式</span>
+          </span>
+          <button type="button" id="btn-open-apikey-quick" class="text-sky-400 hover:text-sky-300 hover:underline cursor-pointer font-medium">
+            更換帳號 / 金鑰
+          </button>
+        </div>
+      </div>
+
+      <!-- 貼心小說明 -->
+      <div class="bg-[#161F30] rounded-2xl p-4 text-xs text-slate-300 space-y-1.5 card-soft-shadow border border-slate-750">
+        <div class="font-bold text-slate-100 flex items-center gap-1.5">
+          <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+          如何套用此風格製作簡報？
+        </div>
+        <p class="text-[11px] text-slate-400 leading-relaxed">
+          分析完成後，系統會自動生成專用結構指令。直接將指令貼給 <strong class="text-slate-200">NotebookLM</strong> 或 <strong class="text-slate-200">Gamma AI</strong>，就能將您個人的筆記內容完美套用該視覺風格！
+        </p>
+      </div>
+
+    </div>
+
+    <!-- 右側面板：結果與對比中心 (8 cols) -->
+    <div class="lg:col-span-8 flex flex-col space-y-5">
+      
+      <!-- 1. 初始空狀態 -->
+      <div id="panel-idle" class="bg-[#161F30] rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[520px] card-soft-shadow border border-slate-750">
+        <div class="w-16 h-16 rounded-2xl bg-slate-800/80 text-sky-400 flex items-center justify-center mb-4 border border-slate-700 shadow-inner">
+          <i data-lucide="presentation" class="w-8 h-8"></i>
+        </div>
+        <h3 class="text-base font-bold text-slate-100 mb-1.5">放上參考範本，即刻解析風格架構</h3>
+        <p class="text-xs text-slate-400 max-w-md leading-relaxed mb-6">
+          不管是圓形架構圖、時間軸進程還是三欄卡片，系統都能精準解析版面與配色，並在右側即時展示「原稿 vs 還原」效果對照！
+        </p>
+        <div class="flex flex-wrap gap-2.5 justify-center text-xs">
+          <span class="px-3 py-1.5 rounded-xl bg-slate-900/80 text-slate-300 font-semibold border border-slate-800">🎯 排版架構精準對齊</span>
+          <span class="px-3 py-1.5 rounded-xl bg-slate-900/80 text-slate-300 font-semibold border border-slate-800">🎨 原版色票一鍵複製</span>
+          <span class="px-3 py-1.5 rounded-xl bg-slate-900/80 text-slate-300 font-semibold border border-slate-800">⚡ 直接貼進 NotebookLM 或 Gamma</span>
+        </div>
+      </div>
+
+      <!-- 2. 載入中狀態 -->
+      <div id="panel-loading" class="hidden bg-[#161F30] rounded-2xl p-12 flex flex-col items-center justify-center min-h-[520px] space-y-6 card-soft-shadow border border-slate-750">
+        <div class="relative w-16 h-16">
+          <div class="w-16 h-16 rounded-full border-4 border-slate-800 border-t-sky-400 animate-spin flex items-center justify-center"></div>
+          <div class="absolute inset-0 flex items-center justify-center text-sky-400">
+            <i data-lucide="sparkles" class="w-5 h-5 text-amber-400"></i>
+          </div>
+        </div>
+        <div class="text-center space-y-1.5">
+          <h4 class="text-sm font-bold text-slate-100" id="loading-step-text">正在仔細研讀您的投影片排版...</h4>
+          <p class="text-xs text-slate-400">正在記下版面結構、框線粗細、圖示風格與配色方案</p>
+        </div>
+        <div class="w-full max-w-xs space-y-2 text-xs text-slate-400">
+          <div class="flex items-center gap-2.5 text-sky-400 font-medium">
+            <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+            <span>讀取投影片視覺畫面</span>
+          </div>
+          <div class="flex items-center gap-2.5 text-sky-400 font-medium animate-pulse">
+            <i data-lucide="loader" class="w-4 h-4 animate-spin text-amber-400"></i>
+            <span>分析簡報排版架構與配色方案</span>
+          </div>
+          <div class="flex items-center gap-2.5 text-slate-500">
+            <i data-lucide="circle" class="w-4 h-4"></i>
+            <span>生成即時預覽圖與直接套用指令</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 結果成果中心 -->
+      <div id="panel-result" class="hidden flex flex-col space-y-5">
+        
+        <!-- 頂部標題與直達快捷按鈕 -->
+        <div class="bg-[#161F30] rounded-2xl p-5 card-soft-shadow border border-slate-750 flex flex-wrap items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                <i data-lucide="check-check" class="w-4 h-4 text-emerald-400"></i>
+                風格與排版已解析完成
+              </span>
+              <span id="result-auto-badge" class="hidden text-[11px] px-2.5 py-0.5 rounded-full bg-slate-800 text-sky-300 font-medium border border-slate-700"></span>
+            </div>
+            <h2 id="result-style-name" class="text-lg font-bold text-slate-100">簡報風格名稱</h2>
+            <div id="result-tags-container" class="flex flex-wrap gap-1.5 pt-1">
+              <!-- 動態插入標籤 -->
+            </div>
+          </div>
+
+          <!-- 核心直達工作流快捷按鈕 -->
+          <div class="flex flex-wrap gap-2.5">
+            <button id="btn-copy-and-open-nblm" class="px-4 py-2.5 font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-md shadow-sky-600/20 flex items-center gap-1.5 transition-all cursor-pointer text-xs">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span>複製指令並打開 NotebookLM ↗</span>
+            </button>
+            <button id="btn-copy-and-open-gamma" class="px-4 py-2.5 font-bold bg-purple-600 hover:bg-purple-500 text-white rounded-xl shadow-md shadow-purple-600/20 flex items-center gap-1.5 transition-all cursor-pointer text-xs">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+              <span>複製指令並打開 Gamma ↗</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 參考簡報與色彩方案卡片 -->
+        <div class="bg-[#161F30] rounded-2xl p-5 card-soft-shadow border border-slate-750 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-700/80 pb-3">
+            <div class="flex items-center gap-2">
+              <i data-lucide="image" class="w-4 h-4 text-sky-400"></i>
+              <span class="text-xs font-bold text-slate-200">參考簡報與色彩方案</span>
+            </div>
+            <!-- 多頁翻頁器 -->
+            <div id="slide-page-nav" class="hidden items-center bg-slate-900 rounded-xl p-1 border border-slate-700 text-xs font-medium">
+              <button id="btn-prev-slide" class="px-2 py-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+              </button>
+              <span id="slide-page-indicator" class="px-2 text-slate-300 font-mono text-[11px]">第 1 頁</span>
+              <button id="btn-next-slide" class="px-2 py-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer">
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+            <!-- 左欄：原檔投影片圖片 (5 cols) -->
+            <div class="md:col-span-5 flex flex-col space-y-2">
+              <div class="flex items-center justify-between text-xs font-semibold text-slate-400 px-1">
+                <span>原始簡報預覽</span>
+                <span class="text-[11px] font-mono text-slate-500" id="original-page-label">Page 1</span>
+              </div>
+              <div class="relative w-full aspect-video rounded-xl bg-[#0B0F19] border border-slate-700 overflow-hidden slide-frame-shadow flex items-center justify-center">
+                <img id="img-original-slide" src="" alt="原始投影片" class="w-full h-full object-contain">
+                <div id="original-placeholder" class="hidden text-center text-xs text-slate-500 p-4">
+                  尚未讀取到原始頁面縮圖
+                </div>
+              </div>
+            </div>
+
+            <!-- 右欄：配色方案色票 (7 cols) -->
+            <div class="md:col-span-7 flex flex-col space-y-2.5">
+              <div class="flex items-center justify-between text-xs font-semibold text-slate-400 px-1">
+                <span class="flex items-center gap-1.5 text-slate-200 font-bold">
+                  <i data-lucide="palette" class="w-3.5 h-3.5 text-amber-400"></i>
+                  色彩方案（點擊代碼複製 Hex）
+                </span>
+                <span id="white-space-metric" class="text-[11px] text-slate-300 bg-slate-800 px-2.5 py-0.5 rounded-lg border border-slate-700">
+                  留白比例: 70%
+                </span>
+              </div>
+              <div id="color-palette-container" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <!-- 動態插入色票卡片 -->
+              </div>
+              <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-400 leading-relaxed mt-1">
+                💡 <strong>提示詞已內嵌排版保護</strong>：AI 將嚴格按照原簡報的靶心同心圓、多階段里程碑與卡片幾何槽位填入內容，絕不隨機捏造大數字或無關科技圖標。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 提示詞與指令中心 (頁籤整合區) -->
+        <div class="bg-[#161F30] rounded-2xl card-soft-shadow border border-slate-750 overflow-hidden">
+          
+          <!-- 頁籤按鈕 -->
+          <div class="flex items-center border-b border-slate-700/80 bg-slate-900/80 p-2 gap-1.5 overflow-x-auto custom-scrollbar">
+            <button type="button" data-result-tab="nblm" class="result-tab-btn active px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer">
+              <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+              <span>貼給 NotebookLM（套用此風格整理筆記）</span>
+            </button>
+            <button type="button" data-result-tab="gamma" class="result-tab-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 cursor-pointer">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-400"></i>
+              <span>貼給 Gamma AI（一鍵套用此風格生成）</span>
+            </button>
+            <button type="button" data-result-tab="report" class="result-tab-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 cursor-pointer">
+              <i data-lucide="file-text" class="w-3.5 h-3.5 text-sky-400"></i>
+              <span>查看完整排版規範報告</span>
+            </button>
+          </div>
+
+          <div class="p-5">
+
+            <!-- 頁籤 1：NotebookLM 專用提示詞 -->
+            <div id="tab-pane-nblm" class="result-tab-pane space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <i data-lucide="terminal" class="w-4 h-4 text-sky-400"></i>
+                    NotebookLM 專用指令
+                  </h3>
+                  <p class="text-xs text-slate-400 mt-0.5">直接複製貼給 NotebookLM，它會將您的個人筆記依照此簡報的架構精準整理。</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <a href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 flex items-center gap-1 transition-all">
+                    <span>前往 NotebookLM</span>
+                    <i data-lucide="external-link" class="w-3 h-3"></i>
+                  </a>
+                  <button id="btn-copy-nblm" class="px-3.5 py-1.5 text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span id="copy-btn-label">複製指令</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="relative">
+                <pre id="nblm-prompt-code" class="bg-[#0B0F19] border border-slate-800 rounded-xl p-4 text-xs text-sky-200 font-mono overflow-x-auto max-h-80 custom-scrollbar leading-relaxed whitespace-pre-wrap"></pre>
+              </div>
+
+              <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300 flex items-start gap-2">
+                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+                <span>已內嵌排版保護：嚴格禁止 AI 亂編無關的大數字，強制依照此簡報原本的同心圓與卡片架構填寫內容。</span>
+              </div>
+            </div>
+
+            <!-- 頁籤 2：Gamma AI 專用風格指令 -->
+            <div id="tab-pane-gamma" class="result-tab-pane hidden space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-purple-400"></i>
+                    Gamma AI 專用風格指令
+                  </h3>
+                  <p class="text-xs text-slate-400 mt-0.5">在 Gamma 建立簡報或調整主題時貼入，直接套用純白底、2D 扁平與原檔配色。</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <a href="https://gamma.app/" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 flex items-center gap-1 transition-all">
+                    <span>前往 Gamma AI</span>
+                    <i data-lucide="external-link" class="w-3 h-3"></i>
+                  </a>
+                  <button id="btn-copy-gamma" class="px-3.5 py-1.5 text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span id="copy-gamma-label">複製 Gamma 指令</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="relative">
+                <pre id="gamma-prompt-code" class="bg-[#0B0F19] border border-slate-800 rounded-xl p-4 text-xs text-purple-200 font-mono overflow-x-auto max-h-80 custom-scrollbar leading-relaxed whitespace-pre-wrap"></pre>
+              </div>
+
+              <div class="p-3 rounded-xl bg-purple-950/40 border border-purple-800/80 text-xs text-purple-200 flex items-start gap-2">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-purple-400 shrink-0 mt-0.5"></i>
+                <span>已排除雜亂元素：避免 AI 因為題目是科技就自動套用工程方格紙背景或 3D 陰影。</span>
+              </div>
+            </div>
+
+            <!-- 頁籤 3：完整設計規範報告 -->
+            <div id="tab-pane-report" class="result-tab-pane hidden space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-750 pb-3">
+                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                  <i data-lucide="file-text" class="w-4 h-4 text-sky-400"></i>
+                  完整排版規範與分析報告
+                </h3>
+                <div class="flex gap-2">
+                  <button id="btn-export-markdown" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 flex items-center gap-1.5 transition-all cursor-pointer">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    下載報告 (.md)
+                  </button>
+                  <button id="btn-copy-all-report" class="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer font-medium px-2 py-1">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    複製全文
+                  </button>
+                </div>
+              </div>
+              <div id="full-report-markdown" class="prose max-w-none text-xs leading-relaxed text-slate-300">
+                <!-- 渲染 Markdown -->
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- 彈窗 1：AI 帳號設定彈窗 (深色護眼) -->
+  <div id="modal-apikey" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#161F30] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-up border border-slate-700">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-xl bg-slate-800 text-sky-400 flex items-center justify-center border border-slate-750">
+            <i data-lucide="key-round" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-100">設定 AI 金鑰</h3>
+            <p class="text-[11px] text-slate-400">僅儲存於您個人的瀏覽器，伺服器不儲存</p>
+          </div>
+        </div>
+        <button id="btn-close-apikey-modal" class="text-slate-400 hover:text-slate-200 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- 切換當前設定的供應商 -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1.5">選擇服務商：</label>
+        <div class="grid grid-cols-3 gap-2" id="modal-provider-selector">
+          <button type="button" data-modal-provider="gemini" class="modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-bold border transition-all text-center bg-sky-600 text-white border-sky-600 cursor-pointer">
+            Google (推薦)
+          </button>
+          <button type="button" data-modal-provider="openai" class="modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-bold border transition-all text-center bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-750 cursor-pointer">
+            OpenAI
+          </button>
+          <button type="button" data-modal-provider="anthropic" class="modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-bold border transition-all text-center bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-750 cursor-pointer">
+            Claude
+          </button>
+        </div>
+      </div>
+
+      <div class="space-y-3 text-xs text-slate-300">
+        <div>
+          <label class="block text-xs font-semibold text-slate-200 mb-1" id="modal-key-label">Google Gemini API Key：</label>
+          <div class="relative">
+            <input type="password" id="input-api-key" placeholder="貼上 AIzaSy 開頭的金鑰..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-400 font-mono pr-10">
+            <button id="btn-toggle-key-visibility" type="button" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 cursor-pointer">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-[11px] pt-1">
+          <a id="modal-portal-link" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline flex items-center gap-1 font-semibold">
+            <span id="modal-portal-text">前往 Google AI Studio 免費申請</span>
+            <i data-lucide="external-link" class="w-3 h-3"></i>
+          </a>
+          <button id="btn-clear-key" class="text-rose-400 hover:text-rose-300 font-medium cursor-pointer">清除金鑰</button>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-750 pt-3 flex space-x-2">
+        <button id="btn-save-key" class="flex-1 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-md shadow-sky-600/20 transition-all cursor-pointer">
+          儲存並使用
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 2：超詳細申請教學彈窗 (深色護眼) -->
+  <div id="modal-tutorial" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#161F30] rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar border border-slate-700">
+      <div class="flex items-center justify-between border-b border-slate-750 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-xl bg-emerald-950/80 text-emerald-400 border border-emerald-800 flex items-center justify-center">
+            <i data-lucide="book-open" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-100">免費 AI 帳號申請教學</h3>
+            <p class="text-xs text-slate-400">1 分鐘即可取得免費額度</p>
+          </div>
+        </div>
+        <button id="btn-close-tutorial" class="text-slate-400 hover:text-slate-200 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- 教學頁籤切換 -->
+      <div class="flex border-b border-slate-700 text-xs font-semibold space-x-4">
+        <button type="button" class="tut-tab-btn py-2 border-b-2 border-sky-400 text-sky-400 cursor-pointer" data-tut="gemini">
+          🌟 Google（免信用卡、免費推薦）
+        </button>
+        <button type="button" class="tut-tab-btn py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 cursor-pointer" data-tut="openai">
+          🟢 OpenAI (GPT-4o)
+        </button>
+        <button type="button" class="tut-tab-btn py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 cursor-pointer" data-tut="anthropic">
+          🟣 Claude (3.5 Sonnet)
+        </button>
+      </div>
+
+      <!-- 教學內容 1: Google Gemini -->
+      <div id="tut-content-gemini" class="space-y-3.5 text-xs text-slate-300 leading-relaxed">
+        <div class="bg-blue-950/40 p-3 rounded-xl border border-blue-800/80 text-blue-200 text-xs flex items-center justify-between">
+          <span>💡 官方提供免費方案，<strong>不用綁信用卡</strong>，個人使用額度非常充足！</span>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded-lg font-medium inline-flex items-center gap-1 shrink-0">
+            官方申請直達 <i data-lucide="external-link" class="w-3 h-3"></i>
+          </a>
+        </div>
+
+        <div class="space-y-2.5">
+          <div class="flex gap-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            <span class="w-5 h-5 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">1</span>
+            <p>前往 <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-sky-400 underline font-bold">Google AI Studio</a>，登入您的 Google 帳號。</p>
+          </div>
+          <div class="flex gap-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            <span class="w-5 h-5 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">2</span>
+            <p>點擊藍色按鈕 <strong>「Create API key」</strong> ➔ 點擊 <strong>「Create API key in new project」</strong>。</p>
+          </div>
+          <div class="flex gap-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            <span class="w-5 h-5 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">3</span>
+            <p>複製產生的代碼（<code>AIzaSy...</code> 開頭），回本站貼上即可開始使用！</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 教學內容 2: OpenAI -->
+      <div id="tut-content-openai" class="hidden space-y-3.5 text-xs text-slate-300 leading-relaxed">
+        <div class="bg-emerald-950/40 p-3 rounded-xl border border-emerald-800/80 text-emerald-200 text-xs flex items-center justify-between">
+          <span>💡 支援 OpenAI GPT-4o 視覺模型。</span>
+          <a href="https://platform.openai.com/api-keys" target="_blank" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium inline-flex items-center gap-1 shrink-0">
+            OpenAI 平台直達 <i data-lucide="external-link" class="w-3 h-3"></i>
+          </a>
+        </div>
+
+        <div class="space-y-2.5">
+          <div class="flex gap-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            <span class="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">1</span>
+            <p>前往 <a href="https://platform.openai.com/api-keys" target="_blank" class="text-emerald-400 underline font-bold">OpenAI Platform API Keys</a> 頁面登入。</p>
+          </div>
+          <div class="flex gap-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            <span class="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">2</span>
+            <p>點擊 <strong>「Create new secret key」</strong>，建立金鑰。</p>
+          </div>
+          <div class="flex gap-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            <span class="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">3</span>
+            <p>複製金鑰（<code>sk-proj-...</code> 開頭）。注意：帳號需有小額餘額。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 教學內容 3: Anthropic Claude -->
+      <div id="tut-content-anthropic" class="hidden space-y-3.5 text-xs text-slate-300 leading-relaxed">
+        <div class="bg-purple-950/40 p-3 rounded-xl border border-purple-800/80 text-purple-200 text-xs flex items-center justify-between">
+          <span>💡 支援美學評鑑第一的 Claude 3.5 Sonnet。</span>
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium inline-flex items-center gap-1 shrink-0">
+            Claude 控制台直達 <i data-lucide="external-link" class="w-3 h-3"></i>
+          </a>
+        </div>
+
+        <div class="space-y-2.5">
+          <div class="flex gap-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            <span class="w-5 h-5 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">1</span>
+            <p>前往 <a href="https://console.anthropic.com/settings/keys" target="_blank" class="text-purple-400 underline font-bold">Anthropic Console</a> 註冊或登入。</p>
+          </div>
+          <div class="flex gap-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            <span class="w-5 h-5 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">2</span>
+            <p>進入 <strong>API Keys</strong> 專區，點擊 <strong>「Create Key」</strong>。</p>
+          </div>
+          <div class="flex gap-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            <span class="w-5 h-5 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">3</span>
+            <p>複製金鑰（<code>sk-ant-...</code> 開頭），回本站設定即可使用！</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-750 pt-3 text-right">
+        <button id="btn-tutorial-got-it" class="px-5 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer">
+          我知道了，開始使用
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 3：隱私說明彈窗 (深色護眼) -->
+  <div id="modal-security" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#161F30] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-700">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-xl bg-sky-950/80 text-sky-400 border border-sky-800 flex items-center justify-center">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-100">個人隱私安全承諾</h3>
+        </div>
+        <button id="btn-close-security" class="text-slate-400 hover:text-slate-200 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2.5 text-xs text-slate-300 leading-relaxed">
+        <p>為保障您的個人資料安全：</p>
+        <ul class="list-disc list-inside space-y-1.5 text-slate-300">
+          <li><strong>金鑰只保存在您的瀏覽器</strong>：伺服器完全不儲存您的 API 金鑰。</li>
+          <li><strong>隨分析即時傳輸</strong>：分析結束後立即自記憶體釋放，伺服器日誌絕不記錄。</li>
+          <li><strong>安心分享</strong>：即便您把網址傳給朋友或同事，他人也無法取得您的金鑰。</li>
+        </ul>
+      </div>
+
+      <div class="border-t border-slate-750 pt-3 text-right">
+        <button id="btn-close-security-confirm" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-bold cursor-pointer">
+          關閉
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 全局 Toast 提示 -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-xs shadow-2xl text-slate-100">
+    <i data-lucide="info" id="toast-icon" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toast-text">通知內容</span>
+  </div>
+
+  <script src="app.js?v=3.0"></script>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>
