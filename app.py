@@ -49,6 +49,14 @@ SYSTEM_INSTRUCTION = """
    - 若卡片內條目是「水平灰白相間的斑馬紋條塊 (Zebra Stripe Rows / Pills)」，必須明確指認並記錄，不可粗糙降級為普通圓點 (Bullet points)。
 4. 🚫【精確提取核心幾何圖解隱喻】：
    - 若畫面中包含「同心圓靶心 (Concentric Rings)」、「水平箭頭進程軸 (Milestone Timeline)」、「金字塔」、「組織架構樹」、「象限矩陣」或「雙色 Icon」，必須精準拆解其層級數、節點數與連線邏輯！
+5. 🚫【致命防護：嚴禁「主題語意風格污染」(Anti-Topic Semantic Bias)】：
+   - 當使用者日後拿提示詞去生成不同主題（例如「AI 科技」、「雲端大數據」）時，下游簡報工具常會「自動腦補擅自加戲」（例如自動加上：工程方格紙背景、刻度標尺、十字座標、3D 立體陰影、45 度斜向發射導軌、化學燒杯或賽博科幻分子）！
+   - 【鐵律約束】：提示詞必須包含【視覺風格鎖定契約 (Visual Style Lock Contract)】與【強力負向排除詞 (Negative Style Directives)】，強制要求下游工具：
+     * 背景必須 100% 保持乾淨純色畫布（如純白 #FFFFFF），嚴禁網格方格紙、工程線條、刻度尺、十字標記。
+     * 所有圖解必須嚴格保持純 2D 平面向量 (Strictly Flat 2D)，嚴禁 3D 陰影、立體圓環與擬物立體感。
+     * 時間軸必須嚴格保持水平對齊 (Strictly Horizontal)，嚴禁 45 度斜向飛行發射導軌。
+     * 色彩必須牢牢鎖定本簡報原色的 Hex 色碼（如海軍藍 #0E3B5D + 赭石金 #C59B27），嚴禁因為主題是 AI 就擅自漂移成冰冷賽博藍。
+     * 圖示必須維持簡約商務雙色 Icon，嚴禁出現與主題硬湊的科幻燒杯、分子等雜亂元素。
 
 請以繁體中文（台灣習慣用語）輸出以下結構化報告：
 
@@ -83,9 +91,10 @@ SYSTEM_INSTRUCTION = """
 [在此輸出一段為 NotebookLM 量身打造的高階引導指令。
 必須包含：
 1. 角色設定：高階簡報內容架構師。
-2. 全局原則：
+2. 全局原則與視覺風格保護鎖：
    - 嚴格維持簡報的高雅專業性與留白節奏。
    - 🚫【絕對禁令】：嚴禁無中生有生成巨型 KPI 統計大數字！重點在於概念框架、邏輯推導與條理清單。
+   - 🚫【視覺鎖定】：背景保持 100% 純白無雜訊；嚴禁方格網格紙；圖解嚴格保持純 2D 平面；時間軸嚴格保持水平對齊。
    - 每頁投影片輸出必須明確標記其【版面幾何結構標籤】與對應插槽。
 3. 根據上述「第 1 節實際辨識到的各頁幾何拓撲」，精確產生對應的投影片型態骨架插槽（例如型態 1: 概念架構與進程頁 [左右分割/同心圓/里程碑]；型態 2: 模組分析與檢視頁 [三欄線框卡片/斑馬紋條列] 等）！]
 ```
@@ -96,12 +105,13 @@ SYSTEM_INSTRUCTION = """
 ```markdown
 [在此輸出專門給 Gamma AI、Marp 或 AI 簡報工具的主題與排版指令。
 包含：
-- Style Directive (風格流派)
-- Background & Exact Color Hex Palette
+- Style Directive (風格流派：高雅麥肯錫企管顧問極簡風)
+- Background & Exact Color Hex Palette (純白背景 #FFFFFF，海軍藍 #0E3B5D，赭石金 #C59B27)
+- 2D Flat Constraint (所有圖表強制純 2D 平面向量，時間軸強制水平水平橫向)
 - Container & Card Style (明確指示 1.5px 俐落邊框、純白底、無陰影)
 - List & Content Style (明確指示斑馬紋條列水平色塊，替代普通圓點)
 - Iconography Style (頂部居中雙色向量圖示)
-- Strict Negative Prompt (嚴格排除巨型數字、漸層、陰影、深色背景等)]
+- Strict Negative Prompt (嚴格排除：blueprint, grid paper, ruler, crosshair, 3d render, shadows, sci-fi, cyberpunk, neon, tilted arrow, giant KPI numbers)]
 ```
 
 ## 5. 💻 1:1 還原之 HTML / Tailwind 投影片結構碼 (可直接複製使用)
