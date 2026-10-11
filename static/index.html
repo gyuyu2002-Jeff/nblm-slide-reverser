@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>簡報同款複製神器 | 看懂任何排版，一鍵做出同款簡報</title>
+  <title>簡報風格逆向解析 | 拆解專業排版，一鍵套用相同風格</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -27,7 +27,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Marked.js for Markdown Rendering -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=2.2">
+  <link rel="stylesheet" href="style.css?v=2.3">
 </head>
 <body class="bg-[#0B0F19] text-slate-100 min-h-screen flex flex-col font-sans selection:bg-blue-600 selection:text-white">
 
@@ -41,13 +41,13 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base font-bold text-slate-100 tracking-tight">
-              簡報同款複製神器
+              簡報風格逆向解析
             </h1>
             <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-sky-300 font-semibold border border-slate-700">
               支援 NotebookLM & Gamma
             </span>
           </div>
-          <p class="text-xs text-slate-400">上傳任何喜歡的投影片，一鍵產出同款排版與配色的提示詞</p>
+          <p class="text-xs text-slate-400">上傳參考投影片，一鍵擷取其排版架構與配色提示詞</p>
         </div>
       </div>
 
@@ -183,10 +183,10 @@
       <div class="bg-[#161F30] rounded-2xl p-4 text-xs text-slate-300 space-y-1.5 card-soft-shadow border border-slate-750">
         <div class="font-bold text-slate-100 flex items-center gap-1.5">
           <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
-          如何做出同款簡報？
+          如何套用此風格製作簡報？
         </div>
         <p class="text-[11px] text-slate-400 leading-relaxed">
-          分析完成後，系統會自動生成指令。直接把指令貼給 <strong class="text-slate-200">NotebookLM</strong> 或 <strong class="text-slate-200">Gamma AI</strong>，就能把你自己的筆記內容排成同款高階投影片！
+          分析完成後，系統會自動生成專用結構指令。直接將指令貼給 <strong class="text-slate-200">NotebookLM</strong> 或 <strong class="text-slate-200">Gamma AI</strong>，就能將您個人的筆記內容完美套用該視覺風格！
         </p>
       </div>
 
@@ -200,12 +200,12 @@
         <div class="w-16 h-16 rounded-2xl bg-slate-800/80 text-sky-400 flex items-center justify-center mb-4 border border-slate-700 shadow-inner">
           <i data-lucide="presentation" class="w-8 h-8"></i>
         </div>
-        <h3 class="text-base font-bold text-slate-100 mb-1.5">放上範例，立刻做出同款簡報</h3>
+        <h3 class="text-base font-bold text-slate-100 mb-1.5">放上參考範本，即刻解析風格架構</h3>
         <p class="text-xs text-slate-400 max-w-md leading-relaxed mb-6">
-          不管是圓形架構圖、時間軸進程還是三欄卡片，系統都能精準記下排版與配色，並在右側即時展示「原稿 vs 還原」效果對比！
+          不管是圓形架構圖、時間軸進程還是三欄卡片，系統都能精準解析版面與配色，並在右側即時展示「原稿 vs 還原」效果對照！
         </p>
         <div class="flex flex-wrap gap-2.5 justify-center text-xs">
-          <span class="px-3 py-1.5 rounded-xl bg-slate-900/80 text-slate-300 font-semibold border border-slate-800">🎯 排版結構精準對齊</span>
+          <span class="px-3 py-1.5 rounded-xl bg-slate-900/80 text-slate-300 font-semibold border border-slate-800">🎯 排版架構精準對齊</span>
           <span class="px-3 py-1.5 rounded-xl bg-slate-900/80 text-slate-300 font-semibold border border-slate-800">🎨 原版色票一鍵複製</span>
           <span class="px-3 py-1.5 rounded-xl bg-slate-900/80 text-slate-300 font-semibold border border-slate-800">⚡ 直接貼進 NotebookLM 或 Gamma</span>
         </div>
@@ -230,7 +230,7 @@
           </div>
           <div class="flex items-center gap-2.5 text-sky-400 font-medium animate-pulse">
             <i data-lucide="loader" class="w-4 h-4 animate-spin text-amber-400"></i>
-            <span>分析同款排版結構與配色</span>
+            <span>分析簡報排版架構與配色方案</span>
           </div>
           <div class="flex items-center gap-2.5 text-slate-500">
             <i data-lucide="circle" class="w-4 h-4"></i>
@@ -380,11 +380,11 @@
           <div class="flex items-center border-b border-slate-700/80 bg-slate-900/80 p-2 gap-1.5 overflow-x-auto custom-scrollbar">
             <button type="button" data-result-tab="nblm" class="result-tab-btn active px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer">
               <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
-              <span>貼給 NotebookLM（用筆記做同款簡報）</span>
+              <span>貼給 NotebookLM（套用此風格整理筆記）</span>
             </button>
             <button type="button" data-result-tab="gamma" class="result-tab-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 cursor-pointer">
               <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-400"></i>
-              <span>貼給 Gamma AI（一鍵生成同款簡報）</span>
+              <span>貼給 Gamma AI（一鍵套用此風格生成）</span>
             </button>
             <button type="button" data-result-tab="report" class="result-tab-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 cursor-pointer">
               <i data-lucide="file-text" class="w-3.5 h-3.5 text-sky-400"></i>
@@ -402,7 +402,7 @@
                     <i data-lucide="terminal" class="w-4 h-4 text-sky-400"></i>
                     NotebookLM 專用指令
                   </h3>
-                  <p class="text-xs text-slate-400 mt-0.5">直接複製貼給 NotebookLM，它會把您的筆記依照此簡報的同款架構整理出來。</p>
+                  <p class="text-xs text-slate-400 mt-0.5">直接複製貼給 NotebookLM，它會將您的個人筆記依照此簡報的架構精準整理。</p>
                 </div>
                 <div class="flex items-center gap-2">
                   <a href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 flex items-center gap-1 transition-all">
@@ -704,7 +704,7 @@
     <span id="toast-text">通知內容</span>
   </div>
 
-  <script src="app.js?v=2.2"></script>
+  <script src="app.js?v=2.3"></script>
   <script>
     lucide.createIcons();
   </script>

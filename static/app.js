@@ -506,7 +506,7 @@ function setupEventListeners() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `簡報同款排版報告-${new Date().toISOString().slice(0, 10)}.md`;
+    a.download = `簡報風格逆向解析報告-${new Date().toISOString().slice(0, 10)}.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
