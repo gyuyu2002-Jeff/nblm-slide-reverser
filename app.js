@@ -204,10 +204,6 @@ function setupEventListeners() {
     showToast("Google 通行證已就緒！請拖入投影片開始分析", "success");
   });
 
-  // 一鍵貼上剪貼簿監聽
-  on("btn-paste-onboarding-key", "click", () => pasteClipboardToInput("input-onboarding-key"));
-  on("btn-paste-modal-key", "click", () => pasteClipboardToInput("input-api-key"));
-
   // 迎賓彈窗密碼顯隱切換
   const toggleOnboardingBtn = document.getElementById("btn-toggle-onboarding-key");
   const onboardingInput = document.getElementById("input-onboarding-key");
@@ -1628,20 +1624,23 @@ function buildFullSlideHtml(rawHtml) {
 </html>`;
 }
 
-// 簡報精確色票卡片 (Precision Palette Tokens)
+// 簡報精確色票卡片 (Precision Studio Pantone Tokens)
 function renderColorPalette(palette) {
   const container = document.getElementById("color-palette-container");
+  if (!container) return;
   container.innerHTML = "";
 
   palette.forEach(color => {
     const card = document.createElement("div");
-    card.className = "group bg-[#0E1013] hover:bg-white/[0.04] border border-white/[0.08] hover:border-white/20 rounded-lg p-2.5 flex flex-col justify-between transition-colors cursor-pointer shadow-sm";
-    card.title = "點擊複製 Hex 色碼";
+    card.className = "group studio-swatch-card p-2 flex flex-col justify-between cursor-pointer";
+    card.title = `點擊複製 Pantone 色碼：${color.hex}`;
     
     card.innerHTML = `
-      <div class="w-full h-8 rounded border border-white/10 mb-2 shadow-inner" style="background-color: ${color.hex}"></div>
+      <div class="relative w-full h-8 sm:h-9 rounded-md border border-white/10 mb-2 shadow-inner overflow-hidden" style="background-color: ${color.hex}">
+        <span class="absolute top-1 right-1 bg-black/75 backdrop-blur-sm text-[8px] font-mono text-zinc-300 px-1 py-0.2 rounded border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">COPY</span>
+      </div>
       <div>
-        <div class="text-[10px] font-medium text-zinc-400 truncate">${color.role || color.name}</div>
+        <div class="text-[10px] font-medium text-zinc-400 truncate leading-tight">${color.role || color.name}</div>
         <div class="text-[11px] font-mono font-medium text-zinc-200 flex items-center justify-between mt-0.5">
           <span>${color.hex}</span>
           <i data-lucide="copy" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400"></i>
@@ -1651,12 +1650,12 @@ function renderColorPalette(palette) {
 
     card.addEventListener("click", () => {
       navigator.clipboard.writeText(color.hex);
-      showToast(`已複製色碼: ${color.hex}`, "success");
+      showToast(`已複製 Pantone 色碼: ${color.hex}`, "success");
     });
 
     container.appendChild(card);
   });
-  lucide.createIcons();
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function fallbackExtractMeta(markdown) {
