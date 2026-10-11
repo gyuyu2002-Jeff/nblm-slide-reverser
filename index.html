@@ -35,7 +35,7 @@
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
   </script>
-  <link rel="stylesheet" href="style.css?v=5.5.0">
+  <link rel="stylesheet" href="style.css?v=5.6.0">
 </head>
 <body class="bg-[#0B0C0E] text-zinc-200 min-h-screen flex flex-col font-sans selection:bg-zinc-700 selection:text-white antialiased">
 
@@ -260,10 +260,10 @@
             </div>
             <div class="min-w-0 flex-1">
               <div class="flex items-center justify-between gap-1">
-                <span class="text-xs font-semibold text-zinc-300 truncate">4. 編譯 NBLM 槽位合約</span>
+                <span class="text-xs font-semibold text-zinc-300 truncate">4. 編譯 NBLM 風格提示詞</span>
                 <span id="step-pipe-badge-4" class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-500 border border-white/[0.06]">等待中</span>
               </div>
-              <p class="text-[11px] text-zinc-400 mt-0.5 leading-tight">設定標題<14字、條列<20字防爆預算</p>
+              <p class="text-[11px] text-zinc-400 mt-0.5 leading-tight">全域視覺手冊、版型庫與字數防爆預算</p>
             </div>
           </div>
 
@@ -366,7 +366,7 @@
           <div class="flex items-center border-b border-white/[0.06] bg-[#0E1013] p-1.5 gap-1 overflow-x-auto custom-scrollbar">
             <button type="button" data-result-tab="nblm" class="result-tab-btn active px-3.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors bg-white/10 text-white border border-white/10 cursor-pointer">
               <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
-              <span>NotebookLM 槽位提示詞</span>
+              <span>NotebookLM 簡報提示詞</span>
             </button>
             <button type="button" data-result-tab="report" class="result-tab-btn px-3.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors text-zinc-400 hover:text-white hover:bg-white/[0.04] cursor-pointer">
               <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
@@ -381,9 +381,9 @@
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 class="text-xs font-semibold text-zinc-100 flex items-center gap-1.5">
-                    NotebookLM 幾何槽位合約提示詞（Slot-Contract）
+                    NotebookLM 簡報風格與排版提示詞（全域版型語法庫）
                   </h3>
-                  <p class="text-[11px] text-zinc-400 mt-0.5">依循嚴格字數預算與版面插槽，強制 NotebookLM 將長篇筆記 100% 精準壓縮填入簡報骨架中。</p>
+                  <p class="text-[11px] text-zinc-400 mt-0.5">提煉全域視覺手冊與幾何版型字典，讓 NotebookLM 依據筆記內容自由規劃頁數（不限頁數），兼顧視覺美學與精煉文案。</p>
                 </div>
                 <div class="flex items-center gap-1.5">
                   <a href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 text-xs font-medium bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 rounded border border-white/[0.08] flex items-center gap-1 transition-colors">
@@ -721,7 +721,7 @@
     <span id="toast-text">通知內容</span>
   </div>
 
-  <script src="app.js?v=5.5.0"></script>
+  <script src="app.js?v=5.6.0"></script>
   <script>
     lucide.createIcons();
   </script>
