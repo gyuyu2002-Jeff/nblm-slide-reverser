@@ -165,7 +165,7 @@ function setupEventListeners() {
     if (modalApiKey) modalApiKey.classList.add("hidden");
   });
 
-  // 點擊「通行證申請教學」開啟迎賓教學彈窗（直達三步驟與一鍵儲存）
+  // 點擊「API 申請教學」開啟迎賓教學彈窗（直達三步驟與一鍵儲存）
   on("btn-tutorial", "click", () => {
     openOnboardingModal();
   });
@@ -195,13 +195,13 @@ function setupEventListeners() {
     const input = document.getElementById("input-onboarding-key");
     const key = input ? input.value.trim() : "";
     if (!key) {
-      showToast("請先貼上有效的 Google 官方免費通行證 (API Key)，或點擊跳過", "warning");
+      showToast("請先貼上有效的 Google 官方免費 API Key，或點擊跳過", "warning");
       return;
     }
     setApiKey("gemini", key);
     switchProvider("gemini");
     closeOnboardingModal(true);
-    showToast("Google 通行證已就緒！請拖入投影片開始分析", "success");
+    showToast("Google API Key 已就緒！請拖入投影片開始分析", "success");
   });
 
   // 迎賓彈窗密碼顯隱切換
@@ -663,7 +663,7 @@ async function pasteClipboardToInput(inputId) {
       input.value = text.trim();
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
-      showToast("已從剪貼簿貼上通行證金鑰！", "success");
+      showToast("已貼上 API Key 金鑰！", "success");
     } else {
       showToast("剪貼簿為空或尚未複製金鑰", "warning");
     }
@@ -1279,7 +1279,7 @@ async function handleStartAnalyze() {
 
   const apiKey = getApiKey(currentProvider);
   if (!apiKey) {
-    showToast(`請先輸入您的 ${PROVIDER_CONFIG[currentProvider].name} 官方免費通行證 (API Key)`, "warning");
+    showToast(`請先輸入您的 ${PROVIDER_CONFIG[currentProvider].name} 官方免費 API Key`, "warning");
     openApiKeyModal(currentProvider);
     return;
   }

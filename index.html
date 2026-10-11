@@ -72,7 +72,7 @@
 
         <button id="btn-tutorial" class="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] rounded-lg border border-white/[0.08] transition-colors cursor-pointer">
           <i data-lucide="help-circle" class="w-3.5 h-3.5 text-zinc-400"></i>
-          <span>通行證申請教學</span>
+          <span>API 申請教學</span>
         </button>
 
         <button id="btn-security" class="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] rounded-lg border border-white/[0.08] transition-colors cursor-pointer">
@@ -600,7 +600,7 @@
         <div class="font-medium text-zinc-300 flex items-center justify-between text-xs">
           <span class="flex items-center gap-1.5">
             <i data-lucide="sparkles" class="w-3.5 h-3.5 text-zinc-400"></i>
-            <span>30 秒免費取得 Google 官方推論通行證：</span>
+            <span>30 秒免費取得 Google 官方 API Key：</span>
           </span>
           <span class="text-[10px] text-zinc-500 font-mono">免寫程式 · 免費永久</span>
         </div>
@@ -637,7 +637,7 @@
           <div class="bg-[#0E1013] rounded-xl p-2.5 border border-white/[0.08] flex items-center gap-2.5 hover:border-white/20 transition-colors">
             <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">3</span>
             <div class="min-w-0">
-              <div class="text-xs text-zinc-200 font-medium">複製生成的通行證並貼回下方</div>
+              <div class="text-xs text-zinc-200 font-medium">複製生成的 API Key 並貼回下方</div>
               <div class="text-[10px] text-zinc-400">以 <code class="text-emerald-400 font-mono">AIzaSy...</code> 開頭，點旁邊的 <span class="text-zinc-300 bg-white/[0.06] px-1 py-0.5 rounded border border-white/[0.1]">📋 Copy</span> 即可！</div>
             </div>
           </div>
@@ -647,7 +647,7 @@
       <!-- 輸入框 -->
       <div class="space-y-1.5 pt-1">
         <label class="block text-xs font-medium text-zinc-200">
-          貼上您的 Google 官方免費通行證 (API Key)：
+          貼上您的 Google 官方免費 API Key：
         </label>
         <div class="relative">
           <input type="password" id="input-onboarding-key" placeholder="貼上 AIzaSy 開頭的金鑰..." class="w-full bg-[#0E1013] border border-white/[0.12] rounded-lg px-3 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-white/40 font-mono pr-9">
@@ -661,7 +661,7 @@
       <div class="space-y-2 pt-1">
         <button id="btn-save-onboarding-key" class="w-full py-2.5 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs rounded-lg shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5">
           <i data-lucide="check" class="w-3.5 h-3.5"></i>
-          <span>儲存通行證並開始使用</span>
+          <span>儲存 API Key 並開始使用</span>
         </button>
         <div class="flex items-center justify-between text-[11px] px-1 text-zinc-500">
           <button id="btn-skip-onboarding" class="hover:text-zinc-300 transition-colors cursor-pointer">
@@ -715,7 +715,7 @@
 
       <div class="space-y-2.5 text-xs text-zinc-300">
         <div>
-          <label class="block text-xs font-medium text-zinc-200 mb-1" id="modal-key-label">Google 官方免費通行證 (API Key)：</label>
+          <label class="block text-xs font-medium text-zinc-200 mb-1" id="modal-key-label">Google 官方免費 API Key：</label>
           <div class="relative">
             <input type="password" id="input-api-key" placeholder="貼上 AIzaSy 開頭的金鑰..." class="w-full bg-[#0E1013] border border-white/[0.1] rounded-lg px-3 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-white/30 font-mono pr-9">
             <button id="btn-toggle-key-visibility" type="button" class="absolute right-2.5 top-2.5 text-zinc-500 hover:text-zinc-300 cursor-pointer">
@@ -1067,7 +1067,7 @@
     <span id="toast-text">通知內容</span>
   </div>
 
-  <script src="app.js?v=6.7.0"></script>
+  <script src="app.js?v=6.8.0"></script>
   <script>
     lucide.createIcons();
   </script>
