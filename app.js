@@ -887,38 +887,45 @@ function resetProgressPipeline() {
     clearInterval(progressPipelineInterval);
     progressPipelineInterval = null;
   }
-  updatePipelineUi(12, 1, "正在高解析光學採樣畫布與圖層幾何邊界...");
+  updatePipelineUi(10, 1, "正在傳輸高解析投影片影像與圖層幾何邊界...", 0);
 }
 
 function startProgressPipeline() {
   resetProgressPipeline();
-  let currentPercent = 14;
+  let currentPercent = 10;
   const startTime = Date.now();
 
   progressPipelineInterval = setInterval(() => {
     const elapsed = Date.now() - startTime;
+    const elapsedSec = Math.floor(elapsed / 1000);
 
-    // 階段 1：0 ~ 1.8 秒，推進到 35%
-    if (elapsed < 1800) {
-      currentPercent = Math.min(35, 14 + Math.floor((elapsed / 1800) * 21));
-      updatePipelineUi(currentPercent, 1, "正在光學採樣投影片畫布與解析留白比例...");
+    // 階段 1：0 ~ 4 秒（10% ~ 32%），光學採樣與切片
+    if (elapsed < 4000) {
+      currentPercent = Math.min(32, 10 + Math.floor((elapsed / 4000) * 22));
+      updatePipelineUi(currentPercent, 1, "正在傳輸高解析影像並光學採樣圖層留白...", elapsedSec);
     } 
-    // 階段 2：1.8 ~ 4.5 秒，推進到 65%
-    else if (elapsed < 4500) {
-      currentPercent = Math.min(65, 35 + Math.floor(((elapsed - 1800) / 2700) * 30));
-      updatePipelineUi(currentPercent, 2, "正在逆向版面幾何骨架，分析左右分割與卡片結構...");
+    // 階段 2：4 ~ 16 秒（32% ~ 62%），幾何骨架與拓撲逆向
+    else if (elapsed < 16000) {
+      currentPercent = Math.min(62, 32 + Math.floor(((elapsed - 4000) / 12000) * 30));
+      updatePipelineUi(currentPercent, 2, "正在逆向版面幾何骨架，分析左右分割與卡片結構...", elapsedSec);
     } 
-    // 階段 3：4.5 ~ 7.5 秒，推進到 85%
-    else if (elapsed < 7500) {
-      currentPercent = Math.min(85, 65 + Math.floor(((elapsed - 4500) / 3000) * 20));
-      updatePipelineUi(currentPercent, 3, "正在提取精準設計系統與 4 色 Hex 色票代碼...");
+    // 階段 3：16 ~ 32 秒（62% ~ 82%），提取色票與視覺手冊
+    else if (elapsed < 32000) {
+      currentPercent = Math.min(82, 62 + Math.floor(((elapsed - 16000) / 16000) * 20));
+      updatePipelineUi(currentPercent, 3, "正在提煉 4 色 Hex 色票代碼與層級排版規範...", elapsedSec);
     } 
-    // 階段 4：7.5 秒以上，平緩推進到 94%
-    else {
-      currentPercent = Math.min(94, 85 + Math.floor(((elapsed - 7500) / 4500) * 9));
-      updatePipelineUi(currentPercent, 4, "正在編譯 NotebookLM 簡報風格與排版提示詞...");
+    // 階段 4：32 ~ 55 秒（82% ~ 93%），提示詞與還原代碼深度生成
+    else if (elapsed < 55000) {
+      currentPercent = Math.min(93, 82 + Math.floor(((elapsed - 32000) / 23000) * 11));
+      updatePipelineUi(currentPercent, 4, "正在深度編譯 NotebookLM 雙模式提示詞庫與 1:1 代碼...", elapsedSec);
     }
-  }, 120);
+    // 階段 4 深層延伸：55 秒以上（93% ~ 97%），微動呼吸避免卡死感
+    else {
+      const extraSteps = Math.min(4, Math.floor((elapsed - 55000) / 8000));
+      currentPercent = Math.min(97, 93 + extraSteps);
+      updatePipelineUi(currentPercent, 4, "多頁簡報正進行最後的拓撲規則校準與結構打包，即將就緒...", elapsedSec);
+    }
+  }, 150);
 }
 
 function completeProgressPipeline() {
@@ -927,6 +934,10 @@ function completeProgressPipeline() {
     progressPipelineInterval = null;
   }
   updatePipelineUi(100, 4, "逆向分析全部就緒！正在為您渲染成果...");
+  const timerCounterEl = document.getElementById("loading-timer-counter");
+  const timerHintEl = document.getElementById("loading-timer-hint");
+  if (timerCounterEl) timerCounterEl.textContent = "推論完成";
+  if (timerHintEl) timerHintEl.textContent = "解析成功！即刻展示拓撲報告與提示詞。";
 }
 
 function stopProgressPipeline() {
@@ -936,16 +947,32 @@ function stopProgressPipeline() {
   }
 }
 
-function updatePipelineUi(percent, activeStep, taskDescription) {
+function updatePipelineUi(percent, activeStep, taskDescription, elapsedSec = 0) {
   const percentEl = document.getElementById("loading-progress-percent");
   const barEl = document.getElementById("loading-progress-bar");
   const taskEl = document.getElementById("loading-active-task");
   const stepCounterEl = document.getElementById("loading-step-counter");
+  const timerCounterEl = document.getElementById("loading-timer-counter");
+  const timerStatusEl = document.getElementById("loading-timer-status");
+  const timerHintEl = document.getElementById("loading-timer-hint");
 
   if (percentEl) percentEl.textContent = `${percent}%`;
   if (barEl) barEl.style.width = `${percent}%`;
   if (taskEl) taskEl.textContent = taskDescription;
   if (stepCounterEl) stepCounterEl.textContent = `階段 ${activeStep}/4`;
+
+  if (timerCounterEl && percent < 100) timerCounterEl.textContent = `已推論 ${elapsedSec} 秒`;
+  if (timerStatusEl && percent < 100) timerStatusEl.textContent = taskDescription;
+
+  if (timerHintEl && percent < 100) {
+    if (elapsedSec < 20) {
+      timerHintEl.textContent = "深度視覺拓撲推論約需 20 ~ 45 秒（多頁簡報或高解析約 30 ~ 60 秒），請稍候...";
+    } else if (elapsedSec < 45) {
+      timerHintEl.textContent = "AI 模型正深度分析各頁幾何對齊與雙模式提示詞，處理即將完成...";
+    } else {
+      timerHintEl.textContent = "投影片頁數或細節較多，模型正在進行最後的結構封裝，請耐心等候...";
+    }
+  }
 
   for (let i = 1; i <= 4; i++) {
     const card = document.getElementById(`step-pipe-${i}`);
