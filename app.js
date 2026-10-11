@@ -876,6 +876,104 @@ async function callOpenAiDirectly(apiKey, selectedModel, slideImages, promptText
   };
 }
 
+// === 4.1 精密多階段管線進度條控制 (Precision Pipeline Progress Tracker) ===
+let progressPipelineInterval = null;
+
+function resetProgressPipeline() {
+  if (progressPipelineInterval) {
+    clearInterval(progressPipelineInterval);
+    progressPipelineInterval = null;
+  }
+  updatePipelineUi(12, 1, "正在高解析光學採樣畫布與圖層幾何邊界...");
+}
+
+function startProgressPipeline() {
+  resetProgressPipeline();
+  let currentPercent = 14;
+  const startTime = Date.now();
+
+  progressPipelineInterval = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+
+    // 階段 1：0 ~ 1.8 秒，推進到 35%
+    if (elapsed < 1800) {
+      currentPercent = Math.min(35, 14 + Math.floor((elapsed / 1800) * 21));
+      updatePipelineUi(currentPercent, 1, "正在光學採樣投影片畫布與解析留白比例...");
+    } 
+    // 階段 2：1.8 ~ 4.5 秒，推進到 65%
+    else if (elapsed < 4500) {
+      currentPercent = Math.min(65, 35 + Math.floor(((elapsed - 1800) / 2700) * 30));
+      updatePipelineUi(currentPercent, 2, "正在逆向版面幾何骨架，分析左右分割與卡片結構...");
+    } 
+    // 階段 3：4.5 ~ 7.5 秒，推進到 85%
+    else if (elapsed < 7500) {
+      currentPercent = Math.min(85, 65 + Math.floor(((elapsed - 4500) / 3000) * 20));
+      updatePipelineUi(currentPercent, 3, "正在提取精準設計系統與 4 色 Hex 色票代碼...");
+    } 
+    // 階段 4：7.5 秒以上，平緩推進到 94%
+    else {
+      currentPercent = Math.min(94, 85 + Math.floor(((elapsed - 7500) / 4500) * 9));
+      updatePipelineUi(currentPercent, 4, "正在編譯 NotebookLM 幾何槽位合約提示詞 (Slot-Contract)...");
+    }
+  }, 120);
+}
+
+function completeProgressPipeline() {
+  if (progressPipelineInterval) {
+    clearInterval(progressPipelineInterval);
+    progressPipelineInterval = null;
+  }
+  updatePipelineUi(100, 4, "逆向分析全部就緒！正在為您渲染成果...");
+}
+
+function stopProgressPipeline() {
+  if (progressPipelineInterval) {
+    clearInterval(progressPipelineInterval);
+    progressPipelineInterval = null;
+  }
+}
+
+function updatePipelineUi(percent, activeStep, taskDescription) {
+  const percentEl = document.getElementById("loading-progress-percent");
+  const barEl = document.getElementById("loading-progress-bar");
+  const taskEl = document.getElementById("loading-active-task");
+  const stepCounterEl = document.getElementById("loading-step-counter");
+
+  if (percentEl) percentEl.textContent = `${percent}%`;
+  if (barEl) barEl.style.width = `${percent}%`;
+  if (taskEl) taskEl.textContent = taskDescription;
+  if (stepCounterEl) stepCounterEl.textContent = `階段 ${activeStep}/4`;
+
+  for (let i = 1; i <= 4; i++) {
+    const card = document.getElementById(`step-pipe-${i}`);
+    const badge = document.getElementById(`step-pipe-badge-${i}`);
+    const icon = document.getElementById(`step-pipe-icon-${i}`);
+    if (!card || !badge || !icon) continue;
+
+    if (i < activeStep || percent === 100) {
+      // 已完成
+      card.className = "p-3 rounded-lg bg-[#0E1013] border border-emerald-500/25 flex items-start gap-3 transition-colors opacity-100";
+      icon.className = "w-6 h-6 rounded-md bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5";
+      icon.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i>';
+      badge.className = "text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+      badge.textContent = "已就緒";
+    } else if (i === activeStep) {
+      // 進行中
+      card.className = "p-3 rounded-lg bg-[#0E1013] border border-white/20 flex items-start gap-3 transition-colors opacity-100 shadow-sm";
+      icon.className = "w-6 h-6 rounded-md bg-white/10 text-white flex items-center justify-center shrink-0 mt-0.5 animate-pulse";
+      badge.className = "text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/10 text-white border border-white/20";
+      badge.textContent = "處理中";
+    } else {
+      // 等待中
+      card.className = "p-3 rounded-lg bg-[#0E1013] border border-white/[0.05] flex items-start gap-3 transition-colors opacity-50";
+      icon.className = "w-6 h-6 rounded-md bg-white/[0.04] text-zinc-500 flex items-center justify-center shrink-0 mt-0.5";
+      badge.className = "text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/[0.03] text-zinc-500 border border-white/[0.05]";
+      badge.textContent = "等待中";
+    }
+  }
+  if (window.lucide) window.lucide.createIcons();
+}
+
 // === 5. 開始發起分析流程 ===
 async function handleStartAnalyze() {
   if (selectedFiles.length === 0) {
@@ -890,10 +988,11 @@ async function handleStartAnalyze() {
     return;
   }
 
-  // 切換 UI 至載入狀態
+  // 切換 UI 至載入狀態並啟動多階段管線進度條
   document.getElementById("panel-idle").classList.add("hidden");
   document.getElementById("panel-result").classList.add("hidden");
   document.getElementById("panel-loading").classList.remove("hidden");
+  startProgressPipeline();
 
   const startBtn = document.getElementById("btn-start-analyze");
   startBtn.disabled = true;
@@ -949,14 +1048,20 @@ async function handleStartAnalyze() {
       }
     }
 
+    // 推進到 100% 並短暫停留以呈現完成回饋
+    completeProgressPipeline();
+    await new Promise(resolve => setTimeout(resolve, 350));
+
     renderAnalysisResult(data);
     showToast("風格逆向分析完成！已為您產生 1:1 幾何對比與提示詞", "success");
 
   } catch (err) {
+    stopProgressPipeline();
     console.error(err);
     showToast(err.message, "error");
     document.getElementById("panel-idle").classList.remove("hidden");
   } finally {
+    stopProgressPipeline();
     document.getElementById("panel-loading").classList.add("hidden");
     startBtn.disabled = false;
     startBtn.classList.remove("opacity-50");

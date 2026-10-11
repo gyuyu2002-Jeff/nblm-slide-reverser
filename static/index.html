@@ -183,13 +183,96 @@
         </div>
       </div>
 
-      <!-- 2. 載入中狀態 (精密單線進度環) -->
-      <div id="panel-loading" class="hidden bg-[#13151A] rounded-xl p-12 flex flex-col items-center justify-center min-h-[500px] space-y-5 card-soft-shadow border border-white/[0.08]">
-        <div class="w-10 h-10 rounded-full border-2 border-white/10 border-t-zinc-200 animate-spin"></div>
-        <div class="text-center space-y-1">
-          <h4 class="text-xs font-semibold text-zinc-200 tracking-wide" id="loading-step-text">正在分析投影片版面結構與視覺特徵...</h4>
-          <p class="text-[11px] text-zinc-500">提取格線比例、卡片形式、幾何圖解與配色方案</p>
+      <!-- 2. 載入中狀態 (精密多階段管線進度指示器) -->
+      <div id="panel-loading" class="hidden bg-[#13151A] rounded-xl p-6 sm:p-10 flex flex-col justify-center min-h-[500px] space-y-6 card-soft-shadow border border-white/[0.08]">
+        
+        <!-- 頂部進度條與百分比 -->
+        <div class="space-y-2.5 max-w-xl mx-auto w-full">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="font-semibold text-zinc-100 tracking-wide">簡報逆向工程進行中</span>
+            </div>
+            <span id="loading-progress-percent" class="font-mono text-zinc-100 font-bold text-sm">15%</span>
+          </div>
+
+          <!-- 精密進度槽 -->
+          <div class="w-full bg-[#0E1013] h-2 rounded-full overflow-hidden border border-white/[0.08] p-0.5">
+            <div id="loading-progress-bar" class="h-full bg-gradient-to-r from-zinc-300 to-white transition-all duration-300 rounded-full" style="width: 15%"></div>
+          </div>
+
+          <!-- 當前微動作描述 -->
+          <div class="flex items-center justify-between text-[11px] font-mono text-zinc-400 pt-1">
+            <span id="loading-active-task" class="truncate">正在光學採樣投影片畫布與解析留白比例...</span>
+            <span id="loading-step-counter" class="text-zinc-500 shrink-0 ml-2">階段 1/4</span>
+          </div>
         </div>
+
+        <!-- 4 階段管線檢查清單 (Pipeline Steps) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-xl mx-auto w-full">
+          
+          <!-- 步驟 1 -->
+          <div id="step-pipe-1" class="p-3 rounded-lg bg-[#0E1013] border border-white/10 flex items-start gap-3 transition-colors">
+            <div id="step-pipe-icon-1" class="w-6 h-6 rounded-md bg-white/10 text-white flex items-center justify-center shrink-0 mt-0.5">
+              <i data-lucide="scan" class="w-3.5 h-3.5"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-xs font-semibold text-zinc-200 truncate">1. 頁面光學採樣</span>
+                <span id="step-pipe-badge-1" class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">進行中</span>
+              </div>
+              <p class="text-[11px] text-zinc-400 mt-0.5 leading-tight">高解析提取畫布與圖層幾何邊界</p>
+            </div>
+          </div>
+
+          <!-- 步驟 2 -->
+          <div id="step-pipe-2" class="p-3 rounded-lg bg-[#0E1013] border border-white/[0.05] flex items-start gap-3 transition-colors opacity-60">
+            <div id="step-pipe-icon-2" class="w-6 h-6 rounded-md bg-white/[0.05] text-zinc-400 flex items-center justify-center shrink-0 mt-0.5">
+              <i data-lucide="layout-template" class="w-3.5 h-3.5"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-xs font-semibold text-zinc-300 truncate">2. 拓撲與圖解拆解</span>
+                <span id="step-pipe-badge-2" class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-500 border border-white/[0.06]">等待中</span>
+              </div>
+              <p class="text-[11px] text-zinc-400 mt-0.5 leading-tight">識別左右分割、卡片與靶心導軌</p>
+            </div>
+          </div>
+
+          <!-- 步驟 3 -->
+          <div id="step-pipe-3" class="p-3 rounded-lg bg-[#0E1013] border border-white/[0.05] flex items-start gap-3 transition-colors opacity-60">
+            <div id="step-pipe-icon-3" class="w-6 h-6 rounded-md bg-white/[0.05] text-zinc-400 flex items-center justify-center shrink-0 mt-0.5">
+              <i data-lucide="palette" class="w-3.5 h-3.5"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-xs font-semibold text-zinc-300 truncate">3. 提取 4 色 Hex 色票</span>
+                <span id="step-pipe-badge-3" class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-500 border border-white/[0.06]">等待中</span>
+              </div>
+              <p class="text-[11px] text-zinc-400 mt-0.5 leading-tight">計算畫布底色、主文字與核心強調色</p>
+            </div>
+          </div>
+
+          <!-- 步驟 4 -->
+          <div id="step-pipe-4" class="p-3 rounded-lg bg-[#0E1013] border border-white/[0.05] flex items-start gap-3 transition-colors opacity-60">
+            <div id="step-pipe-icon-4" class="w-6 h-6 rounded-md bg-white/[0.05] text-zinc-400 flex items-center justify-center shrink-0 mt-0.5">
+              <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-xs font-semibold text-zinc-300 truncate">4. 編譯 NBLM 槽位合約</span>
+                <span id="step-pipe-badge-4" class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/[0.04] text-zinc-500 border border-white/[0.06]">等待中</span>
+              </div>
+              <p class="text-[11px] text-zinc-400 mt-0.5 leading-tight">設定標題<14字、條列<20字防爆預算</p>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="text-center text-[11px] text-zinc-500 font-mono">
+          AI 正在實時深度推論，全程約需 5 ~ 12 秒，請稍候...
+        </div>
+
       </div>
 
       <!-- 3. 結果成果中心 -->
