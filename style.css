@@ -1,28 +1,37 @@
-/* 簡報風格逆向解析 - 沉穩護眼深色風格 (Dark Slate Comfort Theme) */
+/* 簡報風格逆向解析 - 精密石墨冷黑風格 (Precision Graphite System) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-/* 自訂舒適滾動條 (深色調) */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  letter-spacing: -0.011em;
+}
+
+code, pre, .font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+/* 精密微滾動條 */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #0f172a;
-  border-radius: 9999px;
+  background: transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #272B33;
   border-radius: 9999px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #3B404D;
 }
 
 @keyframes scaleUp {
   0% {
-    transform: scale(0.98);
+    transform: scale(0.985);
     opacity: 0;
   }
   100% {
@@ -32,68 +41,70 @@
 }
 
 .animate-scale-up {
-  animation: scaleUp 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: scaleUp 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* 深色立體光暈陰影 */
+/* 沉穩邊框與微陰影 */
 .slide-frame-shadow {
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 4px 10px -2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.7), 0 4px 12px -2px rgba(0, 0, 0, 0.4);
 }
 
 .card-soft-shadow {
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35), 0 2px 6px -1px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px -2px rgba(0, 0, 0, 0.3);
 }
 
-/* Markdown prose 微調 (深色護眼雜誌風) */
+/* Markdown 排印微調 (低彩度專業顧問風) */
 .prose h1, .prose h2, .prose h3 {
-  color: #f1f5f9 !important;
-  font-weight: 700;
-  margin-top: 1.2em;
-  margin-bottom: 0.4em;
+  color: #F4F4F5 !important;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-top: 1.4em;
+  margin-bottom: 0.5em;
 }
 
 .prose h2 {
-  border-bottom: 1px solid #334155;
-  padding-bottom: 0.3em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.35em;
 }
 
 .prose p, .prose li {
-  color: #cbd5e1 !important;
-  line-height: 1.75;
+  color: #A1A1AA !important;
+  line-height: 1.7;
 }
 
 .prose strong {
-  color: #f8fafc !important;
+  color: #E4E4E7 !important;
+  font-weight: 600;
 }
 
 .prose blockquote {
-  border-left-color: #38bdf8 !important;
-  background-color: #0f172a;
+  border-left-color: #38BDF8 !important;
+  background-color: #121418;
   padding: 0.75rem 1.25rem;
   border-radius: 0.75rem;
-  color: #e2e8f0 !important;
-  border-left-width: 4px;
+  color: #D4D4D8 !important;
+  border-left-width: 3px;
 }
 
 .prose code {
-  color: #38bdf8 !important;
-  background-color: #0f172a !important;
+  color: #38BDF8 !important;
+  background-color: #121418 !important;
   padding: 0.15rem 0.35rem;
-  border-radius: 0.25rem;
-  font-weight: 600;
+  border-radius: 0.35rem;
+  font-weight: 500;
   font-size: 0.85em;
-  border: 1px solid #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .prose pre {
-  background-color: #0b0f19 !important;
-  border: 1px solid #1e293b;
+  background-color: #0E1013 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.75rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .prose pre code {
-  color: #e2e8f0 !important;
+  color: #E4E4E7 !important;
   background-color: transparent !important;
   border: none;
 }

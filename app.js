@@ -234,17 +234,6 @@ function setupEventListeners() {
     if (modalSecurity) modalSecurity.classList.add("hidden");
   });
 
-  // 主面板供應商切換
-  document.querySelectorAll("#provider-selector .provider-tab").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const p = btn.getAttribute("data-provider");
-      switchProvider(p);
-    });
-  });
-
-  // 模型切換
-  on("model-select", "change", updateModelDescription);
-
   // 金鑰設定彈窗內供應商切換
   document.querySelectorAll("#modal-provider-selector .modal-provider-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -293,25 +282,11 @@ function setupEventListeners() {
     });
   }
 
-  // 教學頁籤切換
+  // 教學頁籤切換監聽
   document.querySelectorAll(".tut-tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const tut = btn.getAttribute("data-tut");
-      document.querySelectorAll(".tut-tab-btn").forEach(b => {
-        b.className = "tut-tab-btn py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 cursor-pointer";
-      });
-      btn.className = "tut-tab-btn py-2 border-b-2 border-sky-400 text-sky-400 font-bold cursor-pointer";
-
-      const tutGemini = document.getElementById("tut-content-gemini");
-      const tutOpenai = document.getElementById("tut-content-openai");
-      const tutClaude = document.getElementById("tut-content-anthropic");
-      const targetTut = document.getElementById(`tut-content-${tut}`);
-
-      if (tutGemini) tutGemini.classList.add("hidden");
-      if (tutOpenai) tutOpenai.classList.add("hidden");
-      if (tutClaude) tutClaude.classList.add("hidden");
-      if (targetTut) targetTut.classList.remove("hidden");
-      lucide.createIcons();
+      switchTutTab(tut);
     });
   });
 
@@ -499,6 +474,32 @@ function setupEventListeners() {
   });
 }
 
+// 教學彈窗頁籤切換核心函數
+function switchTutTab(tutName) {
+  document.querySelectorAll(".tut-tab-btn").forEach(b => {
+    const isTarget = b.getAttribute("data-tut") === tutName;
+    if (isTarget) {
+      b.className = "tut-tab-btn py-1.5 border-b-2 border-zinc-200 text-zinc-100 font-medium cursor-pointer";
+    } else {
+      b.className = "tut-tab-btn py-1.5 border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 cursor-pointer";
+    }
+  });
+
+  const allKeys = ["gemini", "openai", "anthropic"];
+  allKeys.forEach(k => {
+    const el = document.getElementById(`tut-content-${k}`);
+    if (el) {
+      if (k === tutName) {
+        el.classList.remove("hidden");
+      } else {
+        el.classList.add("hidden");
+      }
+    }
+  });
+  if (window.lucide) window.lucide.createIcons();
+}
+window.switchTutTab = switchTutTab;
+
 function openApiKeyModal(provider) {
   modalSelectedProvider = provider;
   const config = PROVIDER_CONFIG[provider];
@@ -508,9 +509,9 @@ function openApiKeyModal(provider) {
   document.querySelectorAll("#modal-provider-selector .modal-provider-btn").forEach(btn => {
     const p = btn.getAttribute("data-modal-provider");
     if (p === provider) {
-      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-bold border transition-all text-center bg-sky-600 text-white border-sky-600 cursor-pointer";
+      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-medium border transition-all text-center bg-zinc-100 text-zinc-950 border-zinc-100 cursor-pointer";
     } else {
-      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-bold border transition-all text-center bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-750 cursor-pointer";
+      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-medium border transition-all text-center bg-white/[0.04] text-zinc-300 border-white/[0.08] hover:bg-white/[0.08] cursor-pointer";
     }
   });
 
@@ -970,7 +971,7 @@ function renderAnalysisResult(data) {
   tagsContainer.innerHTML = "";
   (meta.tags || ["麥肯錫架構", "純2D扁平", "三欄線框卡片", "同心圓模型"]).forEach(tag => {
     const span = document.createElement("span");
-    span.className = "px-2.5 py-1 text-xs rounded-lg bg-slate-800 text-slate-300 border border-slate-700 font-semibold";
+    span.className = "px-2 py-0.5 text-[11px] rounded bg-white/[0.04] text-zinc-300 border border-white/[0.08] font-mono";
     span.textContent = `# ${tag}`;
     tagsContainer.appendChild(span);
   });
@@ -1027,15 +1028,13 @@ function updateComparisonView() {
   }
 }
 
-
-
 function switchResultTab(tabName) {
   document.querySelectorAll(".result-tab-btn").forEach(btn => {
     const t = btn.getAttribute("data-result-tab");
     if (t === tabName) {
-      btn.className = "result-tab-btn active px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all bg-slate-800 text-sky-300 shadow-sm border border-slate-700 cursor-pointer";
+      btn.className = "result-tab-btn active px-3.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors bg-white/10 text-white border border-white/10 cursor-pointer";
     } else {
-      btn.className = "result-tab-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 cursor-pointer";
+      btn.className = "result-tab-btn px-3.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors text-zinc-400 hover:text-white hover:bg-white/[0.04] cursor-pointer";
     }
   });
 
@@ -1119,23 +1118,23 @@ function buildFullSlideHtml(rawHtml) {
 </html>`;
 }
 
-// Pantone / 設計系統風格色票卡片
+// 簡報精確色票卡片 (Precision Palette Tokens)
 function renderColorPalette(palette) {
   const container = document.getElementById("color-palette-container");
   container.innerHTML = "";
 
   palette.forEach(color => {
     const card = document.createElement("div");
-    card.className = "group bg-slate-900/80 hover:bg-slate-800/90 border border-slate-700 rounded-xl p-3 flex flex-col justify-between transition-all cursor-pointer shadow-sm hover:border-slate-600";
+    card.className = "group bg-[#0E1013] hover:bg-white/[0.04] border border-white/[0.08] hover:border-white/20 rounded-lg p-2.5 flex flex-col justify-between transition-colors cursor-pointer shadow-sm";
     card.title = "點擊複製 Hex 色碼";
     
     card.innerHTML = `
-      <div class="w-full h-9 rounded-lg shadow-inner border border-black/30 mb-2.5" style="background-color: ${color.hex}"></div>
+      <div class="w-full h-8 rounded border border-white/10 mb-2 shadow-inner" style="background-color: ${color.hex}"></div>
       <div>
-        <div class="text-[11px] font-bold text-slate-200 truncate">${color.role || color.name}</div>
-        <div class="text-[11px] font-mono font-semibold text-sky-400 flex items-center justify-between mt-0.5">
+        <div class="text-[10px] font-medium text-zinc-400 truncate">${color.role || color.name}</div>
+        <div class="text-[11px] font-mono font-medium text-zinc-200 flex items-center justify-between mt-0.5">
           <span>${color.hex}</span>
-          <i data-lucide="copy" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400"></i>
+          <i data-lucide="copy" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400"></i>
         </div>
       </div>
     `;
