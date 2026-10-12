@@ -194,7 +194,7 @@ async def file_preview(file: UploadFile = File(...)):
             total_pages = len(doc)
             preview_pages = []
 
-            max_preview = min(total_pages, 6)
+            max_preview = min(total_pages, 30)
             for i in range(max_preview):
                 page = doc.load_page(i)
                 pix = page.get_pixmap(dpi=120)
@@ -271,19 +271,19 @@ async def analyze_style(
                 pptx_summaries.append(pptx_res["structure_summary"])
                 total_detected_pages += pptx_res["total_slides"]
                 
-                # 附加上前 4 頁投影片的視覺佈局縮圖
-                for page in pptx_res["preview_pages"][:4]:
+                # 附加上前 30 頁投影片的視覺佈局縮圖
+                for page in pptx_res["preview_pages"][:30]:
                     standard_images.append((page["bytes"], "image/jpeg"))
                 
-                # 附加上 PPTX 內置的高畫質插圖/背景圖（最多前 4 張）
-                for _, img_bytes in pptx_res["media_images"][:4]:
+                # 附加上 PPTX 內置的高畫質插圖/背景圖（最多前 12 張）
+                for _, img_bytes in pptx_res["media_images"][:12]:
                     standard_images.append((img_bytes, "image/png"))
 
             elif filename.endswith(".pdf"):
                 try:
                     doc = fitz.open(stream=content, filetype="pdf")
                     total_detected_pages += len(doc)
-                    sample_pages = min(len(doc), 4)
+                    sample_pages = min(len(doc), 30)
                     for p in range(sample_pages):
                         page = doc.load_page(p)
                         pix = page.get_pixmap(dpi=150)

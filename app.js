@@ -568,21 +568,21 @@ async function parsePdfClientSide(file) {
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const totalPages = pdf.numPages;
   const pages = [];
-  const maxPages = Math.min(totalPages, 12);
+  const maxPages = Math.min(totalPages, 30);
   for (let i = 1; i <= maxPages; i++) {
     const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 1.5 });
+    const viewport = page.getViewport({ scale: 1.25 });
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
     pages.push({ page: i, image: dataUrl });
   }
-  if (totalPages > 12) {
+  if (totalPages > 30) {
     setTimeout(() => {
-      showToast(`檢測到此簡報共有 ${totalPages} 頁，已為您自動載入前 12 頁核心版型`, "info");
+      showToast(`檢測到此簡報共有 ${totalPages} 頁，已為您自動載入前 30 頁核心版型`, "info");
     }, 500);
   }
   return { total_pages: totalPages, preview_pages: pages };
@@ -1004,8 +1004,8 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
   }
 
   const parts = [];
-  // 取出最多 6 頁投影片縮圖
-  for (const page of slideImages.slice(0, 6)) {
+  // 傳入全部投影片縮圖（支援至 30 頁多模態完整辨識）
+  for (const page of slideImages.slice(0, 30)) {
     if (page.image && page.image.startsWith("data:")) {
       const mimeMatch = page.image.match(/^data:([^;]+);base64,/);
       const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
@@ -1095,7 +1095,7 @@ async function callOpenAiDirectly(apiKey, selectedModel, slideImages, promptText
   const endpoint = "https://api.openai.com/v1/chat/completions";
   const content = [{ type: "text", text: promptText }];
 
-  for (const page of slideImages.slice(0, 6)) {
+  for (const page of slideImages.slice(0, 30)) {
     if (page.image && page.image.startsWith("data:")) {
       content.push({
         type: "image_url",
