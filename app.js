@@ -440,7 +440,7 @@ function setupEventListeners() {
         label.textContent = "已複製！";
         setTimeout(() => label.textContent = originalText, 2000);
       }
-      const modeName = currentPromptMode === "global" ? "【模式 1：全域風格架構】" : "【模式 2：逐頁 1:1 對比】";
+      const modeName = currentPromptMode === "global" ? "【模式 1：學風格 · 做新簡報】" : "【模式 2：照原稿 · 一頁頁複刻】";
       showToast(`已成功複製 ${modeName} 提示詞！請前往 NotebookLM 右側工作室「簡報」貼上`, "success");
     });
   });
@@ -728,7 +728,7 @@ const DEMO_ANALYSIS_DATA = {
 
 ## 3. 📋 NotebookLM 專用結構指令 (Prompt)
 
-### 模式 1：全域風格架構提示詞（任意筆記皆可直接套用）
+### 模式 1：學風格 · 做新簡報（提取配色與設計感，做新簡報）
 
 \`\`\`markdown
 你是一位具備「手繪筆記塗鴉風（Sketchnote System）」專長的頂級簡報視覺設計師與商業顧問。
@@ -749,7 +749,7 @@ const DEMO_ANALYSIS_DATA = {
 請依序輸出各頁：[頁碼與標題] ➔ [建議手繪拓撲版型] ➔ [色彩標籤分配] ➔ [插槽文案內容] ➔ [手繪圖示塗鴉描述]。
 \`\`\`
 
-### 模式 2：逐頁 1:1 精確對照提示詞（5 頁完整還原）
+### 模式 2：照原稿 · 一頁頁複刻（5 頁完整還原）
 
 \`\`\`markdown
 請嚴格依據我上傳的來源資料，依照下方 5 頁「企業 AI 導入九十天方案」手繪筆記投影片之像素級拓撲骨架，1:1 還原填入相應業務內容：
@@ -1333,9 +1333,9 @@ async function handleStartAnalyze() {
         "【核心使命】：\n" +
         "1. 必須逐頁精確拆解投影片的真實骨架（如：深色照片遮罩底、標題左側垂直實心粗色塊標柱、右上角外擴亮橘同心圓弧環、超粗無襯線字體、N 欄線框卡片、時間軸、心智圖、對比表格等真實視覺特徵），100% 忠於原稿！\n" +
         "2. 產出的第 3 節 NotebookLM 提示詞必須同時完整輸出兩種模式代碼區塊：\n" +
-        "   - 【模式 1：全域風格架構（推薦）】：提取全域視覺手冊與版型語法庫，彈性規劃 3~20 頁（備註：NotebookLM 單次生成上限為 20 頁），適合任意筆記靈活套用。\n" +
+        "   - 【模式 1：學風格 · 做新簡報（推薦）】：提取這份簡報的配色與設計感，套用在你的任何簡報上（頁數 3~20 頁自由決定，備註：NotebookLM 單次生成上限為 20 頁）。\n" +
         "     ★【最高強制約束：每一個頁面呈現都絕對不能重複（Zero-Repetition Rule）】：在產出的 NotebookLM 提示詞中，必須明文加入不可忽視的最高禁令——『嚴禁連續或重複使用同一種版型！生成的整份簡報中，每一個頁面都必須從版型語法庫中挑選完全不同的視覺拓撲（例如：時間軸 ➔ 心智圖 ➔ 橫向條帶 ➔ 矩陣表格 ➔ 環形流程 ➔ 雙側括號等輪替使用），相鄰頁面與全篇各頁版型呈現皆不得重複！』\n" +
-        "   - 【模式 2：逐頁 1:1 對比】：嚴格對應原投影片各頁，輸出包含視覺配置與文案內容區的逐頁精確結構，確保每一頁皆展現原稿獨立獨特的拓撲版型。\n" +
+        "   - 【模式 2：照原稿 · 一頁頁複刻】：完全保留原投影片每一頁的排版結構，適合想照原版格式填空的人，確保每一頁皆展現原稿獨立獨特的拓撲版型。\n" +
         "3. 產出一份可直接獨立運行的 HTML/Tailwind 1:1 還原投影片結構代碼。\n" +
         "4. 請嚴格依照 SYSTEM INSTRUCTION 規定的章節與 JSON 格式輸出。";
 
@@ -1540,7 +1540,7 @@ function extractNblmPromptModes(markdown) {
       const section = parts[1].split(/## 4\./)[0];
 
       // 嘗試按標題切分模式 1 與模式 2
-      if (section.includes("模式 1") || section.includes("全域風格")) {
+      if (section.includes("模式 1") || section.includes("全域風格") || section.includes("學風格")) {
         const m1Part = section.split(/### 模式 2|模式 2/i)[0];
         const m1Match = m1Part.match(/```(?:markdown)?([\s\S]*?)```/i);
         if (m1Match && m1Match[1]) {
@@ -1548,7 +1548,7 @@ function extractNblmPromptModes(markdown) {
         }
       }
 
-      if (section.includes("模式 2") || section.includes("逐頁 1:1")) {
+      if (section.includes("模式 2") || section.includes("逐頁 1:1") || section.includes("照原稿")) {
         const m2Part = section.split(/### 模式 2|模式 2/i)[1] || "";
         const m2Match = m2Part.match(/```(?:markdown)?([\s\S]*?)```/i);
         if (m2Match && m2Match[1]) {

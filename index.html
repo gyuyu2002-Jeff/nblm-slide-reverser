@@ -181,16 +181,16 @@
           <div class="studio-segmented-track grid grid-cols-2 gap-1" id="prompt-mode-selector">
             <button type="button" data-prompt-mode="global" class="prompt-mode-btn active p-2 rounded-lg text-left transition-all cursor-pointer bg-white/10 text-white border border-white/20">
               <div class="flex items-center justify-between mb-0.5">
-                <span class="text-xs font-semibold">模式 1：全域風格</span>
+                <span class="text-xs font-semibold">學風格 · 做新簡報</span>
                 <span class="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">推薦</span>
               </div>
-              <p class="text-[10px] text-zinc-400 leading-tight">彈性 3~20 頁，提取色彩、字型與版型庫，任意筆記皆可直接套用。</p>
+              <p class="text-[10px] text-zinc-400 leading-tight">提取這份簡報的配色與設計感，套用在你的任何簡報上（頁數 3~20 頁自由決定）。</p>
             </button>
             <button type="button" data-prompt-mode="slide" class="prompt-mode-btn p-2 rounded-lg text-left transition-all cursor-pointer bg-white/[0.03] text-zinc-400 border border-transparent hover:bg-white/[0.06]">
               <div class="flex items-center justify-between mb-0.5">
-                <span class="text-xs font-semibold text-zinc-300">模式 2：逐頁 1:1</span>
+                <span class="text-xs font-semibold text-zinc-300">照原稿 · 一頁頁複刻</span>
               </div>
-              <p class="text-[10px] text-zinc-500 leading-tight">100% 像素級還原特定投影片，逐頁嚴格對應填寫結構。</p>
+              <p class="text-[10px] text-zinc-500 leading-tight">完全保留原投影片每一頁的排版結構，適合想照原版格式填空的人。</p>
             </button>
           </div>
           <div class="flex items-center gap-1.5 text-[10px] text-zinc-400 font-mono px-0.5 pt-0.5">
@@ -491,11 +491,11 @@
               <div class="flex items-center p-1 bg-[#0E1013] rounded-lg border border-white/[0.08] gap-1">
                 <button type="button" id="btn-subtab-global" class="subtab-mode-btn flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 bg-white/10 text-white shadow-sm border border-white/10 cursor-pointer">
                   <i data-lucide="layers" class="w-3.5 h-3.5"></i>
-                  <span>模式 1：全域風格架構（推薦）</span>
+                  <span>模式 1：學風格 · 做新簡報（推薦）</span>
                 </button>
                 <button type="button" id="btn-subtab-slide" class="subtab-mode-btn flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent cursor-pointer">
                   <i data-lucide="copy-check" class="w-3.5 h-3.5"></i>
-                  <span>模式 2：逐頁 1:1 對比</span>
+                  <span>模式 2：照原稿 · 一頁頁複刻</span>
                 </button>
               </div>
 
@@ -505,17 +505,17 @@
                   <div id="desc-mode-global" class="flex items-center gap-1.5 flex-wrap">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
                     <h3 class="text-xs font-semibold text-zinc-100">
-                      模式 1：全域風格架構（推薦）
+                      模式 1：學風格 · 做新簡報（推薦）
                     </h3>
-                    <span class="text-[10px] text-zinc-400 ml-1">彈性 3~20 頁 · 每頁版型絕不重複</span>
+                    <span class="text-[10px] text-zinc-400 ml-1">提取配色與設計感 · 頁數 3~20 頁自由決定 · 每頁版型絕不重複</span>
                     <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20">※ NotebookLM 單次生成上限 20 頁</span>
                   </div>
                   <div id="desc-mode-slide" class="hidden flex items-center gap-1.5">
                     <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
                     <h3 class="text-xs font-semibold text-zinc-100">
-                      模式 2：逐頁 1:1 對比
+                      模式 2：照原稿 · 一頁頁複刻
                     </h3>
-                    <span class="text-[10px] text-zinc-400 ml-1">適合想要 100% 像素級還原特定投影片的嚴格填空。</span>
+                    <span class="text-[10px] text-zinc-400 ml-1">完全保留原投影片每一頁的排版結構，適合想照原版格式填空的人。</span>
                   </div>
                 </div>
                 <div class="flex items-center gap-1.5">
@@ -1029,7 +1029,7 @@
             <span class="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">本站操作</span>
           </div>
           <p class="text-zinc-400 pl-7 text-[11px]">
-            在成果頁選擇 <strong class="text-zinc-200">「模式 1：全域風格架構」</strong>（推薦，含每頁絕不重複約束）或 <strong class="text-zinc-200">「模式 2：逐頁 1:1 對比」</strong>，點擊「複製指令」按鈕。
+            在成果頁選擇 <strong class="text-zinc-200">「模式 1：學風格 · 做新簡報」</strong>（推薦，含每頁絕不重複約束）或 <strong class="text-zinc-200">「模式 2：照原稿 · 一頁頁複刻」</strong>，點擊「複製指令」按鈕。
           </p>
         </div>
 
@@ -1120,7 +1120,7 @@
     <span id="toast-text">通知內容</span>
   </div>
 
-  <script src="app.js?v=6.14.0"></script>
+  <script src="app.js?v=6.15.0"></script>
   <script>
     lucide.createIcons();
   </script>
