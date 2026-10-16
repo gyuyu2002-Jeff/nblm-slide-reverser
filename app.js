@@ -440,7 +440,7 @@ function setupEventListeners() {
         setTimeout(() => label.textContent = originalText, 2000);
       }
       const modeName = currentPromptMode === "global" ? "【模式 1：全域風格架構】" : "【模式 2：逐頁 1:1 對比】";
-      showToast(`已成功複製 ${modeName} 提示詞！請前往 NotebookLM 研析室「自訂簡報」貼上`, "success");
+      showToast(`已成功複製 ${modeName} 提示詞！請前往 NotebookLM 右側工作室「簡報」貼上`, "success");
     });
   });
 
@@ -452,7 +452,7 @@ function setupEventListeners() {
       return;
     }
     navigator.clipboard.writeText(promptToCopy).then(() => {
-      showToast(`已複製提示詞！正在開啟 NotebookLM，請至右側研析室「自訂簡報」貼上`, "success");
+      showToast(`已複製提示詞！正在開啟 NotebookLM，請至右側工作室點選「簡報」貼上`, "success");
       window.open("https://notebooklm.google.com/", "_blank");
     });
   });
