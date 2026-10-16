@@ -104,9 +104,9 @@
       <!-- 1. 上傳卡片 (Studio Ingest Panel) -->
       <div class="studio-panel p-5 space-y-3.5">
         <div class="flex items-center justify-between border-b border-white/[0.06] pb-2.5">
-          <h2 class="text-xs font-semibold text-zinc-100 flex items-center gap-2 tracking-wide uppercase font-mono">
-            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
-            <span>投影片素材工作檯</span>
+          <h2 class="text-xs font-semibold text-zinc-100 flex items-center gap-2 tracking-wide font-mono">
+            <span class="w-5 h-5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 flex items-center justify-center text-[10px] font-mono font-bold">01</span>
+            <span>步驟 1 · 載入投影片素材</span>
           </h2>
           <span class="text-[10px] text-zinc-400 font-mono bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">支援 1~30 頁 · PDF/PPTX/圖片</span>
         </div>
@@ -162,8 +162,16 @@
         </div>
       </div>
 
-      <!-- 2. 操作卡片：開始解析按鈕與狀態 (Studio Inspector Panel) -->
+      <!-- 2. 操作卡片：開始解析按鈕與狀態 (Studio Inspector Panel - 步驟 2) -->
       <div class="studio-panel p-4 space-y-3.5">
+        <div class="flex items-center justify-between border-b border-white/[0.06] pb-2">
+          <h2 class="text-xs font-semibold text-zinc-100 flex items-center gap-2 tracking-wide font-mono">
+            <span class="w-5 h-5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-[10px] font-mono font-bold">02</span>
+            <span>步驟 2 · 設定模式與開始解析</span>
+          </h2>
+          <span class="text-[10px] text-zinc-500 font-mono">雙模式同時輸出</span>
+        </div>
+
         <!-- 提示詞模式選擇 (分段控制器風格) -->
         <div class="space-y-1.5">
           <div class="flex items-center justify-between text-xs font-medium text-zinc-300">
@@ -208,14 +216,19 @@
         </div>
       </div>
 
-      <!-- 簡約指引說明 (Studio Spec Note) -->
-      <div class="studio-panel p-4 text-xs text-zinc-400 space-y-1.5">
-        <div class="font-medium text-zinc-200 flex items-center gap-1.5 text-xs font-mono">
-          <i data-lucide="info" class="w-3.5 h-3.5 text-zinc-400"></i>
-          <span>NOTEBOOKLM WORKFLOW</span>
+      <!-- 3. 實戰指引說明 (Studio Spec Note - 步驟 3) -->
+      <div class="studio-panel p-4 text-xs text-zinc-400 space-y-2">
+        <div class="font-medium text-zinc-200 flex items-center justify-between border-b border-white/[0.06] pb-2 font-mono text-xs">
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center text-[10px] font-mono font-bold">03</span>
+            <span>步驟 3 · 貼入 NotebookLM 一鍵生成</span>
+          </div>
+          <button id="btn-open-nblm-tutorial-sidebar" type="button" class="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-0.5 cursor-pointer">
+            完整 SOP <i data-lucide="chevron-right" class="w-2.5 h-2.5"></i>
+          </button>
         </div>
         <p class="text-[11px] text-zinc-400 leading-relaxed">
-          解析完成後，複製提示詞前往 NotebookLM 右側「工作室」點選「簡報」，貼入「說明要建立的簡報」欄位中，即可一鍵生成版面零重複的專屬投影片。
+          解析完成後，複製提示詞前往 NotebookLM 右側「工作室」點選「簡報」，貼入「說明要建立的簡報」文字框，立即產出版型零重複的投影片！
         </p>
       </div>
 
@@ -224,15 +237,41 @@
     <!-- 右側面板：結果與對比中心 (8 cols) -->
     <div class="lg:col-span-8 flex flex-col space-y-4">
       
-      <!-- 1. 初始空狀態 (安靜克制，無雜訊) -->
-      <div id="panel-idle" class="bg-[#13151A] rounded-xl p-12 text-center flex flex-col items-center justify-center min-h-[500px] card-soft-shadow border border-white/[0.08]">
+      <!-- 1. 初始空狀態 (安靜克制，3 步驟導覽) -->
+      <div id="panel-idle" class="bg-[#13151A] rounded-xl p-8 sm:p-12 text-center flex flex-col items-center justify-center min-h-[500px] card-soft-shadow border border-white/[0.08]">
         <div class="w-12 h-12 rounded-lg bg-white/[0.04] text-zinc-400 flex items-center justify-center mb-3.5 border border-white/[0.08]">
-          <i data-lucide="layout-grid" class="w-6 h-6"></i>
+          <i data-lucide="sparkles" class="w-6 h-6 text-sky-400"></i>
         </div>
-        <h3 class="text-sm font-semibold text-zinc-100 mb-1">尚未上傳參考投影片</h3>
-        <p class="text-xs text-zinc-500 max-w-sm leading-relaxed mb-5">
-          在左側拖放您欣賞的簡報 PDF 或截圖，或直接點選「免金鑰體驗」，系統將在此處呈現版型拓撲、色彩系統與直接套用指令。
+        <h3 class="text-sm font-semibold text-zinc-100 mb-1">簡報風格逆向工程 3 步驟實戰</h3>
+        <p class="text-xs text-zinc-500 max-w-md leading-relaxed mb-6">
+          從任何您欣賞的簡報中提取設計師級版型、配色與拓撲幾何，一鍵轉化為 NotebookLM 專屬提示詞。
         </p>
+
+        <!-- 3 步驟視覺導覽卡片 -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-xl mb-6 text-left">
+          <div class="p-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-1.5 hover:border-sky-500/30 transition-colors">
+            <div class="flex items-center gap-1.5 font-mono text-[11px] text-sky-400 font-semibold">
+              <span class="w-5 h-5 rounded bg-sky-500/20 flex items-center justify-center text-[10px] font-bold">01</span>
+              <span>步驟 1 · 上傳素材</span>
+            </div>
+            <p class="text-[11px] text-zinc-400 leading-tight">支援 1~30 頁 PDF、PPTX 或投影片截圖</p>
+          </div>
+          <div class="p-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-1.5 hover:border-emerald-500/30 transition-colors">
+            <div class="flex items-center gap-1.5 font-mono text-[11px] text-emerald-400 font-semibold">
+              <span class="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center text-[10px] font-bold">02</span>
+              <span>步驟 2 · 逆向風格</span>
+            </div>
+            <p class="text-[11px] text-zinc-400 leading-tight">逐頁拓撲幾何拆解，生成零重複版型庫</p>
+          </div>
+          <div class="p-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-1.5 hover:border-purple-500/30 transition-colors">
+            <div class="flex items-center gap-1.5 font-mono text-[11px] text-purple-400 font-semibold">
+              <span class="w-5 h-5 rounded bg-purple-500/20 flex items-center justify-center text-[10px] font-bold">03</span>
+              <span>步驟 3 · 落地生成</span>
+            </div>
+            <p class="text-[11px] text-zinc-400 leading-tight">複製提示詞貼入「自訂簡報」立即出片</p>
+          </div>
+        </div>
+
         <div class="flex flex-wrap gap-2 justify-center text-[11px]">
           <span class="px-2.5 py-1 rounded-md bg-white/[0.03] text-zinc-400 border border-white/[0.06]">版面骨架拓撲</span>
           <span class="px-2.5 py-1 rounded-md bg-white/[0.03] text-zinc-400 border border-white/[0.06]">精準 Hex 色票</span>
@@ -1081,7 +1120,7 @@
     <span id="toast-text">通知內容</span>
   </div>
 
-  <script src="app.js?v=6.13.0"></script>
+  <script src="app.js?v=6.14.0"></script>
   <script>
     lucide.createIcons();
   </script>

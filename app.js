@@ -250,6 +250,7 @@ function setupEventListeners() {
   };
 
   on("btn-open-nblm-tutorial", "click", openNblmTutorialModal);
+  on("btn-open-nblm-tutorial-sidebar", "click", openNblmTutorialModal);
   on("btn-nblm-header-guide", "click", openNblmTutorialModal);
   on("btn-close-nblm-tutorial", "click", closeNblmTutorialModal);
   on("btn-close-nblm-tutorial-confirm", "click", closeNblmTutorialModal);
