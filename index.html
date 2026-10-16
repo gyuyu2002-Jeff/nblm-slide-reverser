@@ -211,7 +211,7 @@
           <span>NOTEBOOKLM WORKFLOW</span>
         </div>
         <p class="text-[11px] text-zinc-400 leading-relaxed">
-          解析完成後，系統會生成專屬拓撲結構指令。直接複製貼入 <strong class="text-zinc-300">NotebookLM</strong>，即可將您的筆記或業務文檔忠實套用此版面插槽與色彩規範。
+          解析完成後，複製提示詞前往 NotebookLM 右側研析室開啟「自訂簡報」，貼入「說明要建立的簡報」欄位中，即可一鍵生成版面零重複的專屬投影片。
         </p>
       </div>
 
@@ -464,7 +464,7 @@
                     <h3 class="text-xs font-semibold text-zinc-100">
                       模式 1：全域風格架構（推薦）
                     </h3>
-                    <span class="text-[10px] text-zinc-400 ml-1">彈性 3~20 頁（符合 NBLM 單次生成上限），提取整份色彩與版型庫，任意筆記皆可直接套用。</span>
+                    <span class="text-[10px] text-zinc-400 ml-1">彈性 3~20 頁，強制「每頁版型絕不重複」，直接貼入 NotebookLM「自訂簡報」即可一鍵生成！</span>
                   </div>
                   <div id="desc-mode-slide" class="hidden flex items-center gap-1.5">
                     <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
@@ -980,12 +980,12 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2 font-semibold text-zinc-100">
               <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">1</span>
-              <h4>複製本站逆向產出的 NotebookLM 提示詞</h4>
+              <h4>複製本站逆向產出的提示詞</h4>
             </div>
             <span class="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">本站操作</span>
           </div>
           <p class="text-zinc-400 pl-7 text-[11px]">
-            在成果頁選擇 <strong class="text-zinc-200">「模式 1：全域風格架構」</strong>（適用任意筆記）或 <strong class="text-zinc-200">「模式 2：逐頁 1:1 對比」</strong>，點擊「複製指令」按鈕，提示詞已鎖定配色系統、留白比例與排版插槽。
+            在成果頁選擇 <strong class="text-zinc-200">「模式 1：全域風格架構」</strong>（推薦，含每頁絕不重複約束）或 <strong class="text-zinc-200">「模式 2：逐頁 1:1 對比」</strong>，點擊「複製指令」按鈕。
           </p>
         </div>
 
@@ -994,14 +994,14 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2 font-semibold text-zinc-100">
               <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">2</span>
-              <h4>開啟 NotebookLM 並建立專屬筆記本</h4>
+              <h4>開啟 NotebookLM 並上傳來源資料</h4>
             </div>
             <a href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer" class="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-0.5 underline">
               開啟官網 <i data-lucide="arrow-up-right" class="w-2.5 h-2.5"></i>
             </a>
           </div>
           <p class="text-zinc-400 pl-7 text-[11px]">
-            前往 Google NotebookLM（notebooklm.google.com），點擊 <span class="text-zinc-200 font-medium">「+ 新增筆記本」</span>，建議將筆記本命名為您的專案名稱（例如：企業導入簡報專案）。
+            前往 Google NotebookLM（notebooklm.google.com）建立筆記本，在左側「新增來源」上傳您希望轉化為簡報的企劃案、會議紀錄或研報文檔（來源 Source）。
           </p>
         </div>
 
@@ -1010,12 +1010,12 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2 font-semibold text-zinc-100">
               <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">3</span>
-              <h4>上傳您的核心業務資料（來源 Source）</h4>
+              <h4>在研析室 (Studio) 點選「簡報」自訂按鈕</h4>
             </div>
-            <span class="text-[10px] text-zinc-500 font-mono">支援 PDF · Docs · 網址</span>
+            <span class="text-[10px] text-zinc-400 font-mono">研析室 · Studio</span>
           </div>
           <p class="text-zinc-400 pl-7 text-[11px]">
-            在左側「新增來源」上傳您希望轉化成投影片的企劃案、會議逐字稿、研報或文檔。NotebookLM 會完全以該內容為事實基礎，杜絕 AI 瞎掰。
+            在 NotebookLM 右側功能區找到 <strong class="text-zinc-200">「簡報 (Presentation)」</strong>，點擊旁邊的設定/自訂圖示，開啟官方專屬的 <span class="text-emerald-400 font-medium">「自訂簡報」</span> 設定面板。
           </p>
         </div>
 
@@ -1023,27 +1023,32 @@
         <div class="bg-[#0E1013] p-3 rounded-xl border border-white/[0.06] space-y-1.5">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2 font-semibold text-zinc-100">
-              <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">4</span>
-              <h4>在交談對話框 (Chat) 貼上提示詞並發送</h4>
+              <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">4</span>
+              <h4>在「自訂簡報」填入提示詞與格式設定</h4>
             </div>
-            <span class="text-[10px] text-amber-400/90 bg-amber-950/40 border border-amber-500/20 px-1.5 py-0.5 rounded">關鍵動作</span>
+            <span class="text-[10px] text-amber-400/90 bg-amber-950/40 border border-amber-500/20 px-1.5 py-0.5 rounded">核心步驟</span>
           </div>
-          <p class="text-zinc-400 pl-7 text-[11px]">
-            在 NotebookLM 下方聊天對話框中，直接貼上剛才複製的提示詞。如果需要特定頁數，可在提示詞末尾加上：<code class="text-emerald-400 bg-white/[0.05] px-1 py-0.5 rounded font-mono">「請生成 5 頁完整簡報」</code>，然後按下發送！
-          </p>
+          <div class="text-zinc-400 pl-7 text-[11px] space-y-1">
+            <p>在彈出的「自訂簡報」視窗中：</p>
+            <ul class="list-disc list-inside space-y-0.5 text-zinc-300">
+              <li>格式勾選：<strong class="text-sky-300">「簡報投影片」</strong>（呈現重點與美觀版型）</li>
+              <li>選擇語言：<strong class="text-zinc-200">「中文（繁體）」</strong></li>
+              <li>在 <code class="text-emerald-400 bg-white/[0.05] px-1 py-0.5 rounded font-mono">「說明要建立的簡報」</code> 文字框中，直接貼入本站剛複製的提示詞！</li>
+            </ul>
+          </div>
         </div>
 
         <!-- 步驟 5 -->
         <div class="bg-[#0E1013] p-3 rounded-xl border border-white/[0.06] space-y-1.5">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2 font-semibold text-zinc-100">
-              <span class="w-5 h-5 rounded-full bg-white/[0.08] text-zinc-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">5</span>
-              <h4>一鍵「📌 儲存至筆記」或貼回 PowerPoint / Slides</h4>
+              <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono flex items-center justify-center text-[10px] shrink-0 font-bold">5</span>
+              <h4>點擊「立即生成」產出無重複多樣性投影片</h4>
             </div>
             <span class="text-[10px] text-emerald-400 font-mono">產出落地</span>
           </div>
           <p class="text-zinc-400 pl-7 text-[11px]">
-            NotebookLM 將輸出對齊排版拓撲與色彩規範的各頁精確文案架構。點擊回覆右上角的 <span class="text-zinc-200 bg-white/[0.06] px-1 py-0.5 rounded border border-white/[0.1]">📌 儲存至筆記</span> 即可永遠保存，或直接複製各頁插槽內容貼入簡報軟體中快速成形！
+            點擊右下角 <strong class="text-zinc-950 bg-zinc-100 px-1.5 py-0.5 rounded font-medium">立即生成</strong>！NotebookLM 將直接產出完整的投影片文件，嚴格遵循每頁零重複約束與專屬視覺手冊，可直接在線上全螢幕播放或匯出分享！
           </p>
         </div>
       </div>
@@ -1067,7 +1072,7 @@
     <span id="toast-text">通知內容</span>
   </div>
 
-  <script src="app.js?v=6.9.0"></script>
+  <script src="app.js?v=6.10.0"></script>
   <script>
     lucide.createIcons();
   </script>
