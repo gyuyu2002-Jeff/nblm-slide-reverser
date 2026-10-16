@@ -165,17 +165,27 @@ function setupEventListeners() {
     if (modalApiKey) modalApiKey.classList.add("hidden");
   });
 
-  // 點擊「API 申請教學」開啟迎賓教學彈窗（直達三步驟與一鍵儲存）
+  // 點擊「API 申請教學」開啟完整多供應商教學彈窗（Gemini、OpenAI、Claude 3 步驟圖解）
   on("btn-tutorial", "click", () => {
-    openOnboardingModal();
+    if (modalTutorial) {
+      modalTutorial.classList.remove("hidden");
+      switchTutTab(currentProvider || "gemini");
+      if (window.lucide) window.lucide.createIcons();
+    }
   });
   on("btn-close-tutorial", "click", () => {
     if (modalTutorial) modalTutorial.classList.add("hidden");
   });
   on("btn-tutorial-got-it", "click", () => {
     if (modalTutorial) modalTutorial.classList.add("hidden");
-    if (!getApiKey(currentProvider)) {
-      openApiKeyModal(currentProvider);
+    openApiKeyModal(modalSelectedProvider || currentProvider);
+  });
+  on("btn-modal-open-tutorial", "click", () => {
+    if (modalApiKey) modalApiKey.classList.add("hidden");
+    if (modalTutorial) {
+      modalTutorial.classList.remove("hidden");
+      switchTutTab(modalSelectedProvider || currentProvider);
+      if (window.lucide) window.lucide.createIcons();
     }
   });
 
@@ -189,7 +199,11 @@ function setupEventListeners() {
   });
   on("btn-onboarding-switch-other", "click", () => {
     closeOnboardingModal(true);
-    openApiKeyModal("openai");
+    if (modalTutorial) {
+      modalTutorial.classList.remove("hidden");
+      switchTutTab("openai");
+      if (window.lucide) window.lucide.createIcons();
+    }
   });
   on("btn-save-onboarding-key", "click", () => {
     const input = document.getElementById("input-onboarding-key");
