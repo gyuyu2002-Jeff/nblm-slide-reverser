@@ -1065,6 +1065,10 @@ function renderLargeSlidesGrid() {
   if (footerTip) {
     footerTip.innerHTML = `已選取 <strong class="text-emerald-400 font-mono">${selectedCount}</strong> / ${total} 頁 · 建議挑選 <strong class="text-amber-300 font-mono">3～8 頁</strong> 以獲取最佳 NotebookLM 提示詞精度`;
   }
+  const finishBtnText = document.getElementById("btn-large-finish-text");
+  if (finishBtnText) {
+    finishBtnText.textContent = `完成挑選 (已選 ${selectedCount} 頁)`;
+  }
 
   if (total === 0) {
     grid.innerHTML = `
@@ -1593,17 +1597,29 @@ async function handleFilesAdded(files) {
       }
 
     } else {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        uploadedSlidePages.push({
-          page: uploadedSlidePages.length + 1,
-          image: e.target.result,
-          name: file.name
-        });
-        renderThumbnails();
-      };
-      reader.readAsDataURL(file);
+      await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          uploadedSlidePages.push({
+            page: uploadedSlidePages.length + 1,
+            image: e.target.result,
+            name: file.name
+          });
+          resolve();
+        };
+        reader.onerror = () => resolve();
+        reader.readAsDataURL(file);
+      });
+      renderThumbnails();
     }
+  }
+
+  // 全部檔案載入完成後：重新渲染縮圖，並直接自動跳出大畫面挑選視窗！
+  renderThumbnails();
+  if (uploadedSlidePages.length > 0) {
+    setTimeout(() => {
+      openLargePickerModal();
+    }, 300);
   }
 }
 

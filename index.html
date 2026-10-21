@@ -155,10 +155,6 @@
                 <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
                 <span id="undo-delete-label">喚回 (0)</span>
               </button>
-              <button id="btn-open-large-picker" type="button" class="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium cursor-pointer transition-colors text-[11px] bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                <i data-lucide="maximize-2" class="w-3 h-3"></i>
-                <span>大畫面挑選</span>
-              </button>
               <button id="btn-clear-files" class="text-zinc-400 hover:text-rose-400 flex items-center gap-1 font-medium cursor-pointer transition-colors text-[11px]">
                 <i data-lucide="trash-2" class="w-3 h-3"></i>
                 清空
@@ -217,10 +213,6 @@
                   <button type="button" id="btn-quick-sample" class="px-1.5 py-0.5 rounded bg-white/[0.06] hover:bg-white/10 text-zinc-300 transition-colors cursor-pointer">均勻抽樣</button>
                   <button type="button" id="btn-quick-select-all" class="px-1.5 py-0.5 rounded bg-white/[0.06] hover:bg-white/10 text-zinc-300 transition-colors cursor-pointer">全選</button>
                   <button type="button" id="btn-quick-clear" class="px-1.5 py-0.5 rounded bg-white/[0.06] hover:bg-white/10 text-zinc-300 transition-colors cursor-pointer">清空</button>
-                  <button type="button" id="btn-quick-large-picker" class="px-1.5 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-colors cursor-pointer flex items-center gap-1 font-mono">
-                    <i data-lucide="maximize-2" class="w-2.5 h-2.5"></i>
-                    <span>大畫面</span>
-                  </button>
                 </div>
               </div>
 
@@ -232,15 +224,15 @@
               </div>
             </div>
           </div>
-          <!-- 縮圖區輔助列與大畫面快捷切換 -->
+          <!-- 縮圖區輔助列與重新挑選按鈕 -->
           <div class="flex items-center justify-between text-[11px] text-zinc-400 px-0.5 pt-0.5">
             <span class="flex items-center gap-1 text-[10px] text-zinc-500">
               <i data-lucide="info" class="w-3 h-3"></i>
               點擊卡片勾選 · 點擊 X 移除
             </span>
-            <button type="button" id="btn-gallery-enlarge" class="text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 text-[10px] font-mono cursor-pointer">
+            <button type="button" id="btn-open-large-picker" class="text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 text-[10px] font-mono cursor-pointer bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/20 transition-colors">
               <i data-lucide="maximize-2" class="w-2.5 h-2.5"></i>
-              <span>切換大畫面挑選</span>
+              <span>重新打開挑選頁面</span>
             </button>
           </div>
 
@@ -1361,12 +1353,12 @@
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <h3 class="text-sm font-bold text-zinc-100 tracking-wide">投影片大畫面挑選與檢視</h3>
+              <h3 class="text-sm font-bold text-zinc-100 tracking-wide">🎯 請挑選要解析的投影片頁面</h3>
               <span id="large-picker-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 已選 0 / 0 頁
               </span>
             </div>
-            <p class="text-[11px] text-zinc-400 mt-0.5">點擊投影片卡片即可切換勾選；點右上角垃圾桶刪除（刪除後可隨時喚回復原）。</p>
+            <p class="text-[11px] text-zinc-400 mt-0.5">已為您預選推薦的核心版型。點擊任意卡片自由增減，挑選完畢點擊「完成挑選」即可！</p>
           </div>
         </div>
 
@@ -1408,9 +1400,9 @@
           <span id="large-picker-footer-tip">已選取 0 頁 · 建議挑選 3～8 頁最具代表性版型以確保最高逆向精度</span>
         </div>
         <div class="flex items-center gap-2">
-          <button type="button" id="btn-large-finish" class="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold text-xs transition-all shadow-lg shadow-emerald-500/20 cursor-pointer flex items-center gap-1.5">
-            <i data-lucide="check" class="w-4 h-4"></i>
-            完成挑選
+          <button type="button" id="btn-large-finish" class="px-6 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs transition-all shadow-lg shadow-emerald-500/25 cursor-pointer flex items-center gap-2">
+            <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+            <span id="btn-large-finish-text">完成挑選</span>
           </button>
         </div>
       </div>
@@ -1427,7 +1419,7 @@
     </button>
   </div>
 
-  <script src="app.js?v=6.19.0"></script>
+  <script src="app.js?v=6.20.0"></script>
   <script>
     lucide.createIcons();
   </script>
