@@ -582,8 +582,9 @@ async def analyze_style(
                     break
                 except Exception as g_err:
                     err_str = str(g_err)
-                    if "not found" in err_str.lower() or "404" in err_str or "not supported" in err_str.lower():
-                        logger.warning(f"模型 {candidate} 暫不可用，正在自動切換至下一個備援模型...")
+                    err_lower = err_str.lower()
+                    if "not found" in err_lower or "404" in err_str or "not supported" in err_lower or "high demand" in err_lower or "quota" in err_lower or "exhausted" in err_lower:
+                        logger.warning(f"模型 {candidate} 遇到流量尖峰或暫不可用 ({err_str})，正在自動切換至下一個備援模型...")
                         last_err = g_err
                         continue
                     raise g_err

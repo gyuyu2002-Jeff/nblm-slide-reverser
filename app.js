@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.27.0";
+const APP_VERSION = "v6.28.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -1973,8 +1973,8 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
   if (selectedModel && selectedModel !== "auto") {
     candidateModels.push(selectedModel);
   }
-  // 候選優先級：gemini-2.5-flash ➔ gemini-2.0-flash ➔ gemini-1.5-flash
-  const defaultList = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+  // 候選優先級：gemini-2.5-flash ➔ gemini-2.0-flash ➔ gemini-1.5-flash ➔ gemini-1.5-pro
+  const defaultList = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
   for (const m of defaultList) {
     if (!candidateModels.includes(m)) {
       candidateModels.push(m);
@@ -2018,8 +2018,9 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
 
   let lastError = null;
 
-  // 自動依序嘗試候選模型（遇到個別模型未開放或 404 自動切換）
-  for (const modelName of candidateModels) {
+  // 自動依序嘗試候選模型（遇到個別模型未開放、404、503 High Demand 流量尖峰、429 自動平滑無縫切換備援）
+  for (let idx = 0; idx < candidateModels.length; idx++) {
+    const modelName = candidateModels[idx];
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
       const response = await fetch(endpoint, {
@@ -2031,12 +2032,34 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
       const resJson = await response.json();
       if (!response.ok) {
         const msg = resJson.error ? resJson.error.message : "Gemini API 請求失敗";
-        // 若該模型在該 API key 或版本下不存在或不支援，無縫嘗試下一個備援模型
-        if (response.status === 404 || msg.includes("not found") || msg.includes("is not supported") || msg.includes("Call ModelService.ListModels")) {
-          console.warn(`模型 ${modelName} 暫不可用，正在自動平滑切換至下一個備援模型...`, msg);
-          lastError = new Error(`Google Gemini API 錯誤: ${msg}`);
+        const msgLower = msg.toLowerCase();
+        
+        // 判斷是否為暫時性流量高峰（High Demand）、限流（Rate Limit）或模型不存在
+        const isFallbackTrigger = (
+          response.status === 404 ||
+          response.status === 503 ||
+          response.status === 429 ||
+          response.status === 500 ||
+          msgLower.includes("high demand") ||
+          msgLower.includes("spikes in demand") ||
+          msgLower.includes("resource has been exhausted") ||
+          msgLower.includes("quota") ||
+          msgLower.includes("rate limit") ||
+          msgLower.includes("temporarily") ||
+          msgLower.includes("overloaded") ||
+          msgLower.includes("not found") ||
+          msgLower.includes("not supported")
+        );
+
+        if (isFallbackTrigger && idx < candidateModels.length - 1) {
+          const nextModel = candidateModels[idx + 1];
+          console.warn(`[Gemini API] 模型 ${modelName} 遇到尖峰或暫不可用 (${msg})，正在自動平滑切換至備援模型 ${nextModel}...`);
+          showToast(`⚡ 模型 ${modelName} 流量尖峰（High Demand），正在為您無縫切換至備援模型 ${nextModel}...`, "info");
+          lastError = new Error(`Google Gemini API 提示: ${msg}`);
+          await new Promise(r => setTimeout(r, 800)); // 稍候 800ms
           continue;
         }
+
         throw new Error(`Google Gemini API 錯誤: ${msg}`);
       }
 
@@ -2053,15 +2076,28 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
         structured_meta: fallbackExtractMeta(text)
       };
     } catch (err) {
-      if (err.message && (err.message.includes("not found") || err.message.includes("is not supported") || err.message.includes("ListModels"))) {
+      const errLower = (err.message || "").toLowerCase();
+      const isRetryable = (
+        errLower.includes("high demand") ||
+        errLower.includes("spikes in demand") ||
+        errLower.includes("quota") ||
+        errLower.includes("exhausted") ||
+        errLower.includes("not found") ||
+        errLower.includes("not supported")
+      );
+      if (isRetryable && idx < candidateModels.length - 1) {
+        const nextModel = candidateModels[idx + 1];
+        console.warn(`[Gemini API] 捕獲異常，切換至備援模型 ${nextModel}:`, err);
+        showToast(`⚡ 模型 ${modelName} 暫不可用，正在切換至 ${nextModel}...`, "info");
         lastError = err;
+        await new Promise(r => setTimeout(r, 800));
         continue;
       }
       throw err;
     }
   }
 
-  throw lastError || new Error("Google Gemini API 無法調用任何可用模型，請檢查 API Key 是否正確。");
+  throw lastError || new Error("Google Gemini API 無法調用任何可用模型，請檢查 API Key 是否正確或稍後重試。");
 }
 
 async function callOpenAiDirectly(apiKey, selectedModel, slideImages, promptText) {
