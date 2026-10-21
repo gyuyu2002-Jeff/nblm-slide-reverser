@@ -10,6 +10,13 @@ from pptx.dml.color import RGBColor
 
 logger = logging.getLogger("nblm-reverser")
 
+# 資安防禦常數（防止解壓縮炸彈與記憶體耗竭攻擊）
+MAX_TOTAL_EXTRACT_BYTES = 50 * 1024 * 1024   # 單次提取總解壓上限 50MB
+MAX_SINGLE_EXTRACT_BYTES = 15 * 1024 * 1024  # 單一媒體解壓上限 15MB
+MAX_ZIP_ENTRIES = 1000                       # 最大遍歷檔案數
+MAX_COMPRESSION_RATIO = 100.0                # 壓縮比警戒上限 (防止 zip bomb)
+MAX_EXTRACTED_MEDIA_COUNT = 30               # 提取嵌入圖檔上限
+
 def rgb_to_hex(rgb: RGBColor) -> str:
     try:
         return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}".upper()
@@ -17,15 +24,54 @@ def rgb_to_hex(rgb: RGBColor) -> str:
         return "#64748B"
 
 def extract_pptx_media(content_bytes: bytes) -> List[Tuple[str, bytes]]:
-    """從 PPTX 壓縮包 (ppt/media/) 中提取出原始嵌入的圖像素材 (背景、插圖、圖示)"""
+    """從 PPTX 壓縮包 (ppt/media/) 中安全提取嵌入素材（具備解壓縮炸彈與路徑遍歷防護）"""
     extracted_images = []
+    total_extracted_bytes = 0
+
     try:
         with zipfile.ZipFile(io.BytesIO(content_bytes)) as z:
-            for filename in z.namelist():
+            infolist = z.infolist()
+            if len(infolist) > MAX_ZIP_ENTRIES:
+                logger.warning(f"PPTX 內部檔案數量過多 ({len(infolist)} > {MAX_ZIP_ENTRIES})，終止媒體提取以防禦 DoS")
+                return extracted_images
+
+            for info in infolist:
+                # 數量達到上限即停止
+                if len(extracted_images) >= MAX_EXTRACTED_MEDIA_COUNT:
+                    break
+
+                filename = info.filename
+                # 防禦路徑遍歷（目錄穿越）
+                if ".." in filename or filename.startswith(("/", "\\")):
+                    logger.warning(f"偵測到可疑的 ZIP 成員路徑: {filename}，已自動阻擋")
+                    continue
+
                 if filename.startswith("ppt/media/") and filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
-                    img_data = z.read(filename)
+                    # 防禦解壓炸彈 (Zip Bomb) 檢查
+                    uncompressed_size = info.file_size
+                    compressed_size = max(info.compress_size, 1)
+                    ratio = uncompressed_size / compressed_size
+
+                    if uncompressed_size > MAX_SINGLE_EXTRACT_BYTES:
+                        logger.warning(f"跳過過大的媒體檔案 {filename}: {uncompressed_size} bytes")
+                        continue
+
+                    if ratio > MAX_COMPRESSION_RATIO and uncompressed_size > 1024 * 1024:
+                        logger.warning(f"跳過壓縮比異常 ({ratio:.1f}:1) 的檔案 {filename}，疑似解壓縮炸彈")
+                        continue
+
+                    if total_extracted_bytes + uncompressed_size > MAX_TOTAL_EXTRACT_BYTES:
+                        logger.warning("PPTX 媒體提取累計大小達到安全上限 (50MB)，停止後續提取")
+                        break
+
+                    img_data = z.read(info)
+                    total_extracted_bytes += len(img_data)
+
                     if len(img_data) > 1024:  # 過濾極小的 1px 佔位圖
                         extracted_images.append((filename, img_data))
+
+    except zipfile.BadZipFile:
+        logger.warning("PPTX 壓縮結構損毀或非標準 ZIP 格式")
     except Exception as e:
         logger.warning(f"PPTX 媒體提取失敗: {e}")
     return extracted_images
@@ -85,8 +131,18 @@ def process_pptx_presentation(content_bytes: bytes) -> Dict[str, Any]:
     """
     完整處理 PPTX：提取文字架構、字型規範、色彩清單、媒體圖片與每頁預覽
     """
-    prs = pptx.Presentation(io.BytesIO(content_bytes))
+    if not content_bytes or len(content_bytes) < 100:
+        raise ValueError("上傳的 PPTX 檔案為空或內容過小，無法解析")
+
+    try:
+        prs = pptx.Presentation(io.BytesIO(content_bytes))
+    except Exception as e:
+        logger.error(f"解析 PPTX 檔案格式失敗: {e}")
+        raise ValueError("無效的 PPTX 簡報檔案或壓縮封裝已損毀") from e
+
     total_slides = len(prs.slides)
+    if total_slides == 0:
+        raise ValueError("此 PPTX 檔案中未包含任何可解析的投影片")
     slide_w = prs.slide_width
     slide_h = prs.slide_height
 
