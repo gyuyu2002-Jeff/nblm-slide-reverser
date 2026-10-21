@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.26.0";
+const APP_VERSION = "v6.27.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -475,6 +475,61 @@ function initProvider() {
 }
 
 // === 2. 事件監聽設置 ===
+
+// === 單頁全螢幕高清放大檢視管理 ===
+let currentZoomIndex = 0;
+
+function openSlideZoom(index) {
+  if (index < 0 || index >= uploadedSlidePages.length) return;
+  currentZoomIndex = index;
+  const slide = uploadedSlidePages[index];
+  const pageNum = index + 1;
+  const isSelected = selectedPageIndices.has(pageNum);
+
+  const modal = document.getElementById("modal-slide-zoom");
+  const title = document.getElementById("zoom-slide-title");
+  const status = document.getElementById("zoom-slide-status");
+  const img = document.getElementById("zoom-slide-img");
+  const toggleBtnText = document.getElementById("btn-zoom-toggle-text");
+
+  if (title) title.textContent = `第 ${pageNum} 頁 · ${slide.name || ""}`;
+  if (status) {
+    status.textContent = isSelected ? "✓ 已勾選納入解析" : "未勾選";
+    status.className = isSelected
+      ? "text-xs font-mono px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold"
+      : "text-xs font-mono px-2.5 py-1 rounded-md bg-white/[0.06] text-zinc-400 border border-white/10";
+  }
+  if (toggleBtnText) {
+    toggleBtnText.textContent = isSelected ? "取消勾選此頁" : "勾選納入解析";
+  }
+  if (img) img.src = slide.image;
+
+  if (modal) {
+    modal.classList.remove("hidden");
+    if (window.lucide) window.lucide.createIcons();
+  }
+}
+
+function closeSlideZoom() {
+  const modal = document.getElementById("modal-slide-zoom");
+  if (modal) modal.classList.add("hidden");
+}
+
+function toggleZoomSlideSelection() {
+  const pageNum = currentZoomIndex + 1;
+  if (selectedPageIndices.has(pageNum)) {
+    selectedPageIndices.delete(pageNum);
+  } else {
+    selectedPageIndices.add(pageNum);
+  }
+  pageSelectionMode = "custom";
+  updatePageSelectionModeUI();
+  syncPageRangeInputFromSelection();
+  renderLargeSlidesGrid();
+  renderThumbnails();
+  openSlideZoom(currentZoomIndex); // 刷新燈箱狀態
+}
+
 function setupEventListeners() {
   const on = (id, event, handler) => {
     const el = document.getElementById(id);
@@ -799,6 +854,14 @@ function setupEventListeners() {
   // 大畫面挑選彈窗與喚回監聽
   on("btn-open-large-picker", "click", openLargePickerModal);
   on("btn-close-large-picker", "click", closeLargePickerModal);
+  on("btn-close-zoom-modal", "click", closeSlideZoom);
+  on("btn-zoom-toggle-select", "click", toggleZoomSlideSelection);
+  const zoomModal = document.getElementById("modal-slide-zoom");
+  if (zoomModal) {
+    zoomModal.addEventListener("click", (e) => {
+      if (e.target === zoomModal) closeSlideZoom();
+    });
+  }
   on("btn-large-finish", "click", closeLargePickerModal);
 
   on("btn-undo-delete", "click", undoRemoveSlide);
@@ -1338,38 +1401,52 @@ function renderLargeSlidesGrid() {
     const isSelected = selectedPageIndices.has(pageNum);
 
     const card = document.createElement("div");
-    card.className = `large-slide-card relative group rounded-xl border-2 transition-all cursor-pointer overflow-hidden flex flex-col bg-[#141720] select-none ${
+    card.className = `large-slide-card relative group rounded-2xl border-2 transition-all cursor-pointer overflow-hidden flex flex-col bg-[#13161F] select-none ${
       isSelected
         ? "border-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500/40"
-        : "border-white/[0.08] opacity-65 hover:opacity-100 hover:border-white/30"
+        : "border-white/[0.08] opacity-75 hover:opacity-100 hover:border-white/30"
     }`;
 
     card.innerHTML = `
-      <!-- 16:9 投影片高畫質預覽容器 (WebKit/Safari 防壓扁坍塌) -->
-      <div class="large-slide-preview-box relative w-full aspect-video min-h-[160px] sm:min-h-[175px] md:min-h-[190px] overflow-hidden bg-black/70 flex items-center justify-center shrink-0">
-        <img src="${slide.image}" class="large-slide-preview-img w-full h-full object-contain" alt="第 ${pageNum} 頁" loading="lazy">
-        
-        <!-- 狀態徽章：整合成單一膠囊 (避免 iPad / 手機端重疊擠壓) -->
-        <div class="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg flex items-center gap-1.5 backdrop-blur-md shadow-md text-xs font-mono font-bold transition-all ${
-          isSelected
-            ? "bg-emerald-500 text-zinc-950 border border-emerald-400"
-            : "bg-black/75 text-zinc-300 border border-white/20"
-        }">
-          <i data-lucide="${isSelected ? 'check' : 'circle'}" class="w-3.5 h-3.5 stroke-[2.5]"></i>
-          <span>第 ${pageNum} 頁</span>
+      <!-- 卡片頂部獨立狀態列：頁碼、勾選與功能按鈕 (絕不遮擋投影片文字！) -->
+      <div class="px-3.5 py-2.5 bg-[#171B24] border-b border-white/[0.08] flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <div class="w-5 h-5 rounded-md flex items-center justify-center transition-all ${
+            isSelected ? 'bg-emerald-500 text-zinc-950 font-bold shadow-sm' : 'border border-white/30 bg-black/40 text-transparent'
+          }">
+            <i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i>
+          </div>
+          <span class="font-mono font-bold text-xs ${isSelected ? 'text-emerald-400' : 'text-zinc-300'}">
+            第 ${pageNum} 頁
+          </span>
         </div>
 
-        <!-- 單頁刪除按鈕 (誤刪可喚回) -->
-        <button type="button" class="btn-large-delete-slide absolute top-2.5 right-2.5 w-8 h-8 rounded-lg bg-black/75 hover:bg-rose-600 text-zinc-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-md border border-white/20" title="移除第 ${pageNum} 頁（誤刪可喚回）" data-slide-index="${idx}">
-          <i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>
-        </button>
+        <div class="flex items-center gap-1">
+          <!-- 放大檢視按鈕 -->
+          <button type="button" class="btn-large-zoom-slide p-1.5 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-emerald-300 transition-colors cursor-pointer" title="點擊放大檢視第 ${pageNum} 頁高清原圖" data-slide-index="${idx}">
+            <i data-lucide="maximize-2" class="w-4 h-4 pointer-events-none"></i>
+          </button>
+          <!-- 移除按鈕 -->
+          <button type="button" class="btn-large-delete-slide p-1.5 rounded-lg hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 transition-colors cursor-pointer" title="移除此頁（可喚回）" data-slide-index="${idx}">
+            <i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 16:9 高畫質投影片原圖區 (全屏無遮擋完整展示！) -->
+      <div class="large-slide-preview-box">
+        <img src="${slide.image}" class="large-slide-preview-img" alt="第 ${pageNum} 頁" loading="lazy">
       </div>
 
       <!-- 底部資訊列 -->
-      <div class="px-3.5 py-2.5 bg-[#101218] border-t border-white/[0.06] flex items-center justify-between text-[11px] shrink-0">
-        <span class="text-zinc-400 font-mono truncate max-w-[170px] sm:max-w-[210px] md:max-w-[240px]" title="${slide.name || `第 ${pageNum} 頁`}">${slide.name || `投影片第 ${pageNum} 頁`}</span>
-        <span class="text-[10px] font-mono px-2 py-0.5 rounded font-semibold ${isSelected ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.04] text-zinc-500 border border-transparent'}">
-          ${isSelected ? '已納入解析' : '未勾選'}
+      <div class="px-3.5 py-2.5 bg-[#101218] border-t border-white/[0.06] flex items-center justify-between text-xs shrink-0">
+        <span class="text-zinc-400 font-mono text-[11px] truncate max-w-[200px] sm:max-w-[280px]" title="${slide.name || `第 ${pageNum} 頁`}">
+          ${slide.name || `投影片第 ${pageNum} 頁`}
+        </span>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded font-semibold ${
+          isSelected ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.04] text-zinc-500 border border-transparent'
+        }">
+          ${isSelected ? '✓ 已納入解析' : '未勾選'}
         </span>
       </div>
     `;
@@ -1387,6 +1464,16 @@ function renderLargeSlidesGrid() {
       renderLargeSlidesGrid();
       renderThumbnails();
     });
+
+
+    // 放大檢視按鈕
+    const zoomBtn = card.querySelector(".btn-large-zoom-slide");
+    if (zoomBtn) {
+      zoomBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openSlideZoom(idx);
+      });
+    }
 
     // 刪除按鈕
     const delBtn = card.querySelector(".btn-large-delete-slide");

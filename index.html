@@ -44,7 +44,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=6.4.0">
   <link rel="shortcut icon" href="favicon.ico?v=6.4.0">
   <meta name="theme-color" content="#0B0C0E">
-  <link rel="stylesheet" href="style.css?v=6.26.0">
+  <link rel="stylesheet" href="style.css?v=6.27.0">
 </head>
 <body class="studio-canvas-bg text-zinc-200 min-h-screen flex flex-col font-sans selection:bg-zinc-700 selection:text-white antialiased">
 
@@ -65,7 +65,7 @@
           </span>
           <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 font-mono border border-emerald-500/30 font-semibold shadow-sm flex items-center gap-1.5" title="系統當前版本號">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>v6.26.0</span>
+            <span>v6.27.0</span>
           </span>
         </div>
       </div>
@@ -714,7 +714,7 @@
       <div class="flex items-center gap-2 flex-wrap">
         <span>© 2026 簡報風格逆向解析 (NBLM Slide Reverser)</span>
         <span class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-white/[0.06] text-emerald-300 border border-white/[0.08]">
-          v6.26.0
+          v6.27.0
         </span>
         <span class="text-zinc-700 hidden sm:inline">·</span>
         <span class="text-zinc-400">非 Google 或 NotebookLM 官方專案</span>
@@ -1391,7 +1391,7 @@
       </div>
 
       <!-- 投影片大圖格狀展示區 -->
-      <div id="large-slides-grid" class="flex-1 overflow-y-auto p-3 sm:p-5 md:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4 md:gap-5 custom-scrollbar bg-[#0C0E12]">
+      <div id="large-slides-grid" class="flex-1 min-h-0 overflow-y-auto p-3 sm:p-5 md:p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 custom-scrollbar bg-[#0C0E12]" style="-webkit-overflow-scrolling: touch;">
         <!-- 動態渲染大圖卡片 -->
       </div>
 
@@ -1421,9 +1421,35 @@
     </button>
   </div>
 
-  <script src="app.js?v=6.26.0"></script>
+  <script src="app.js?v=6.27.0"></script>
   <script>
     lucide.createIcons();
   </script>
+
+  <!-- ================= 投影片全螢幕高清放大檢視燈箱 (Single Slide Zoom Lightbox) ================= -->
+  <div id="modal-slide-zoom" class="fixed inset-0 z-[60] bg-black/95 backdrop-blur-lg hidden flex flex-col items-center justify-center p-3 sm:p-6 transition-all duration-200">
+    <!-- 頂部浮動工具列 -->
+    <div class="w-full max-w-5xl flex items-center justify-between py-2.5 px-4 mb-2 bg-white/[0.06] border border-white/10 rounded-xl backdrop-blur-md shrink-0">
+      <div class="flex items-center gap-3">
+        <span id="zoom-slide-title" class="text-sm font-bold font-mono text-zinc-100">第 1 頁</span>
+        <span id="zoom-slide-status" class="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">已勾選</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" id="btn-zoom-toggle-select" class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-md">
+          <i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i>
+          <span id="btn-zoom-toggle-text">切換選取</span>
+        </button>
+        <button type="button" id="btn-close-zoom-modal" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-zinc-200 flex items-center justify-center transition-colors cursor-pointer" title="關閉放大">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- 高清原圖主容器 -->
+    <div class="w-full max-w-5xl flex-1 flex items-center justify-center overflow-hidden relative">
+      <img id="zoom-slide-img" src="" class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl border border-white/10" alt="放大預覽">
+    </div>
+  </div>
+
 </body>
 </html>

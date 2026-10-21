@@ -188,58 +188,68 @@ code, pre, .font-mono {
 }
 
 /* =========================================================================
-   RWD (響應式設計) 與 WebKit/Safari 投影片卡片高度保護
+   大畫面投影片挑選工作台 (Large Slide Picker Grid & Cards)
    ========================================================================= */
 
-/* 防止 Safari / WebKit 在 Flex/Grid 容器中將 aspect-ratio: 16/9 壓扁塌陷 */
-.large-slide-preview-box {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  min-height: 160px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: rgba(0, 0, 0, 0.7);
-  overflow: hidden;
+#large-slides-grid {
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  display: grid !important;
+  grid-auto-rows: max-content !important;
 }
 
-@media (min-width: 640px) {
-  .large-slide-preview-box {
-    min-height: 175px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .large-slide-preview-box {
-    min-height: 190px;
-  }
-}
-
-/* 投影片預覽圖片在任何裝置上均等比完整縮放居中，絕不拉伸變形 */
-.large-slide-preview-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-}
-
-/* 大畫面挑選卡片本體：保證具備合理高度，不因內容空洞而縮成一條線 */
+/* 投影片卡片：保證立體質感與充足高度，絕不坍塌 */
 .large-slide-card {
   position: relative;
-  border-radius: 0.875rem;
+  border-radius: 1rem;
   border-width: 2px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background-color: #141720;
+  background-color: #13161F;
   user-select: none;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   min-width: 0;
 }
 
 .large-slide-card:hover {
   transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* 16:9 投影片畫布預覽框：徹底免疫 WebKit / Safari 壓扁崩塌 */
+.large-slide-preview-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 200px !important;
+  background: #08090C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+  .large-slide-preview-box {
+    min-height: 220px !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .large-slide-preview-box {
+    min-height: 230px !important;
+  }
+}
+
+/* 投影片預覽圖片：完整等比居中，絕不被裁切、絕不被遮擋 */
+.large-slide-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain !important;
+  display: block;
 }
