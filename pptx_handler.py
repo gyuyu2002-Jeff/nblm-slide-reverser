@@ -127,9 +127,10 @@ def render_slide_wireframe(slide, slide_w: int, slide_h: int, target_w: int = 96
 
     return img
 
-def process_pptx_presentation(content_bytes: bytes) -> Dict[str, Any]:
+def process_pptx_presentation(content_bytes: bytes, target_pages: Optional[Any] = None, max_preview: int = 30) -> Dict[str, Any]:
     """
     完整處理 PPTX：提取文字架構、字型規範、色彩清單、媒體圖片與每頁預覽
+    支援 target_pages 篩選指定頁碼（1-based set），供使用者自選代表頁
     """
     if not content_bytes or len(content_bytes) < 100:
         raise ValueError("上傳的 PPTX 檔案為空或內容過小，無法解析")
@@ -158,9 +159,15 @@ def process_pptx_presentation(content_bytes: bytes) -> Dict[str, Any]:
     detected_fonts = set()
     detected_colors = set()
 
-    # 處理前 6 頁預覽
-    max_slides = min(total_slides, 6)
-    for idx in range(max_slides):
+    # 處理指定頁面或前 max_preview 頁預覽
+    for idx in range(total_slides):
+        page_num = idx + 1
+        if target_pages is not None:
+            if page_num not in target_pages:
+                continue
+        elif len(preview_pages) >= max_preview:
+            break
+
         slide = prs.slides[idx]
         slide_title = ""
         slide_elements = []

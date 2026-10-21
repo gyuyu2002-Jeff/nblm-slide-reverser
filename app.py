@@ -148,12 +148,14 @@ SYSTEM_INSTRUCTION = """
 你的使命是【像素級與拓撲級真實還原】使用者上傳的簡報範例（PDF、PPTX 或投影片截圖），徹底洞察其「真實幾何骨架、圖解隱喻、邊框材質、文字節奏與色彩系統」，並轉譯為能 100% 忠實對齊的 NotebookLM 專用提示詞與排版設計規範。
 
 ⚠️【最高原則：實事求是、真確還原（True-to-Source Visual Fidelity）】：
-1. 🎨【100% 忠實提取背景與畫布特徵（嚴禁預設純白偏差）】：
-   - 仔細觀察背景是深色商務底、照片遮罩（如暗海軍藍照片疊加層 Photo Overlay），還是極簡純白。
-   - 必須精確記錄真實底色 Hex 碼（如深海軍藍 #0E2A38 或純白 #FFFFFF），嚴禁強制漂白或擅自竄改。
-2. 📐【精確捕捉並記錄所有核心幾何裝飾與圖解標記】：
-   - 若標題旁有「垂直實心粗色塊標柱 (Vertical Accent Bar)」必須精準指認顏色與位置！
-   - 若角落或局部有「同心圓弧切角環 (Concentric Arc Rings)」、「同心圓靶心」、「水平進程軸」、「線框獨立卡片」、「斑馬紋條列」，必須 100% 完整捕捉其幾何規格！
+1. 🎨【100% 忠實提取背景與色彩抗失真（嚴格杜絕純白偏差與亮黃色偏差）】：
+   - 仔細觀察背景是深色商務底、溫潤暖米灰/象牙米色（如 #F4F3EE），還是極簡純白。
+   - ★【防鮮黃失真鐵律】：遇到金色、黃色、駝色系時，嚴禁使用「亮黃、金黃、鮮黃、明黃」等字眼；必須精準使用「低飽和啞光駝金 / 沉穩古銅赭金 (#C29B53 / #B88D48)」，並在提示詞中強制加入負向色彩禁令：『🚫 絕對嚴禁使用高飽和鮮黃、檸檬黃、香蕉黃 (#FFCC00 / #FFFF00)，所有金色皆必須帶有深駝與古銅褐感（Muted Camel Gold）』！
+   - 色彩面積必須恪守 60-30-10 比重（強調色僅佔 10% 點綴，嚴禁整大片塗抹）。
+2. 📐【機械級拓撲捕捉：★絕對嚴禁將複雜圖解偷懶退化為普通圓點條列清單！】：
+   - ★【引線指向關聯 (Leader Lines)】：若圖解包含引線，必須明確標註『深墨藍 45 度折線引線（Leader Lines），自特定圈層/圖形拉出，末端帶駝金箭頭，水平精確指向右側對應文字』！
+   - ★【複合雙模組拓撲】：若頁面有多模組並存（例如上半部同心圓引線 + 下半部橫向進程軸），必須強制標註『複合雙模組拓撲並存』，分區交代各組件之幾何規格，嚴禁漏掉任何一個模組！
+   - ★【幾何圈層與組件數量】：同心圓必須交代層數（如 5 層實心環交替及色彩）、進程軸必須交代節點個數與圖示類型。
 3. 🔤【字型與排印節奏真實還原】：
    - 捕捉標題字重（如特大無襯線超粗體 Extra Bold / Impact）、文字色彩（如純白高對比）、對齊方式與大小層級。
 4. 🚫【嚴禁無中生有幻覺「巨型 KPI 統計大數字」】：
@@ -356,6 +358,35 @@ async def file_preview(request: Request, file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail="檔案預覽處理失敗，請確認檔案格式是否正確或未損毀。")
 
 
+def parse_selected_pages_str(pages_str: Optional[str]) -> Optional[set]:
+    """解析使用者指定的頁碼字串，例如 '1, 3, 5-8' -> {1, 3, 5, 6, 7, 8}"""
+    if not pages_str or not pages_str.strip():
+        return None
+    result = set()
+    parts = pages_str.split(",")
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            try:
+                start_s, end_s = part.split("-", 1)
+                start = int(start_s.strip())
+                end = int(end_s.strip())
+                if 1 <= start <= end <= 300:
+                    result.update(range(start, end + 1))
+            except ValueError:
+                continue
+        else:
+            try:
+                num = int(part)
+                if 1 <= num <= 300:
+                    result.add(num)
+            except ValueError:
+                continue
+    return result if result else None
+
+
 @app.post("/api/analyze")
 async def analyze_style(
     request: Request,
@@ -363,6 +394,7 @@ async def analyze_style(
     provider: str = Form("gemini"),
     model: str = Form("auto"),
     target_use: str = Form("notebooklm_slide"),
+    selected_pages: Optional[str] = Form(None),
     x_api_key: Optional[str] = Header(None),
     x_gemini_api_key: Optional[str] = Header(None),
     x_openai_api_key: Optional[str] = Header(None),
@@ -371,6 +403,7 @@ async def analyze_style(
     """
     接收投影片檔案（PDF、PPTX 或圖片），
     支援 Google Gemini、OpenAI (GPT-4o)、Anthropic Claude (3.5 Sonnet) 進行多模態風格逆向工程。
+    支援 selected_pages 參數挑選特定喜好頁面進行高精度解析。
     【資安核心】：API Key 僅於當次請求記憶體中使用，不留存於磁碟或日誌中，杜絕伺服器端金鑰盜用。
     """
     client_ip = get_client_ip(request)
@@ -382,6 +415,9 @@ async def analyze_style(
         )
 
     provider = provider.lower()
+    target_pages_set = parse_selected_pages_str(selected_pages)
+    if target_pages_set:
+        logger.info(f"使用者指定解析頁面: {sorted(list(target_pages_set))}")
     
     # 決定使用的 API Key（嚴格實施 BYOK 原則，關閉自動耗盡伺服器金鑰通道）
     client_key = ""
@@ -434,14 +470,14 @@ async def analyze_style(
             
             if filename.endswith(".pptx"):
                 try:
-                    pptx_res = process_pptx_presentation(content)
+                    pptx_res = process_pptx_presentation(content, target_pages=target_pages_set)
                 except ValueError as ve:
                     raise HTTPException(status_code=400, detail=str(ve))
 
                 pptx_summaries.append(pptx_res["structure_summary"])
                 total_detected_pages += pptx_res["total_slides"]
                 
-                # 附加上前 30 頁投影片的視覺佈局縮圖
+                # 附加上篩選後投影片的視覺佈局縮圖
                 for page in pptx_res["preview_pages"][:30]:
                     standard_images.append((page["bytes"], "image/jpeg"))
                 
@@ -459,12 +495,17 @@ async def analyze_style(
                             detail=f"PDF 檔案「{uploaded_file.filename}」頁數過多 ({len(doc)} 頁)，上限為 {MAX_PDF_TOTAL_PAGES} 頁"
                         )
                     total_detected_pages += len(doc)
-                    sample_pages = min(len(doc), MAX_PDF_PAGES_ANALYZE)
-                    for p in range(sample_pages):
+                    
+                    for p in range(len(doc)):
+                        page_num = p + 1
+                        if target_pages_set and page_num not in target_pages_set:
+                            continue
                         page = doc.load_page(p)
                         pix = page.get_pixmap(dpi=150)
                         img_bytes = pix.tobytes("jpeg")
                         standard_images.append((img_bytes, "image/jpeg"))
+                        if len(standard_images) >= MAX_PDF_PAGES_ANALYZE:
+                            break
                 except HTTPException:
                     raise
                 except Exception as conv_err:
@@ -487,7 +528,8 @@ async def analyze_style(
         user_prompt_text = (
             "請詳細審視我上傳的簡報投影片，執行深度視覺與幾何拓撲逆向工程。\n"
             "【核心使命】：\n"
-            "1. 必須逐頁精確拆解投影片的真實骨架（如：深色照片遮罩底、標題左側垂直實心粗色塊標柱、右上角外擴亮橘同心圓弧環、超粗無襯線字體、N 欄線框卡片、時間軸、心智圖、對比表格等真實視覺特徵），100% 忠於原稿！\n"
+            "1. 必須逐頁精確拆解投影片的真實骨架，★絕對嚴禁將圖解簡化為普通條列！若有同心圓引線對應（Leader Lines）、雙模組並存（如靶心+進程軸）、3D階梯等，必須以機械級拓撲完整描述。\n"
+            "2. ★【色彩抗失真】：金色/黃色系一律使用「低飽和啞光駝金/沉穩古銅赭金 (#C29B53)」，嚴禁高飽和鮮黃，內頁淺底一律採用「溫潤暖象牙米灰 (#F4F3EE)」。\n"
             "2. 產出的第 3 節 NotebookLM 提示詞必須同時完整輸出兩種模式代碼區塊：\n"
             "   - 【模式 1：全域風格架構（推薦）】：提取全域視覺手冊與版型語法庫，彈性規劃 3~20 頁，適合任意筆記靈活套用。\n"
             "     ★【最高強制約束：每一個頁面呈現都絕對不能重複（Zero-Repetition Rule）】：在產出的 NotebookLM 提示詞中，必須明文加入不可忽視的最高禁令——『嚴禁連續或重複使用同一種版型！生成的整份簡報中，每一個頁面都必須從版型語法庫中挑選完全不同的視覺拓撲（例如：時間軸 ➔ 心智圖 ➔ 橫向條帶 ➔ 矩陣表格 ➔ 環形流程 ➔ 雙側括號等輪替使用），相鄰頁面與全篇各頁版型呈現皆不得重複！』\n"
@@ -495,6 +537,10 @@ async def analyze_style(
             "3. 產出一份可直接獨立運行的 HTML/Tailwind 1:1 還原投影片結構代碼。\n"
             "4. 請嚴格依照 SYSTEM INSTRUCTION 規定的章節與 JSON 格式輸出。"
         )
+        if target_pages_set:
+            selected_list_str = ", ".join(f"P.{p}" for p in sorted(list(target_pages_set)))
+            user_prompt_text += f"\n\n【精選頁面解析重點】：使用者已精選特定投影片（{selected_list_str}）進行核心風格逆向，請聚焦剖析這些頁面的真實幾何骨架與設計規範。"
+
         if pptx_summaries:
             user_prompt_text += "\n\n【從 PPTX 程式碼提取之精確設計元數據】：\n" + "\n\n".join(pptx_summaries)
 

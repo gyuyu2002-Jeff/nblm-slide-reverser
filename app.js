@@ -400,10 +400,77 @@ function setupEventListeners() {
   on("btn-clear-files", "click", () => {
     selectedFiles = [];
     uploadedSlidePages = [];
+    selectedPageIndices.clear();
+    pageSelectionMode = "all";
     currentComparisonPage = 0;
     renderThumbnails();
     if (fileInput) fileInput.value = "";
     showToast("已清空所有選取的投影片", "info");
+  });
+
+  // 頁數較多 (>8頁) 時的範圍解析控制項監聽
+  on("btn-mode-custom-pages", "click", () => {
+    pageSelectionMode = "custom";
+    updatePageSelectionModeUI();
+    if (selectedPageIndices.size === 0) {
+      selectedPageIndices = new Set([1, 2, 3, 4, 5, 6].filter(p => p <= uploadedSlidePages.length));
+    }
+    syncPageRangeInputFromSelection();
+    renderThumbnails();
+  });
+
+  on("btn-mode-all-pages", "click", () => {
+    pageSelectionMode = "all";
+    updatePageSelectionModeUI();
+    selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
+    syncPageRangeInputFromSelection();
+    renderThumbnails();
+  });
+
+  const rangeInput = document.getElementById("input-page-ranges");
+  if (rangeInput) {
+    rangeInput.addEventListener("input", (e) => {
+      selectedPageIndices = parsePageRanges(e.target.value, uploadedSlidePages.length);
+      const countEl = document.getElementById("selected-pages-count");
+      if (countEl) countEl.textContent = selectedPageIndices.size;
+      renderThumbnails();
+    });
+  }
+
+  on("btn-quick-first-6", "click", () => {
+    selectedPageIndices = new Set([1, 2, 3, 4, 5, 6].filter(p => p <= uploadedSlidePages.length));
+    syncPageRangeInputFromSelection();
+    renderThumbnails();
+  });
+
+  on("btn-quick-sample", "click", () => {
+    const total = uploadedSlidePages.length;
+    if (total <= 5) {
+      selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
+    } else {
+      const step = (total - 1) / 4;
+      selectedPageIndices = new Set([
+        1,
+        Math.round(1 + step),
+        Math.round(1 + step * 2),
+        Math.round(1 + step * 3),
+        total
+      ]);
+    }
+    syncPageRangeInputFromSelection();
+    renderThumbnails();
+  });
+
+  on("btn-quick-select-all", "click", () => {
+    selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
+    syncPageRangeInputFromSelection();
+    renderThumbnails();
+  });
+
+  on("btn-quick-clear", "click", () => {
+    selectedPageIndices.clear();
+    syncPageRangeInputFromSelection();
+    renderThumbnails();
   });
 
   // 結果頁籤切換監聽
@@ -602,6 +669,123 @@ async function parsePdfClientSide(file) {
   return { total_pages: totalPages, preview_pages: pages };
 }
 
+// === 頁面選取狀態管理 (支援超過 8 頁時精選喜好頁面) ===
+let pageSelectionMode = "all"; // "all" | "custom"
+let selectedPageIndices = new Set(); // 1-based page indices: Set([1, 3, 5, ...])
+
+// 將 Set([1, 2, 3, 5, 7, 8]) 轉為簡潔字串 "1-3, 5, 7-8"
+function formatPageRanges(setOrArray) {
+  if (!setOrArray) return "";
+  const nums = Array.from(setOrArray).filter(n => Number.isInteger(n) && n > 0).sort((a, b) => a - b);
+  if (nums.length === 0) return "";
+  const ranges = [];
+  let start = nums[0];
+  let end = nums[0];
+  for (let i = 1; i < nums.length; i++) {
+    if (nums[i] === end + 1) {
+      end = nums[i];
+    } else {
+      ranges.push(start === end ? `${start}` : `${start}-${end}`);
+      start = nums[i];
+      end = nums[i];
+    }
+  }
+  ranges.push(start === end ? `${start}` : `${start}-${end}`);
+  return ranges.join(", ");
+}
+
+// 將字串 "1, 3, 5-8" 解析為 Set([1, 3, 5, 6, 7, 8])
+function parsePageRanges(rangeStr, maxPage) {
+  const result = new Set();
+  if (!rangeStr || typeof rangeStr !== "string") return result;
+  const parts = rangeStr.split(",");
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    if (trimmed.includes("-")) {
+      const [sStr, eStr] = trimmed.split("-");
+      const s = parseInt(sStr.trim(), 10);
+      const e = parseInt(eStr.trim(), 10);
+      if (!isNaN(s) && !isNaN(e) && s <= e) {
+        for (let i = Math.max(1, s); i <= Math.min(e, maxPage || 9999); i++) {
+          result.add(i);
+        }
+      }
+    } else {
+      const n = parseInt(trimmed, 10);
+      if (!isNaN(n) && n >= 1 && (!maxPage || n <= maxPage)) {
+        result.add(n);
+      }
+    }
+  }
+  return result;
+}
+
+// 同步輸入框與計數器數值
+function syncPageRangeInputFromSelection() {
+  const input = document.getElementById("input-page-ranges");
+  const countEl = document.getElementById("selected-pages-count");
+  if (input) {
+    input.value = formatPageRanges(selectedPageIndices);
+  }
+  if (countEl) {
+    countEl.textContent = selectedPageIndices.size;
+  }
+}
+
+// 檢查簡報頁數是否超過 8 頁，動態顯示/隱藏選取控制面板
+function checkAndUpdatePageSelectionPanel() {
+  const panel = document.getElementById("page-selection-panel");
+  const badge = document.getElementById("page-selection-badge");
+  const promptTotal = document.getElementById("prompt-total-pages");
+  const totalSlides = uploadedSlidePages.length;
+
+  if (!panel) return;
+
+  if (totalSlides > 8) {
+    panel.classList.remove("hidden");
+    if (badge) badge.textContent = `共 ${totalSlides} 頁`;
+    if (promptTotal) promptTotal.textContent = totalSlides;
+
+    // 若尚未初始化選取集合，預設啟動「自選喜好頁面」並選中前 6 頁作為推薦初值
+    if (pageSelectionMode === "all" || selectedPageIndices.size === 0) {
+      pageSelectionMode = "custom";
+      selectedPageIndices = new Set([1, 2, 3, 4, 5, 6].filter(p => p <= totalSlides));
+      updatePageSelectionModeUI();
+      syncPageRangeInputFromSelection();
+    }
+  } else {
+    panel.classList.add("hidden");
+    pageSelectionMode = "all";
+    selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
+  }
+}
+
+// 更新自選 vs 全選按鈕外觀
+function updatePageSelectionModeUI() {
+  const btnCustom = document.getElementById("btn-mode-custom-pages");
+  const btnAll = document.getElementById("btn-mode-all-pages");
+  const customControls = document.getElementById("custom-pages-controls");
+
+  if (pageSelectionMode === "custom") {
+    if (btnCustom) {
+      btnCustom.className = "page-scope-btn active p-2 rounded-lg text-left transition-all cursor-pointer bg-white/10 text-white border border-white/20";
+    }
+    if (btnAll) {
+      btnAll.className = "page-scope-btn p-2 rounded-lg text-left transition-all cursor-pointer bg-white/[0.03] text-zinc-400 border border-transparent hover:bg-white/[0.06]";
+    }
+    if (customControls) customControls.classList.remove("hidden");
+  } else {
+    if (btnCustom) {
+      btnCustom.className = "page-scope-btn p-2 rounded-lg text-left transition-all cursor-pointer bg-white/[0.03] text-zinc-400 border border-transparent hover:bg-white/[0.06]";
+    }
+    if (btnAll) {
+      btnAll.className = "page-scope-btn active p-2 rounded-lg text-left transition-all cursor-pointer bg-white/10 text-white border border-white/20";
+    }
+    if (customControls) customControls.classList.add("hidden");
+  }
+}
+
 // === 3. 縮圖渲染與逐頁刪除管理 ===
 function renderThumbnails() {
   const gallery = document.getElementById("thumbnail-gallery");
@@ -614,28 +798,63 @@ function renderThumbnails() {
   if (!uploadedSlidePages || uploadedSlidePages.length === 0) {
     if (previewSec) previewSec.classList.add("hidden");
     if (countLabel) countLabel.textContent = "已選取 0 頁投影片";
+    checkAndUpdatePageSelectionPanel();
     return;
   }
 
   if (previewSec) previewSec.classList.remove("hidden");
   if (countLabel) countLabel.textContent = `已選取 ${uploadedSlidePages.length} 頁投影片`;
 
+  // 檢查是否超過 8 頁觸發精選控制項
+  checkAndUpdatePageSelectionPanel();
+
+  const isCustomMode = (pageSelectionMode === "custom" && uploadedSlidePages.length > 8);
+
   uploadedSlidePages.forEach((slide, idx) => {
+    const pageNum = idx + 1;
+    const isSelected = !isCustomMode || selectedPageIndices.has(pageNum);
+
     const card = document.createElement("div");
-    card.className = "relative group rounded-xl border border-white/[0.08] bg-[#0E1013] p-1 flex flex-col items-center shadow-sm hover:border-white/20 transition-all";
+    card.className = `relative group rounded-xl border p-1 flex flex-col items-center shadow-sm transition-all cursor-pointer select-none ${
+      isSelected
+        ? "border-emerald-500/50 bg-emerald-500/[0.04] ring-1 ring-emerald-500/20"
+        : "border-white/[0.06] bg-[#0E1013] opacity-40 hover:opacity-80"
+    }`;
 
     card.innerHTML = `
       <div class="relative w-full h-20 overflow-hidden rounded-lg bg-black border border-white/[0.06]">
-        <img src="${slide.image}" class="w-full h-full object-cover" alt="第 ${idx + 1} 頁">
+        <img src="${slide.image}" class="w-full h-full object-cover" alt="第 ${pageNum} 頁">
+        
+        <!-- 勾選狀態標記 (當頁數 > 8 頁時啟用) -->
+        ${isCustomMode ? `
+          <div class="absolute top-1 left-1 w-5 h-5 rounded-md flex items-center justify-center transition-all ${
+            isSelected ? "bg-emerald-500 text-black shadow-sm" : "bg-black/70 border border-white/30 text-transparent"
+          }">
+            <i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i>
+          </div>
+        ` : ""}
+
         <span class="absolute bottom-1 left-1 bg-black/80 backdrop-blur-sm text-[9px] px-1.5 py-0.2 rounded text-zinc-300 font-mono border border-white/10">
-          P.${idx + 1}
+          P.${pageNum}
         </span>
-        <button type="button" class="btn-delete-slide absolute top-1 right-1 w-5 h-5 rounded-full bg-black/80 hover:bg-rose-600 text-zinc-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-sm border border-white/20" title="移除第 ${idx + 1} 頁" data-slide-index="${idx}">
+        <button type="button" class="btn-delete-slide absolute top-1 right-1 w-5 h-5 rounded-full bg-black/80 hover:bg-rose-600 text-zinc-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-sm border border-white/20" title="移除第 ${pageNum} 頁" data-slide-index="${idx}">
           <i data-lucide="x" class="w-3 h-3 pointer-events-none"></i>
         </button>
       </div>
-      <span class="truncate max-w-[90px] text-[10px] text-zinc-400 mt-1 font-mono">${slide.name || `第 ${idx + 1} 頁`}</span>
+      <span class="truncate max-w-[90px] text-[10px] text-zinc-400 mt-1 font-mono">${slide.name || `第 ${pageNum} 頁`}</span>
     `;
+
+    // 點擊卡片切換選取狀態
+    card.addEventListener("click", () => {
+      if (!isCustomMode) return;
+      if (selectedPageIndices.has(pageNum)) {
+        selectedPageIndices.delete(pageNum);
+      } else {
+        selectedPageIndices.add(pageNum);
+      }
+      syncPageRangeInputFromSelection();
+      renderThumbnails();
+    });
 
     const delBtn = card.querySelector(".btn-delete-slide");
     if (delBtn) {
@@ -658,6 +877,15 @@ function removeSlideAtIndex(index) {
   uploadedSlidePages.forEach((item, i) => {
     item.page = i + 1;
   });
+
+  // 調整 selectedPageIndices
+  const newSet = new Set();
+  selectedPageIndices.forEach(p => {
+    if (p < index + 1) newSet.add(p);
+    else if (p > index + 1) newSet.add(p - 1);
+  });
+  selectedPageIndices = newSet;
+  syncPageRangeInputFromSelection();
 
   if (currentComparisonPage >= uploadedSlidePages.length) {
     currentComparisonPage = Math.max(0, uploadedSlidePages.length - 1);
@@ -1312,6 +1540,24 @@ async function handleStartAnalyze() {
   const model = "auto";
   const isGitHubPages = window.location.hostname.includes("github.io") || window.location.protocol === "file:";
 
+  // 決定實際解析的頁面（若頁數 > 8 且選擇自選模式，使用使用者勾選的目標頁）
+  let targetSlidePages = uploadedSlidePages;
+  let selectedPagesParam = null;
+
+  if (pageSelectionMode === "custom" && uploadedSlidePages.length > 8) {
+    if (!selectedPageIndices || selectedPageIndices.size === 0) {
+      showToast("⚠️ 請至少勾選或輸入 1 頁您喜好的投影片進行解析！", "warning");
+      startBtn.disabled = false;
+      startBtn.classList.remove("opacity-50");
+      document.getElementById("panel-idle").classList.remove("hidden");
+      document.getElementById("panel-loading").classList.add("hidden");
+      return;
+    }
+    targetSlidePages = uploadedSlidePages.filter((_, idx) => selectedPageIndices.has(idx + 1));
+    const sortedNums = Array.from(selectedPageIndices).sort((a, b) => a - b);
+    selectedPagesParam = sortedNums.join(",");
+  }
+
   let data = null;
 
   try {
@@ -1322,6 +1568,9 @@ async function handleStartAnalyze() {
         selectedFiles.forEach(file => formData.append("files", file));
         formData.append("provider", currentProvider);
         formData.append("model", model);
+        if (selectedPagesParam) {
+          formData.append("selected_pages", selectedPagesParam);
+        }
 
         const response = await fetch("/api/analyze", {
           method: "POST",
@@ -1339,13 +1588,14 @@ async function handleStartAnalyze() {
 
     // 2. 若處於 GitHub Pages 或本地後端不可用，使用前端瀏覽器直連（Serverless 模式）
     if (!data) {
-      if (uploadedSlidePages.length === 0) {
+      if (targetSlidePages.length === 0) {
         throw new Error("未檢測到有效投影片影像，請確認上傳了清晰的 PDF 或投影片圖片。");
       }
 
       const promptText = "請詳細審視我上傳的簡報投影片，執行深度視覺與幾何拓撲逆向工程。\n" +
         "【核心使命】：\n" +
-        "1. 必須逐頁精確拆解投影片的真實骨架（如：深色照片遮罩底、標題左側垂直實心粗色塊標柱、右上角外擴亮橘同心圓弧環、超粗無襯線字體、N 欄線框卡片、時間軸、心智圖、對比表格等真實視覺特徵），100% 忠於原稿！\n" +
+        "1. 必須逐頁精確拆解真實骨架，★絕對嚴禁將圖解簡化為普通圓點條列！若有同心圓引線對應（Leader Lines）、複合雙模組（靶心+進程軸並存）、3D階梯等，必須以機械級拓撲完整描述規格與箭頭指向。\n" +
+        "2. ★【色彩抗失真規範】：金色/黃色系一律定義為「低飽和啞光駝金/沉穩古銅赭金 (#C29B53)」，強制注入負向禁令排除高飽和鮮黃與檸檬黃；淺色底指定「溫潤暖象牙米灰 (#F4F3EE)」，嚴禁死白。\n" +
         "2. 產出的第 3 節 NotebookLM 提示詞必須同時完整輸出兩種模式代碼區塊：\n" +
         "   - 【模式 1：學風格 · 做新簡報（推薦）】：提取這份簡報的配色與設計感，套用在你的任何簡報上（頁數 3~20 頁自由決定，備註：NotebookLM 單次生成上限為 20 頁）。\n" +
         "     ★【最高強制約束：每一個頁面呈現都絕對不能重複（Zero-Repetition Rule）】：在產出的 NotebookLM 提示詞中，必須明文加入不可忽視的最高禁令——『嚴禁連續或重複使用同一種版型！生成的整份簡報中，每一個頁面都必須從版型語法庫中挑選完全不同的視覺拓撲（例如：時間軸 ➔ 心智圖 ➔ 橫向條帶 ➔ 矩陣表格 ➔ 環形流程 ➔ 雙側括號等輪替使用），相鄰頁面與全篇各頁版型呈現皆不得重複！』\n" +
@@ -1354,9 +1604,9 @@ async function handleStartAnalyze() {
         "4. 請嚴格依照 SYSTEM INSTRUCTION 規定的章節與 JSON 格式輸出。";
 
       if (currentProvider === "gemini") {
-        data = await callGeminiDirectly(apiKey, model, uploadedSlidePages, promptText);
+        data = await callGeminiDirectly(apiKey, model, targetSlidePages, promptText);
       } else if (currentProvider === "openai") {
-        data = await callOpenAiDirectly(apiKey, model, uploadedSlidePages, promptText);
+        data = await callOpenAiDirectly(apiKey, model, targetSlidePages, promptText);
       } else {
         throw new Error("Anthropic API 因官方安全跨域規範限制，純前端靜態站點請選擇 Google Gemini（推薦，免費且極速）或 OpenAI！");
       }
@@ -1367,7 +1617,10 @@ async function handleStartAnalyze() {
     await new Promise(resolve => setTimeout(resolve, 350));
 
     renderAnalysisResult(data);
-    showToast("風格逆向分析完成！已為您產生 1:1 幾何對比與雙模式提示詞", "success");
+    const pageMsg = (pageSelectionMode === "custom" && uploadedSlidePages.length > 8)
+      ? `已針對精選之 ${targetSlidePages.length} 頁`
+      : "已針對整份簡報";
+    showToast(`風格逆向分析完成！${pageMsg}產生 1:1 幾何對比與雙模式提示詞`, "success");
 
   } catch (err) {
     stopProgressPipeline();
