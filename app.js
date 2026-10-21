@@ -5,6 +5,7 @@ let uploadedSlidePages = []; // [{ page: 1, image: "data:..." }, ...]
 let removedSlidesHistory = []; // [{ type: "single", slide, originalIndex, wasSelected, timestamp } | { type: "clear", slides, selectedIndices, timestamp }]
 let currentComparisonPage = 0;
 let currentComparisonMode = "split"; // "split", "reconstruct", "original"
+let comparisonViewScope = "selected"; // "selected" (僅顯示已選取的投影片) | "all" (顯示原稿全部)
 let generatedReportMarkdown = "";
 let generatedNblmPrompt = "";
 let generatedPromptGlobal = "";
@@ -591,18 +592,25 @@ function setupEventListeners() {
     });
   });
 
-  // 投影片翻頁監聽
+  // 投影片翻頁與視角切換監聽
   on("btn-prev-slide", "click", () => {
+    const activeSlides = getActiveComparisonSlides();
     if (currentComparisonPage > 0) {
       currentComparisonPage--;
       updateComparisonView();
     }
   });
   on("btn-next-slide", "click", () => {
-    if (currentComparisonPage < uploadedSlidePages.length - 1) {
+    const activeSlides = getActiveComparisonSlides();
+    if (currentComparisonPage < activeSlides.length - 1) {
       currentComparisonPage++;
       updateComparisonView();
     }
+  });
+  on("btn-toggle-comparison-scope", "click", () => {
+    comparisonViewScope = (comparisonViewScope === "selected") ? "all" : "selected";
+    currentComparisonPage = 0;
+    updateComparisonView();
   });
 
   // 提示詞模式選擇（左側操作卡片）
@@ -2021,7 +2029,21 @@ function renderAnalysisResult(data) {
   // 渲染當前模式提示詞
   switchPromptMode(currentPromptMode);
 
-  // 更新投影片預覽視窗
+  // 顯示解析範圍摘要徽章
+  const scopeBadge = document.getElementById("result-scope-badge");
+  if (scopeBadge) {
+    if (pageSelectionMode === "custom" && selectedPageIndices.size > 0 && selectedPageIndices.size < uploadedSlidePages.length) {
+      const sortedNums = Array.from(selectedPageIndices).sort((a, b) => a - b);
+      scopeBadge.textContent = `🎯 已鎖定解析所選 ${selectedPageIndices.size} 頁 (P.${sortedNums.join(', P.')}) · 原稿共 ${uploadedSlidePages.length} 頁`;
+      scopeBadge.classList.remove("hidden");
+    } else {
+      scopeBadge.textContent = `🎯 已解析全篇 ${uploadedSlidePages.length} 頁`;
+      scopeBadge.classList.remove("hidden");
+    }
+  }
+
+  // 預設將對比舞台鎖定在所選頁面
+  comparisonViewScope = "selected";
   currentComparisonPage = 0;
   updateComparisonView();
 
@@ -2071,6 +2093,33 @@ function renderAnalysisResult(data) {
   lucide.createIcons();
 }
 
+// 取得當前對比舞台應呈現之投影片（依據使用者挑選模式動態過濾）
+function getActiveComparisonSlides() {
+  const isCustom = (pageSelectionMode === "custom" && selectedPageIndices.size > 0 && selectedPageIndices.size < uploadedSlidePages.length);
+  
+  if (isCustom && comparisonViewScope === "selected") {
+    const list = [];
+    uploadedSlidePages.forEach((slide, idx) => {
+      const pageNum = idx + 1;
+      if (selectedPageIndices.has(pageNum)) {
+        list.push({
+          ...slide,
+          originalIndex: idx,
+          originalPage: pageNum
+        });
+      }
+    });
+    if (list.length > 0) return list;
+  }
+
+  // 備援或全選模式：呈現全篇上傳頁面
+  return uploadedSlidePages.map((slide, idx) => ({
+    ...slide,
+    originalIndex: idx,
+    originalPage: idx + 1
+  }));
+}
+
 // 更新雙欄對比視窗 (原始投影片 vs 還原成果)
 function updateComparisonView() {
   const originalImg = document.getElementById("img-original-slide");
@@ -2080,22 +2129,54 @@ function updateComparisonView() {
   const originalPageLabel = document.getElementById("original-page-label");
   const prevBtn = document.getElementById("btn-prev-slide");
   const nextBtn = document.getElementById("btn-next-slide");
+  const scopeTag = document.getElementById("stage-scope-tag");
+  const toggleBtn = document.getElementById("btn-toggle-comparison-scope");
 
-  if (uploadedSlidePages && uploadedSlidePages.length > 0) {
-    const pageData = uploadedSlidePages[currentComparisonPage] || uploadedSlidePages[0];
+  const activeSlides = getActiveComparisonSlides();
+  const isCustom = (pageSelectionMode === "custom" && selectedPageIndices.size > 0 && selectedPageIndices.size < uploadedSlidePages.length);
+
+  // 動態設定視角提示與切換按鈕
+  if (isCustom) {
+    if (scopeTag) {
+      scopeTag.classList.remove("hidden");
+      scopeTag.textContent = comparisonViewScope === "selected" ? `已鎖定所選 ${selectedPageIndices.size} 頁` : `原稿全篇 (${uploadedSlidePages.length} 頁)`;
+    }
+    if (toggleBtn) {
+      toggleBtn.classList.remove("hidden");
+      toggleBtn.textContent = comparisonViewScope === "selected" ? `查看原稿全篇 (${uploadedSlidePages.length}頁)` : `回到所選 ${selectedPageIndices.size} 頁`;
+    }
+  } else {
+    if (scopeTag) scopeTag.classList.add("hidden");
+    if (toggleBtn) toggleBtn.classList.add("hidden");
+  }
+
+  if (activeSlides && activeSlides.length > 0) {
+    if (currentComparisonPage >= activeSlides.length) {
+      currentComparisonPage = 0;
+    }
+    const pageData = activeSlides[currentComparisonPage] || activeSlides[0];
     originalImg.src = pageData.image;
     originalImg.classList.remove("hidden");
     if (originalPlaceholder) originalPlaceholder.classList.add("hidden");
-    originalPageLabel.textContent = `Page ${currentComparisonPage + 1}`;
     
-    if (uploadedSlidePages.length > 1) {
+    if (originalPageLabel) {
+      originalPageLabel.textContent = `原稿 P.${pageData.originalPage}`;
+    }
+    
+    if (activeSlides.length > 1) {
       pageNav.classList.remove("hidden");
       pageNav.classList.add("flex");
-      pageIndicator.textContent = `第 ${currentComparisonPage + 1} / ${uploadedSlidePages.length} 頁`;
+      
+      if (isCustom && comparisonViewScope === "selected") {
+        pageIndicator.textContent = `精選第 ${currentComparisonPage + 1} / ${activeSlides.length} 頁 (P.${pageData.originalPage})`;
+      } else {
+        pageIndicator.textContent = `第 ${currentComparisonPage + 1} / ${activeSlides.length} 頁`;
+      }
+      
       prevBtn.disabled = (currentComparisonPage === 0);
-      nextBtn.disabled = (currentComparisonPage === uploadedSlidePages.length - 1);
+      nextBtn.disabled = (currentComparisonPage === activeSlides.length - 1);
       prevBtn.classList.toggle("opacity-30", currentComparisonPage === 0);
-      nextBtn.classList.toggle("opacity-30", currentComparisonPage === uploadedSlidePages.length - 1);
+      nextBtn.classList.toggle("opacity-30", currentComparisonPage === activeSlides.length - 1);
     } else {
       pageNav.classList.add("hidden");
     }

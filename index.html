@@ -476,11 +476,12 @@
         <!-- 頂部標題與快捷按鈕 (Studio Inspector Toolbar) -->
         <div class="studio-panel p-4 flex flex-wrap items-center justify-between gap-3">
           <div class="space-y-0.5">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <span class="text-[11px] text-zinc-400 flex items-center gap-1 font-mono">
                 <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i>
                 TOPOLOGY EXTRACTED
               </span>
+              <span id="result-scope-badge" class="hidden text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-mono border border-emerald-500/30"></span>
               <span id="result-auto-badge" class="hidden text-[10px] px-2 py-0.5 rounded bg-white/[0.04] text-zinc-400 font-mono border border-white/[0.08]"></span>
             </div>
             <h2 id="result-style-name" class="text-sm font-semibold text-zinc-100">簡報風格規範</h2>
@@ -501,20 +502,29 @@
 
         <!-- 參考簡報與色彩方案卡片 (Stage & Pantone Swatches) -->
         <div class="studio-panel p-4 space-y-4">
-          <div class="flex items-center justify-between border-b border-white/[0.06] pb-2.5">
+          <div class="flex items-center justify-between border-b border-white/[0.06] pb-2.5 flex-wrap gap-2">
             <div class="flex items-center gap-2 font-mono text-xs text-zinc-200">
               <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
               <span class="font-semibold">STAGE VIEWPORT & COLOR SYSTEM</span>
+              <span id="stage-scope-tag" class="hidden text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300 font-mono border border-emerald-500/30"></span>
             </div>
-            <!-- 多頁翻頁器 -->
-            <div id="slide-page-nav" class="hidden items-center bg-[#0C0E12] rounded-lg p-0.5 border border-white/[0.08] text-xs font-medium">
-              <button id="btn-prev-slide" class="px-1.5 py-1 rounded hover:bg-white/[0.06] text-zinc-400 hover:text-white transition-colors cursor-pointer">
-                <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+            
+            <div class="flex items-center gap-2">
+              <!-- 切換只看已選 vs 原稿全部 -->
+              <button type="button" id="btn-toggle-comparison-scope" class="hidden px-2 py-0.5 rounded text-[10px] font-mono bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-zinc-200 border border-white/[0.08] transition-colors cursor-pointer">
+                查看原稿全篇
               </button>
-              <span id="slide-page-indicator" class="px-2 text-zinc-400 font-mono text-[11px]">第 1 頁</span>
-              <button id="btn-next-slide" class="px-1.5 py-1 rounded hover:bg-white/[0.06] text-zinc-400 hover:text-white transition-colors cursor-pointer">
-                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-              </button>
+
+              <!-- 多頁翻頁器 -->
+              <div id="slide-page-nav" class="hidden items-center bg-[#0C0E12] rounded-lg p-0.5 border border-white/[0.08] text-xs font-medium">
+                <button id="btn-prev-slide" class="px-1.5 py-1 rounded hover:bg-white/[0.06] text-zinc-400 hover:text-white transition-colors cursor-pointer" title="上一頁">
+                  <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                </button>
+                <span id="slide-page-indicator" class="px-2 text-zinc-300 font-mono text-[11px]">第 1 頁</span>
+                <button id="btn-next-slide" class="px-1.5 py-1 rounded hover:bg-white/[0.06] text-zinc-400 hover:text-white transition-colors cursor-pointer" title="下一頁">
+                  <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1417,7 +1427,7 @@
     </button>
   </div>
 
-  <script src="app.js?v=6.18.0"></script>
+  <script src="app.js?v=6.19.0"></script>
   <script>
     lucide.createIcons();
   </script>
