@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.23.0";
+const APP_VERSION = "v6.24.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -780,22 +780,7 @@ function setupEventListeners() {
     });
   }
 
-  // 智能推薦代表頁事件監聽 (替代前6頁與均勻抽樣)
-  async function handleTriggerSmartSelect() {
-    if (!uploadedSlidePages || uploadedSlidePages.length === 0) return;
-    showToast("🔍 正在透過視覺幾何演算法智能分析全篇版型...", "info");
-    const smartSet = await smartDetectDiverseSlideIndices(uploadedSlidePages, 6);
-    selectedPageIndices = smartSet;
-    pageSelectionMode = "custom";
-    updatePageSelectionModeUI();
-    syncPageRangeInputFromSelection();
-    renderThumbnails();
-    if (isLargePickerOpen()) renderLargeSlidesGrid();
-    showToast(`✨ 智能分析完成！已精選 ${smartSet.size} 頁相異版型之代表投影片`, "success");
-  }
-
-  on("btn-quick-smart-select", "click", handleTriggerSmartSelect);
-  on("btn-large-smart-select", "click", handleTriggerSmartSelect);
+// 已移除智能推薦按鈕，全面交由使用者自主挑選
 
   on("btn-quick-select-all", "click", () => {
     selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
@@ -1162,16 +1147,14 @@ function checkAndUpdatePageSelectionPanel() {
     if (badge) badge.textContent = `共 ${totalSlides} 頁`;
     if (promptTotal) promptTotal.textContent = totalSlides;
 
-    // 若尚未初始化選取集合，預設啟動「自選喜好頁面」並執行智能視覺演算法挑選相異版型
+    // 若尚未初始化選取集合，預設啟動「自選喜好頁面」並全選，讓使用者在大畫面自由挑選
     if (pageSelectionMode === "all" || selectedPageIndices.size === 0) {
       pageSelectionMode = "custom";
       updatePageSelectionModeUI();
-      smartDetectDiverseSlideIndices(uploadedSlidePages, 6).then(smartSet => {
-        selectedPageIndices = smartSet;
-        syncPageRangeInputFromSelection();
-        renderThumbnails();
-        if (isLargePickerOpen()) renderLargeSlidesGrid();
-      });
+      selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
+      syncPageRangeInputFromSelection();
+      renderThumbnails();
+      if (isLargePickerOpen()) renderLargeSlidesGrid();
     }
   } else {
     panel.classList.add("hidden");
@@ -1893,12 +1876,12 @@ async function handleFilesAdded(files) {
     }
   }
 
-  // 全部檔案載入完成後：採用智能視覺演算法預選不重複之代表頁，並直接自動彈出大畫面挑選！
+  // 全部檔案載入完成後：預設選取全部，並直接自動彈出大畫面讓使用者自由挑選！
   renderThumbnails();
   if (uploadedSlidePages.length > 0) {
     if (uploadedSlidePages.length > 8) {
       pageSelectionMode = "custom";
-      selectedPageIndices = await smartDetectDiverseSlideIndices(uploadedSlidePages, 6);
+      selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
       updatePageSelectionModeUI();
       syncPageRangeInputFromSelection();
       renderThumbnails();
