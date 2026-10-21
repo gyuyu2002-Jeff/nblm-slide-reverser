@@ -7,7 +7,30 @@ let generatedReportMarkdown = "";
 let generatedNblmPrompt = "";
 let generatedPromptGlobal = "";
 let generatedPromptSlide = "";
-let currentPromptMode = "global"; // "global" | "slide"
+let currentPromptMode = "global"; // "global" | "slide" | "custom"
+let generatedPromptCustom = "";
+
+// 自訂頁面內容元件：版型規格庫
+const DEFAULT_LAYOUT_OPTIONS = [
+  { id: "A", name: "版型 A：深墨藍古銅雙細框封面主視覺", desc: "深墨藍底，外圍距邊界16px配古銅金(#C29B53)雙細線典雅框，特大純白超粗主標題，下方為駝金導言，右下角演講者資訊" },
+  { id: "B", name: "版型 B：五層同心圓引線對應＋橫向進程軸", desc: "5層同心圓（核心駝金點➔深藍環➔外金環），3條45度折線引線箭頭指向要點，下半部4節點圖示橫向進程軸" },
+  { id: "C", name: "版型 C：3D 立體階梯思維遞進", desc: "3~5層深墨藍立體階梯方塊，踏板標註步進數字（1-30, 31-60...），引線箭頭指向右側要點" },
+  { id: "D", name: "版型 D：三欄獨立線框卡片", desc: "3欄垂直並排微圓角卡片，細灰駝邊框，每欄頂部配深墨藍圖示徽章與粗體標題" },
+  { id: "E", name: "版型 E：概念拼圖/雙欄對比轉化", desc: "左右雙欄對比（左側未解困境，右側駝金咬合拼圖），中央大型駝金推進箭頭" },
+  { id: "F", name: "版型 F：公式化運算決策圖解", desc: "橫向公式運算卡片（[指標A] ✖ [指標B] ✖ [指標C] ＝ [最終目標]），下方深墨藍總結" },
+  { id: "G", name: "版型 G：個人經歷/里程碑垂直時間軸", desc: "垂直時間軸，深墨藍圓形節點與古銅金微光，標註年份與職務里程碑" },
+  { id: "H", name: "版型 H：問答與結尾總結頁", desc: "深墨藍底，外圍古銅金細雙框，中央純白大字總結與金色標語" }
+];
+
+// 自訂頁面內容元件：預設故事板
+let customStoryboardSlides = [
+  { layout: "A", topic: "企業 AI 導入九十天行動方案：總覽與核心定位" },
+  { layout: "B", topic: "三大核心資安鐵律與紅線（五層同心圓三引線對應）" },
+  { layout: "C", topic: "九十天三階段穩健推進時程（1-30天盤點、31-60天試辦、61-90天擴大）" },
+  { layout: "F", topic: "啟動跨部門擴充之決策公式（正確率95% ✖ 採用率70% ✖ 零資安事件）" },
+  { layout: "D", topic: "常態化長效治理架構（權限控管、人機審核、防呆機制三卡片）" },
+  { layout: "H", topic: "總結：相信團隊的力量，穩健邁向治理下一步" }
+];
 let generatedSlideHtml = "";
 let currentProvider = localStorage.getItem("active_provider") || "gemini";
 let modalSelectedProvider = currentProvider;
@@ -503,16 +526,37 @@ function setupEventListeners() {
     });
   });
 
-  // 提示詞模式切換（右側結果頁子導航）
+  // 提示詞模式切換（右側結果頁子導航：模式1、模式2、自訂頁面內容元件）
   on("btn-subtab-global", "click", () => switchPromptMode("global"));
   on("btn-subtab-slide", "click", () => switchPromptMode("slide"));
+  on("btn-subtab-custom", "click", () => switchPromptMode("custom"));
+
+  // 自訂頁面內容元件故事板按鈕
+  on("btn-add-custom-slide", "click", () => {
+    const nextIdx = customStoryboardSlides.length + 1;
+    customStoryboardSlides.push({
+      layout: "D",
+      topic: `第 ${nextIdx} 頁自訂核心論點`
+    });
+    renderCustomStoryboardUI();
+    syncCustomPromptAndPreview();
+    showToast(`已新增第 ${nextIdx} 頁！請選擇版型並填寫主題`, "success");
+  });
+
+  on("btn-rebuild-custom-prompt", "click", () => {
+    syncCustomPromptAndPreview();
+    showToast("已依最新版型與文案指派更新 NotebookLM 提示詞！", "success");
+  });
 
   // 開始分析按鈕
   on("btn-start-analyze", "click", handleStartAnalyze);
 
   // 複製按鈕（動態對應當前所選模式）
   on("btn-copy-nblm", "click", () => {
-    const promptToCopy = currentPromptMode === "global" ? (generatedPromptGlobal || generatedNblmPrompt) : (generatedPromptSlide || generatedNblmPrompt);
+    let promptToCopy = "";
+    if (currentPromptMode === "global") promptToCopy = generatedPromptGlobal || generatedNblmPrompt;
+    else if (currentPromptMode === "slide") promptToCopy = generatedPromptSlide || generatedNblmPrompt;
+    else if (currentPromptMode === "custom") promptToCopy = generatedPromptCustom || generateCustomStoryboardPrompt();
     if (!promptToCopy) return;
     navigator.clipboard.writeText(promptToCopy).then(() => {
       const label = document.getElementById("copy-btn-label");
@@ -528,7 +572,10 @@ function setupEventListeners() {
 
   // 直達工作流按鈕：複製並開啟 NotebookLM
   on("btn-copy-and-open-nblm", "click", () => {
-    const promptToCopy = currentPromptMode === "global" ? (generatedPromptGlobal || generatedNblmPrompt) : (generatedPromptSlide || generatedNblmPrompt);
+    let promptToCopy = "";
+    if (currentPromptMode === "global") promptToCopy = generatedPromptGlobal || generatedNblmPrompt;
+    else if (currentPromptMode === "slide") promptToCopy = generatedPromptSlide || generatedNblmPrompt;
+    else if (currentPromptMode === "custom") promptToCopy = generatedPromptCustom || generateCustomStoryboardPrompt();
     if (!promptToCopy) {
       showToast("尚未產生提示詞，請先上傳簡報進行分析", "warning");
       return;
@@ -1758,41 +1805,155 @@ function switchResultTab(tabName) {
   lucide.createIcons();
 }
 
+// === 自訂頁面內容元件：故事板渲染與提示詞生成 ===
+function renderCustomStoryboardUI() {
+  const container = document.getElementById("custom-slides-list");
+  if (!container) return;
+  container.innerHTML = "";
+
+  customStoryboardSlides.forEach((slide, idx) => {
+    const row = document.createElement("div");
+    row.className = "custom-slide-item flex items-center gap-2 p-2 rounded-lg bg-[#0C0E12] border border-white/[0.06] hover:border-white/15 transition-all";
+    row.setAttribute("data-slide-idx", idx);
+
+    const optionsHtml = DEFAULT_LAYOUT_OPTIONS.map(opt => 
+      `<option value="${opt.id}" ${opt.id === slide.layout ? "selected" : ""}>${opt.name}</option>`
+    ).join("");
+
+    row.innerHTML = `
+      <span class="px-1.5 py-0.5 text-[10px] font-mono text-zinc-400 bg-white/[0.04] rounded shrink-0">P.${idx + 1}</span>
+      <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-1.5">
+        <div class="md:col-span-5">
+          <select class="custom-slide-layout w-full bg-[#14181F] border border-white/[0.1] rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-amber-400/50">
+            ${optionsHtml}
+          </select>
+        </div>
+        <div class="md:col-span-7">
+          <input type="text" value="${slide.topic || ""}" class="custom-slide-topic w-full bg-[#14181F] border border-white/[0.1] rounded px-2 py-1 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-amber-400/50" placeholder="指定文案主題（例如：三大核心資安鐵律）">
+        </div>
+      </div>
+      <button type="button" class="btn-remove-custom-slide text-zinc-500 hover:text-rose-400 p-1 transition-colors cursor-pointer shrink-0" title="移除此頁">
+        <i data-lucide="trash" class="w-3.5 h-3.5 pointer-events-none"></i>
+      </button>
+    `;
+
+    const selectEl = row.querySelector(".custom-slide-layout");
+    if (selectEl) {
+      selectEl.addEventListener("change", (e) => {
+        slide.layout = e.target.value;
+        syncCustomPromptAndPreview();
+      });
+    }
+
+    const inputEl = row.querySelector(".custom-slide-topic");
+    if (inputEl) {
+      inputEl.addEventListener("input", (e) => {
+        slide.topic = e.target.value;
+        syncCustomPromptAndPreview();
+      });
+    }
+
+    const removeBtn = row.querySelector(".btn-remove-custom-slide");
+    if (removeBtn) {
+      removeBtn.addEventListener("click", () => {
+        if (customStoryboardSlides.length <= 1) {
+          showToast("至少需保留 1 頁投影片！", "warning");
+          return;
+        }
+        customStoryboardSlides.splice(idx, 1);
+        renderCustomStoryboardUI();
+        syncCustomPromptAndPreview();
+      });
+    }
+
+    container.appendChild(row);
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function generateCustomStoryboardPrompt() {
+  const slides = customStoryboardSlides;
+  let markdown = `【任務宣告】：
+請嚴格依據我上傳的筆記來源（Sources），提取關鍵事實與洞察，將筆記內容【精準對號入座】填入下列我指定的每一頁版型結構中：
+（★最高鐵律：嚴格遵循每一頁指定的幾何拓撲，絕不偏離版型設定）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【🎨 精確全域色彩系統規範 (Executive Color System)】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. 畫布底色：內頁採用【溫潤暖象牙米灰 (#F4F3EE)】，封面與結尾採用【深邃墨夜海軍藍 (#0D2235)】，★嚴禁使用冰冷死白。
+2. 核心強調色：【低飽和啞光駝金 / 沉穩古銅赭金 (#C29B53)】。
+   🚫【絕對色彩禁令】：嚴禁使用高飽和鮮黃、檸檬黃、香蕉黃 (#FFCC00 / #FFFF00)，所有金色皆必須帶有深駝與古銅褐感。
+3. 色彩比重：60% 暖米灰底 + 30% 深墨藍 + 10% 啞光駝金（僅限細節點綴，嚴禁整大片塗抹）。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【🎯 自訂逐頁版型與內容指派故事板（嚴格對號入座）】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+
+  slides.forEach((s, idx) => {
+    const layoutObj = DEFAULT_LAYOUT_OPTIONS.find(l => l.id === s.layout) || DEFAULT_LAYOUT_OPTIONS[0];
+    markdown += `---
+### 第 ${idx + 1} 頁：[${s.topic || `第 ${idx + 1} 頁主題`}]（強制採用：${layoutObj.name}）
+- 【🎨 視覺幾何拓撲規格】：${layoutObj.desc}
+- 【📝 筆記內容提取與指定指派】：
+  - 核心指派主題：${s.topic || "請依上傳來源提取最切合該版型的核心重點"}
+  - 填入約束：嚴格依據選定之幾何插槽（如引線指向、階梯踏板、公式運算元或獨立卡片）逐項填入短語（每點限定 10~18 字以內，維持極佳呼吸感）。
+\n`;
+  });
+
+  return markdown;
+}
+
+function syncCustomPromptAndPreview() {
+  generatedPromptCustom = generateCustomStoryboardPrompt();
+  if (currentPromptMode === "custom") {
+    const codeEl = document.getElementById("nblm-prompt-code");
+    if (codeEl) codeEl.textContent = generatedPromptCustom;
+  }
+}
+
 function switchPromptMode(mode) {
   currentPromptMode = mode;
 
-  // 更新左側按鈕樣式
-  document.querySelectorAll("#prompt-mode-selector .prompt-mode-btn").forEach(btn => {
-    const m = btn.getAttribute("data-prompt-mode");
-    if (m === mode) {
-      btn.className = "prompt-mode-btn active p-2 rounded-lg border text-left transition-all cursor-pointer bg-white/10 text-white border-white/20";
-    } else {
-      btn.className = "prompt-mode-btn p-2 rounded-lg border text-left transition-all cursor-pointer bg-white/[0.03] text-zinc-400 border-white/[0.08] hover:bg-white/[0.06]";
-    }
-  });
-
-  // 更新右側結果頁子頁籤樣式
+  // 更新右側結果頁三子頁籤樣式
   const btnGlobal = document.getElementById("btn-subtab-global");
   const btnSlide = document.getElementById("btn-subtab-slide");
+  const btnCustom = document.getElementById("btn-subtab-custom");
   const descGlobal = document.getElementById("desc-mode-global");
   const descSlide = document.getElementById("desc-mode-slide");
+  const descCustom = document.getElementById("desc-mode-custom");
+  const customBuilder = document.getElementById("custom-slides-builder");
   const codeEl = document.getElementById("nblm-prompt-code");
 
-  if (btnGlobal && btnSlide) {
-    if (mode === "global") {
-      btnGlobal.className = "subtab-mode-btn flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 bg-white/10 text-white shadow-sm border border-white/10 cursor-pointer";
-      btnSlide.className = "subtab-mode-btn flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent cursor-pointer";
-      if (descGlobal) descGlobal.classList.remove("hidden");
-      if (descSlide) descSlide.classList.add("hidden");
-      if (codeEl) codeEl.textContent = generatedPromptGlobal || generatedNblmPrompt || "未擷取到全域風格提示詞，請查看完整報告。";
-    } else {
-      btnSlide.className = "subtab-mode-btn flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 bg-white/10 text-white shadow-sm border border-white/10 cursor-pointer";
-      btnGlobal.className = "subtab-mode-btn flex-1 py-1.5 px-3 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent cursor-pointer";
-      if (descSlide) descSlide.classList.remove("hidden");
-      if (descGlobal) descGlobal.classList.add("hidden");
-      if (codeEl) codeEl.textContent = generatedPromptSlide || generatedNblmPrompt || "未擷取到逐頁 1:1 提示詞，請查看完整報告。";
-    }
+  const inactiveBtn = "subtab-mode-btn flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent cursor-pointer";
+  const activeBtn = "subtab-mode-btn flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 bg-white/10 text-white shadow-sm border border-white/10 cursor-pointer";
+
+  if (btnGlobal) btnGlobal.className = inactiveBtn;
+  if (btnSlide) btnSlide.className = inactiveBtn;
+  if (btnCustom) btnCustom.className = inactiveBtn;
+
+  if (descGlobal) descGlobal.classList.add("hidden");
+  if (descSlide) descSlide.classList.add("hidden");
+  if (descCustom) descCustom.classList.add("hidden");
+  if (customBuilder) customBuilder.classList.add("hidden");
+
+  if (mode === "global") {
+    if (btnGlobal) btnGlobal.className = activeBtn;
+    if (descGlobal) descGlobal.classList.remove("hidden");
+    if (codeEl) codeEl.textContent = generatedPromptGlobal || generatedNblmPrompt || "未擷取到全域風格提示詞，請查看完整報告。";
+  } else if (mode === "slide") {
+    if (btnSlide) btnSlide.className = activeBtn;
+    if (descSlide) descSlide.classList.remove("hidden");
+    if (codeEl) codeEl.textContent = generatedPromptSlide || generatedNblmPrompt || "未擷取到逐頁 1:1 提示詞，請查看完整報告。";
+  } else if (mode === "custom") {
+    if (btnCustom) btnCustom.className = activeBtn;
+    if (descCustom) descCustom.classList.remove("hidden");
+    if (customBuilder) customBuilder.classList.remove("hidden");
+    renderCustomStoryboardUI();
+    syncCustomPromptAndPreview();
   }
+
   if (window.lucide) window.lucide.createIcons();
 }
 window.switchPromptMode = switchPromptMode;
