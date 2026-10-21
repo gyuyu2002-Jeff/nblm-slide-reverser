@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.22.0";
+const APP_VERSION = "v6.23.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -8,15 +8,29 @@ console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 /**
  * 抽取單張投影片的高維視覺特徵指紋（亮度、對比、四象限佈局重心、邊緣幾何複雜度、感知雜湊 dHash、水頁去噪辨識）
  */
-function extractSlideVisualFeatures(slide, pageNum) {
+function extractSlideVisualFeatures(slide, pageNum, totalPages = 20) {
   return new Promise((resolve) => {
     if (!slide || !slide.image) {
-      resolve({ page: pageNum, avgBrightness: 128, isDarkTheme: false, complexity: 0, isTrivial: false, quadrants: [0.25, 0.25, 0.25, 0.25], dHash: [] });
+      const fallbackTrivial = (totalPages > 4 && pageNum >= totalPages - 1);
+      resolve({
+        page: pageNum,
+        avgBrightness: 128,
+        isDarkTheme: false,
+        complexity: 0,
+        marginWhiteRatio: 0,
+        isTrivial: fallbackTrivial,
+        quadrants: [0.25, 0.25, 0.25, 0.25],
+        dHash: []
+      });
       return;
     }
 
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    // 只有在外部 http/https 網路連結時才設 crossOrigin，Base64 data: 與 blob: 嚴禁設 crossOrigin（避免觸發瀏覽器安全阻擋與 onerror）
+    if (typeof slide.image === "string" && (slide.image.startsWith("http://") || slide.image.startsWith("https://"))) {
+      img.crossOrigin = "anonymous";
+    }
+
     img.onload = () => {
       try {
         const canvas = document.createElement("canvas");
@@ -45,8 +59,8 @@ function extractSlideVisualFeatures(slide, pageNum) {
         const avgBrightness = totalBrightness / (W * H);
         const isDarkTheme = (darkPixelCount / (W * H)) > 0.45;
 
-        // 計算邊緣幾何梯度複雜度 (Edge Gradient Density)
-        // 具備同心圓環、3D階梯、表格、多欄卡片的頁面梯度極高；純白或只有中央小字的 Q&A / 結尾頁梯度接近 0
+        // 1. 計算邊緣幾何梯度密度 (Edge Gradient Density)
+        // 具備同心圓環、3D階梯、表格、多欄卡片的頁面梯度極高 (0.09~0.22)；純白或只有中央小字的 Q&A / 結尾頁梯度極低 (~0.03)
         let totalGradient = 0;
         for (let y = 0; y < H - 1; y++) {
           for (let x = 0; x < W - 1; x++) {
@@ -58,7 +72,24 @@ function extractSlideVisualFeatures(slide, pageNum) {
         }
         const complexity = totalGradient / (W * H * 255);
 
-        // 四象限重心佈局分析 (評估視覺焦點是靠左、靠右、分欄或居中)
+        // 2. 四周邊界留白率 (Margin White Ratio: 上下各 16%, 左右各 12%)
+        // 正常簡報內頁必有頂部標題列、底部分割線或頁碼（marginWhite 通常 0.4~0.8）
+        // 唯獨 Q&A、過場空白頁的四周 100% 潔白大留白（marginWhite > 0.90）
+        let marginCount = 0;
+        let marginWhiteCount = 0;
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            if (y < 3 || y >= H - 3 || x < 4 || x >= W - 4) {
+              marginCount++;
+              if (grayscale[y * W + x] > 235) {
+                marginWhiteCount++;
+              }
+            }
+          }
+        }
+        const marginWhiteRatio = marginCount > 0 ? (marginWhiteCount / marginCount) : 0;
+
+        // 3. 四象限重心佈局分析 (評估視覺焦點是靠左、靠右、分欄或居中)
         let qTopLeft = 0, qTopRight = 0, qBottomLeft = 0, qBottomRight = 0;
         const halfW = W / 2;
         const halfH = H / 2;
@@ -75,7 +106,7 @@ function extractSlideVisualFeatures(slide, pageNum) {
         }
         const qSum = (qTopLeft + qTopRight + qBottomLeft + qBottomRight) || 1;
 
-        // 差分感知雜湊 (dHash: 捕捉卡片邊框、圓形靶心、時間軸等幾何特徵)
+        // 4. 差分感知雜湊 (dHash: 捕捉卡片邊框、圓形靶心、時間軸等幾何特徵)
         const dHash = [];
         for (let y = 0; y < H; y++) {
           for (let x = 0; x < W - 1; x++) {
@@ -85,11 +116,11 @@ function extractSlideVisualFeatures(slide, pageNum) {
           }
         }
 
-        // 🚫 嚴格水頁去噪判定（QA、問答、純致謝、感謝、只有中央幾個字的低含金量過場頁）
+        // 🚫 嚴格水頁去噪判定（徹底封殺 QA、問答、純致謝、感謝、過場孤島水頁）
         let isTrivial = false;
         const textToCheck = ((slide.text || "") + " " + (slide.name || "")).toUpperCase().replace(/[\s\-_]+/g, "");
         
-        // 1. 純文字黑名單：徹底封殺 QA / Q&A / 謝謝聆聽 / 感謝指教
+        // 鐵律 A. 純文字黑名單：徹底封殺 QA / Q&A / 謝謝聆聽 / 感謝指教
         if (
           textToCheck === "Q&A" || textToCheck === "QA" || textToCheck === "QUESTIONS" ||
           textToCheck.includes("Q&A") || textToCheck.includes("QANDA") || textToCheck.includes("問與答") ||
@@ -101,8 +132,24 @@ function extractSlideVisualFeatures(slide, pageNum) {
           isTrivial = true;
         }
 
-        // 2. 視覺結構極度空洞判定：若大面積留白、中央缺乏豐富幾何，且不是第 1 頁封面，一律視為水頁
-        if (complexity < 0.045 && pageNum > 1) {
+        // 鐵律 B. 四周邊界純白大空洞判定：若邊緣 > 90% 純白且不是第 1 頁封面，一律視為 QA / 過場水頁
+        if (marginWhiteRatio > 0.90 && pageNum > 1) {
+          isTrivial = true;
+        }
+
+        // 鐵律 C. 視覺結構極度空洞判定：若缺乏幾何線條梯度 (< 0.065)，且不是第 1 頁封面，一律視為水頁
+        if (complexity < 0.065 && pageNum > 1) {
+          isTrivial = true;
+        }
+
+        // 鐵律 D. 超高亮度純白背景且複雜度低
+        if (avgBrightness > 240 && complexity < 0.08 && pageNum > 1) {
+          isTrivial = true;
+        }
+
+        // 鐵律 E. 簡報末兩頁（結尾與問答）嚴格封鎖
+        // 投影片末尾 (倒數第 1、第 2 頁) 幾乎 100% 為 QA 或感謝水頁，除非複雜度極高 (>= 0.13) 否則絕不推薦
+        if (totalPages > 4 && pageNum >= totalPages - 1 && complexity < 0.13) {
           isTrivial = true;
         }
 
@@ -111,16 +158,39 @@ function extractSlideVisualFeatures(slide, pageNum) {
           avgBrightness,
           isDarkTheme,
           complexity,
+          marginWhiteRatio,
           isTrivial,
           quadrants: [qTopLeft / qSum, qTopRight / qSum, qBottomLeft / qSum, qBottomRight / qSum],
           dHash
         });
       } catch (err) {
-        resolve({ page: pageNum, avgBrightness: 128, isDarkTheme: false, complexity: 0.1, isTrivial: false, quadrants: [0.25, 0.25, 0.25, 0.25], dHash: [] });
+        console.warn("抽取視覺特徵異常:", err);
+        const fallbackTrivial = (totalPages > 4 && pageNum >= totalPages - 1);
+        resolve({
+          page: pageNum,
+          avgBrightness: 128,
+          isDarkTheme: false,
+          complexity: 0.05,
+          marginWhiteRatio: 0,
+          isTrivial: fallbackTrivial,
+          quadrants: [0.25, 0.25, 0.25, 0.25],
+          dHash: []
+        });
       }
     };
-    img.onerror = () => {
-      resolve({ page: pageNum, avgBrightness: 128, isDarkTheme: false, complexity: 0.1, isTrivial: false, quadrants: [0.25, 0.25, 0.25, 0.25], dHash: [] });
+    img.onerror = (e) => {
+      console.warn("投影片圖片載入失敗:", e);
+      const fallbackTrivial = (totalPages > 4 && pageNum >= totalPages - 1);
+      resolve({
+        page: pageNum,
+        avgBrightness: 128,
+        isDarkTheme: false,
+        complexity: 0.05,
+        marginWhiteRatio: 0,
+        isTrivial: fallbackTrivial,
+        quadrants: [0.25, 0.25, 0.25, 0.25],
+        dHash: []
+      });
     };
     img.src = slide.image;
   });
@@ -173,7 +243,7 @@ async function smartDetectDiverseSlideIndices(slides, maxPages = 6) {
 
   // 1. 平行計算全篇投影片的視覺指紋與幾何複雜度特徵
   const slideFeatures = await Promise.all(
-    slides.map((slide, idx) => extractSlideVisualFeatures(slide, idx + 1))
+    slides.map((slide, idx) => extractSlideVisualFeatures(slide, idx + 1, total))
   );
 
   const selected = [];
