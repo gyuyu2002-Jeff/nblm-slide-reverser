@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.25.0";
+const APP_VERSION = "v6.26.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -1338,41 +1338,37 @@ function renderLargeSlidesGrid() {
     const isSelected = selectedPageIndices.has(pageNum);
 
     const card = document.createElement("div");
-    card.className = `relative group rounded-xl border-2 transition-all cursor-pointer overflow-hidden flex flex-col bg-[#141720] select-none ${
+    card.className = `large-slide-card relative group rounded-xl border-2 transition-all cursor-pointer overflow-hidden flex flex-col bg-[#141720] select-none ${
       isSelected
-        ? "border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.22)] ring-1 ring-emerald-500/30"
-        : "border-white/[0.08] opacity-60 hover:opacity-100 hover:border-white/30"
+        ? "border-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500/40"
+        : "border-white/[0.08] opacity-65 hover:opacity-100 hover:border-white/30"
     }`;
 
     card.innerHTML = `
-      <!-- 16:9 大畫面投影片預覽容器 -->
-      <div class="relative w-full aspect-video overflow-hidden bg-black/60 flex items-center justify-center">
-        <img src="${slide.image}" class="w-full h-full object-contain" alt="第 ${pageNum} 頁" loading="lazy">
+      <!-- 16:9 投影片高畫質預覽容器 (WebKit/Safari 防壓扁坍塌) -->
+      <div class="large-slide-preview-box relative w-full aspect-video min-h-[160px] sm:min-h-[175px] md:min-h-[190px] overflow-hidden bg-black/70 flex items-center justify-center shrink-0">
+        <img src="${slide.image}" class="large-slide-preview-img w-full h-full object-contain" alt="第 ${pageNum} 頁" loading="lazy">
         
-        <!-- 勾選指示器徽章 -->
-        <div class="absolute top-2.5 left-2.5 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+        <!-- 狀態徽章：整合成單一膠囊 (避免 iPad / 手機端重疊擠壓) -->
+        <div class="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg flex items-center gap-1.5 backdrop-blur-md shadow-md text-xs font-mono font-bold transition-all ${
           isSelected
-            ? "bg-emerald-500 text-zinc-950 shadow-md font-bold"
-            : "bg-black/60 border border-white/30 text-transparent"
+            ? "bg-emerald-500 text-zinc-950 border border-emerald-400"
+            : "bg-black/75 text-zinc-300 border border-white/20"
         }">
-          <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+          <i data-lucide="${isSelected ? 'check' : 'circle'}" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+          <span>第 ${pageNum} 頁</span>
         </div>
 
-        <!-- 頁碼標籤 -->
-        <span class="absolute bottom-2 left-2.5 bg-black/80 backdrop-blur-md text-[11px] px-2 py-0.5 rounded-md text-zinc-200 font-mono border border-white/15 shadow-sm">
-          第 ${pageNum} 頁
-        </span>
-
         <!-- 單頁刪除按鈕 (誤刪可喚回) -->
-        <button type="button" class="btn-large-delete-slide absolute top-2.5 right-2.5 w-7 h-7 rounded-lg bg-black/70 hover:bg-rose-600 text-zinc-400 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-md border border-white/15" title="移除第 ${pageNum} 頁（誤刪可喚回）" data-slide-index="${idx}">
-          <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i>
+        <button type="button" class="btn-large-delete-slide absolute top-2.5 right-2.5 w-8 h-8 rounded-lg bg-black/75 hover:bg-rose-600 text-zinc-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-md border border-white/20" title="移除第 ${pageNum} 頁（誤刪可喚回）" data-slide-index="${idx}">
+          <i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>
         </button>
       </div>
 
       <!-- 底部資訊列 -->
-      <div class="px-3 py-2 bg-[#101218] border-t border-white/[0.06] flex items-center justify-between text-[11px]">
-        <span class="text-zinc-400 font-mono truncate max-w-[180px]">${slide.name || `投影片第 ${pageNum} 頁`}</span>
-        <span class="text-[10px] font-mono ${isSelected ? 'text-emerald-400 font-semibold' : 'text-zinc-500'}">
+      <div class="px-3.5 py-2.5 bg-[#101218] border-t border-white/[0.06] flex items-center justify-between text-[11px] shrink-0">
+        <span class="text-zinc-400 font-mono truncate max-w-[170px] sm:max-w-[210px] md:max-w-[240px]" title="${slide.name || `第 ${pageNum} 頁`}">${slide.name || `投影片第 ${pageNum} 頁`}</span>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded font-semibold ${isSelected ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.04] text-zinc-500 border border-transparent'}">
           ${isSelected ? '已納入解析' : '未勾選'}
         </span>
       </div>
