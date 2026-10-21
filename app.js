@@ -1,3 +1,195 @@
+
+// =========================================================================
+// === 智慧版型差異化判斷演算法 (Smart Slide Layout Diversity Detection) ===
+// =========================================================================
+
+/**
+ * 抽取單張投影片的高維視覺特徵指紋（亮度、對比、四象限佈局重心、邊緣差分感知雜湊 dHash）
+ */
+function extractSlideVisualFeatures(slide, pageNum) {
+  return new Promise((resolve) => {
+    if (!slide || !slide.image) {
+      resolve({ page: pageNum, avgBrightness: 128, isDarkTheme: false, quadrants: [0.25, 0.25, 0.25, 0.25], dHash: [] });
+      return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        const W = 32;
+        const H = 18; // 16:9 比例小解析度抽樣
+        canvas.width = W;
+        canvas.height = H;
+
+        ctx.drawImage(img, 0, 0, W, H);
+        const imgData = ctx.getImageData(0, 0, W, H);
+        const data = imgData.data;
+
+        let totalBrightness = 0;
+        let darkPixelCount = 0;
+        const grayscale = new Float32Array(W * H);
+
+        for (let i = 0; i < data.length; i += 4) {
+          const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          const pixelIdx = i / 4;
+          grayscale[pixelIdx] = lum;
+          totalBrightness += lum;
+          if (lum < 70) darkPixelCount++;
+        }
+
+        const avgBrightness = totalBrightness / (W * H);
+        const isDarkTheme = (darkPixelCount / (W * H)) > 0.45;
+
+        // 四象限重心佈局分析 (評估文字/圖表是靠左、靠右、分欄或置中)
+        let qTopLeft = 0, qTopRight = 0, qBottomLeft = 0, qBottomRight = 0;
+        const halfW = W / 2;
+        const halfH = H / 2;
+
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            const lum = grayscale[y * W + x];
+            const contrast = Math.abs(lum - avgBrightness);
+            if (y < halfH && x < halfW) qTopLeft += contrast;
+            else if (y < halfH && x >= halfW) qTopRight += contrast;
+            else if (y >= halfH && x < halfW) qBottomLeft += contrast;
+            else qBottomRight += contrast;
+          }
+        }
+        const qSum = (qTopLeft + qTopRight + qBottomLeft + qBottomRight) || 1;
+
+        // 差分感知雜湊 (dHash: 捕捉卡片邊框、圓形靶心、時間軸等幾何特徵)
+        const dHash = [];
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W - 1; x++) {
+            const left = grayscale[y * W + x];
+            const right = grayscale[y * W + x + 1];
+            dHash.push(left < right ? 1 : 0);
+          }
+        }
+
+        resolve({
+          page: pageNum,
+          avgBrightness,
+          isDarkTheme,
+          quadrants: [qTopLeft / qSum, qTopRight / qSum, qBottomLeft / qSum, qBottomRight / qSum],
+          dHash
+        });
+      } catch (err) {
+        resolve({ page: pageNum, avgBrightness: 128, isDarkTheme: false, quadrants: [0.25, 0.25, 0.25, 0.25], dHash: [] });
+      }
+    };
+    img.onerror = () => {
+      resolve({ page: pageNum, avgBrightness: 128, isDarkTheme: false, quadrants: [0.25, 0.25, 0.25, 0.25], dHash: [] });
+    };
+    img.src = slide.image;
+  });
+}
+
+/**
+ * 計算兩張投影片視覺特徵向量的綜合相異距離 (0: 完全相同模板, 1: 截然不同結構)
+ */
+function computeFeatureDistance(f1, f2) {
+  if (!f1 || !f2) return 1;
+
+  // A. 明暗主題色調差異
+  const brightDiff = Math.abs(f1.avgBrightness - f2.avgBrightness) / 255;
+  const themeDiff = (f1.isDarkTheme !== f2.isDarkTheme) ? 0.35 : 0;
+
+  // B. 四象限視覺重心歐氏距離
+  let quadDiff = 0;
+  for (let i = 0; i < 4; i++) {
+    quadDiff += Math.pow(f1.quadrants[i] - f2.quadrants[i], 2);
+  }
+  quadDiff = Math.sqrt(quadDiff);
+
+  // C. 差分感知雜湊漢明距離 (Hamming Distance)
+  let hashDiff = 0;
+  if (f1.dHash && f2.dHash && f1.dHash.length > 0 && f2.dHash.length > 0) {
+    let diffBits = 0;
+    const len = Math.min(f1.dHash.length, f2.dHash.length);
+    for (let i = 0; i < len; i++) {
+      if (f1.dHash[i] !== f2.dHash[i]) diffBits++;
+    }
+    hashDiff = diffBits / len;
+  }
+
+  // 加權總合差異度 (0~1)
+  return (brightDiff * 0.2) + (themeDiff * 0.3) + (quadDiff * 0.2) + (hashDiff * 0.3);
+}
+
+/**
+ * 智慧版型差異化判斷核心：最大多樣性貪婪挑選 (Farthest-Point Clustering)
+ * 自動排除版型高度重複的頁面，挑選出結構最具代表性的 5~8 頁
+ */
+async function smartDetectDiverseSlideIndices(slides, maxPages = 6) {
+  if (!slides || slides.length === 0) return new Set();
+  const total = slides.length;
+  if (total <= maxPages) {
+    return new Set(slides.map((_, i) => i + 1));
+  }
+
+  // 1. 平行計算全篇投影片的視覺指紋特徵
+  const slideFeatures = await Promise.all(
+    slides.map((slide, idx) => extractSlideVisualFeatures(slide, idx + 1))
+  );
+
+  const selected = [];
+  const selectedSet = new Set();
+
+  // 策略 1：必定選取第 1 頁（封面 / 開場主視覺）
+  selected.push(0);
+  selectedSet.add(1);
+
+  // 策略 2：若最後一頁（結尾 / 總結 / Q&A）與第 1 頁風格不同，優先選取作為閉環
+  const lastIdx = total - 1;
+  const distFromFirstToLast = computeFeatureDistance(slideFeatures[0], slideFeatures[lastIdx]);
+  if (distFromFirstToLast > 0.25) {
+    selected.push(lastIdx);
+    selectedSet.add(lastIdx + 1);
+  }
+
+  // 策略 3：最大多樣性貪婪迭代 (Greedy Farthest-Point Selection)
+  // 每一輪挑選與「已選取所有頁面」差異度最大（最不重複、版型最獨立）的中間頁面
+  while (selected.length < maxPages && selected.length < total) {
+    let bestCandidateIdx = -1;
+    let maxMinDist = -1;
+
+    for (let i = 0; i < total; i++) {
+      if (selectedSet.has(i + 1)) continue;
+
+      // 計算候選頁面與已選所有頁面的最小距離
+      let minDistToSelected = Infinity;
+      for (const selIdx of selected) {
+        const d = computeFeatureDistance(slideFeatures[i], slideFeatures[selIdx]);
+        if (d < minDistToSelected) {
+          minDistToSelected = d;
+        }
+      }
+
+      if (minDistToSelected > maxMinDist) {
+        maxMinDist = minDistToSelected;
+        bestCandidateIdx = i;
+      }
+    }
+
+    // 若找到相異度足夠的版型則納入，若相異度極低代表剩餘皆為重複套版頁面
+    if (bestCandidateIdx !== -1 && maxMinDist > 0.08) {
+      selected.push(bestCandidateIdx);
+      selectedSet.add(bestCandidateIdx + 1);
+    } else {
+      break;
+    }
+  }
+
+  // 依原始頁碼由小到大排序返回 Set
+  const sorted = Array.from(selectedSet).sort((a, b) => a - b);
+  return new Set(sorted);
+}
+window.smartDetectDiverseSlideIndices = smartDetectDiverseSlideIndices;
+
 // 狀態管理
 let selectedFiles = [];
 let uploadedSlidePages = []; // [{ page: 1, image: "data:..." }, ...]
@@ -475,29 +667,22 @@ function setupEventListeners() {
     });
   }
 
-  on("btn-quick-first-6", "click", () => {
-    selectedPageIndices = new Set([1, 2, 3, 4, 5, 6].filter(p => p <= uploadedSlidePages.length));
+  // 智能推薦代表頁事件監聽 (替代前6頁與均勻抽樣)
+  async function handleTriggerSmartSelect() {
+    if (!uploadedSlidePages || uploadedSlidePages.length === 0) return;
+    showToast("🔍 正在透過視覺幾何演算法智能分析全篇版型...", "info");
+    const smartSet = await smartDetectDiverseSlideIndices(uploadedSlidePages, 6);
+    selectedPageIndices = smartSet;
+    pageSelectionMode = "custom";
+    updatePageSelectionModeUI();
     syncPageRangeInputFromSelection();
     renderThumbnails();
-  });
+    if (isLargePickerOpen()) renderLargeSlidesGrid();
+    showToast(`✨ 智能分析完成！已精選 ${smartSet.size} 頁相異版型之代表投影片`, "success");
+  }
 
-  on("btn-quick-sample", "click", () => {
-    const total = uploadedSlidePages.length;
-    if (total <= 5) {
-      selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
-    } else {
-      const step = (total - 1) / 4;
-      selectedPageIndices = new Set([
-        1,
-        Math.round(1 + step),
-        Math.round(1 + step * 2),
-        Math.round(1 + step * 3),
-        total
-      ]);
-    }
-    syncPageRangeInputFromSelection();
-    renderThumbnails();
-  });
+  on("btn-quick-smart-select", "click", handleTriggerSmartSelect);
+  on("btn-large-smart-select", "click", handleTriggerSmartSelect);
 
   on("btn-quick-select-all", "click", () => {
     selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
@@ -513,44 +698,11 @@ function setupEventListeners() {
 
   // 大畫面挑選彈窗與喚回監聽
   on("btn-open-large-picker", "click", openLargePickerModal);
-  on("btn-gallery-enlarge", "click", openLargePickerModal);
-  on("btn-quick-large-picker", "click", openLargePickerModal);
   on("btn-close-large-picker", "click", closeLargePickerModal);
   on("btn-large-finish", "click", closeLargePickerModal);
 
   on("btn-undo-delete", "click", undoRemoveSlide);
   on("btn-large-undo", "click", undoRemoveSlide);
-
-  on("btn-large-first-6", "click", () => {
-    selectedPageIndices = new Set([1, 2, 3, 4, 5, 6].filter(p => p <= uploadedSlidePages.length));
-    pageSelectionMode = "custom";
-    updatePageSelectionModeUI();
-    syncPageRangeInputFromSelection();
-    renderLargeSlidesGrid();
-    renderThumbnails();
-  });
-
-  on("btn-large-sample", "click", () => {
-    const total = uploadedSlidePages.length;
-    if (total <= 6) {
-      selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
-    } else {
-      const step = (total - 1) / 5;
-      selectedPageIndices = new Set([
-        1,
-        Math.round(1 + step),
-        Math.round(1 + step * 2),
-        Math.round(1 + step * 3),
-        Math.round(1 + step * 4),
-        total
-      ]);
-    }
-    pageSelectionMode = "custom";
-    updatePageSelectionModeUI();
-    syncPageRangeInputFromSelection();
-    renderLargeSlidesGrid();
-    renderThumbnails();
-  });
 
   on("btn-large-select-all", "click", () => {
     selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
@@ -889,12 +1041,16 @@ function checkAndUpdatePageSelectionPanel() {
     if (badge) badge.textContent = `共 ${totalSlides} 頁`;
     if (promptTotal) promptTotal.textContent = totalSlides;
 
-    // 若尚未初始化選取集合，預設啟動「自選喜好頁面」並選中前 6 頁作為推薦初值
+    // 若尚未初始化選取集合，預設啟動「自選喜好頁面」並執行智能視覺演算法挑選相異版型
     if (pageSelectionMode === "all" || selectedPageIndices.size === 0) {
       pageSelectionMode = "custom";
-      selectedPageIndices = new Set([1, 2, 3, 4, 5, 6].filter(p => p <= totalSlides));
       updatePageSelectionModeUI();
-      syncPageRangeInputFromSelection();
+      smartDetectDiverseSlideIndices(uploadedSlidePages, 6).then(smartSet => {
+        selectedPageIndices = smartSet;
+        syncPageRangeInputFromSelection();
+        renderThumbnails();
+        if (isLargePickerOpen()) renderLargeSlidesGrid();
+      });
     }
   } else {
     panel.classList.add("hidden");
@@ -1614,9 +1770,16 @@ async function handleFilesAdded(files) {
     }
   }
 
-  // 全部檔案載入完成後：重新渲染縮圖，並直接自動跳出大畫面挑選視窗！
+  // 全部檔案載入完成後：採用智能視覺演算法預選不重複之代表頁，並直接自動彈出大畫面挑選！
   renderThumbnails();
   if (uploadedSlidePages.length > 0) {
+    if (uploadedSlidePages.length > 8) {
+      pageSelectionMode = "custom";
+      selectedPageIndices = await smartDetectDiverseSlideIndices(uploadedSlidePages, 6);
+      updatePageSelectionModeUI();
+      syncPageRangeInputFromSelection();
+      renderThumbnails();
+    }
     setTimeout(() => {
       openLargePickerModal();
     }, 300);
