@@ -53,12 +53,16 @@
         <div class="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0 shadow-md transition-transform hover:scale-105 border border-white/10 bg-black">
           <img src="favicon.svg?v=6.6.0" alt="簡報風格逆向解析 Logo" class="w-full h-full block">
         </div>
-        <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <h1 class="text-sm font-semibold text-zinc-100 tracking-tight flex items-center gap-2">
             <span>簡報風格逆向解析</span>
           </h1>
-          <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.05] text-zinc-400 font-mono border border-white/[0.08]">
+          <span class="hidden md:inline-block text-[10px] px-2 py-0.5 rounded-full bg-white/[0.05] text-zinc-400 font-mono border border-white/[0.08]">
             STUDIO WORKSPACE · NBLM SPEC
+          </span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 font-mono border border-emerald-500/30 font-semibold shadow-sm flex items-center gap-1.5" title="系統當前版本號">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>v6.21.0</span>
           </span>
         </div>
       </div>
@@ -707,8 +711,11 @@
   <!-- 頁尾 (法規與版權宣告) -->
   <footer class="border-t border-white/[0.06] bg-[#0E1013]/60 py-4 mt-8">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs text-zinc-500">
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
         <span>© 2026 簡報風格逆向解析 (NBLM Slide Reverser)</span>
+        <span class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-white/[0.06] text-emerald-300 border border-white/[0.08]">
+          v6.21.0
+        </span>
         <span class="text-zinc-700 hidden sm:inline">·</span>
         <span class="text-zinc-400">非 Google 或 NotebookLM 官方專案</span>
       </div>
