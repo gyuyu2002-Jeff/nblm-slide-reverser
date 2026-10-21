@@ -1,6 +1,8 @@
 // 狀態管理
 let selectedFiles = [];
 let uploadedSlidePages = []; // [{ page: 1, image: "data:..." }, ...]
+// 誤刪投影片喚回復原堆疊
+let removedSlidesHistory = []; // [{ type: "single", slide, originalIndex, wasSelected, timestamp } | { type: "clear", slides, selectedIndices, timestamp }]
 let currentComparisonPage = 0;
 let currentComparisonMode = "split"; // "split", "reconstruct", "original"
 let generatedReportMarkdown = "";
@@ -421,14 +423,26 @@ function setupEventListeners() {
   }
 
   on("btn-clear-files", "click", () => {
+    if (uploadedSlidePages.length > 0) {
+      removedSlidesHistory.push({
+        type: "clear",
+        slides: [...uploadedSlidePages],
+        selectedIndices: new Set(selectedPageIndices),
+        timestamp: Date.now()
+      });
+      updateUndoButtonsUI();
+    }
     selectedFiles = [];
     uploadedSlidePages = [];
     selectedPageIndices.clear();
     pageSelectionMode = "all";
     currentComparisonPage = 0;
     renderThumbnails();
+    if (isLargePickerOpen()) {
+      renderLargeSlidesGrid();
+    }
     if (fileInput) fileInput.value = "";
-    showToast("已清空所有選取的投影片", "info");
+    showToastWithUndo("已清空所有選取的投影片（誤刪可點擊喚回）", () => undoRemoveSlide(), "info");
   });
 
   // 頁數較多 (>8頁) 時的範圍解析控制項監聽
@@ -494,6 +508,79 @@ function setupEventListeners() {
     selectedPageIndices.clear();
     syncPageRangeInputFromSelection();
     renderThumbnails();
+  });
+
+  // 大畫面挑選彈窗與喚回監聽
+  on("btn-open-large-picker", "click", openLargePickerModal);
+  on("btn-gallery-enlarge", "click", openLargePickerModal);
+  on("btn-quick-large-picker", "click", openLargePickerModal);
+  on("btn-close-large-picker", "click", closeLargePickerModal);
+  on("btn-large-finish", "click", closeLargePickerModal);
+
+  on("btn-undo-delete", "click", undoRemoveSlide);
+  on("btn-large-undo", "click", undoRemoveSlide);
+
+  on("btn-large-first-6", "click", () => {
+    selectedPageIndices = new Set([1, 2, 3, 4, 5, 6].filter(p => p <= uploadedSlidePages.length));
+    pageSelectionMode = "custom";
+    updatePageSelectionModeUI();
+    syncPageRangeInputFromSelection();
+    renderLargeSlidesGrid();
+    renderThumbnails();
+  });
+
+  on("btn-large-sample", "click", () => {
+    const total = uploadedSlidePages.length;
+    if (total <= 6) {
+      selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
+    } else {
+      const step = (total - 1) / 5;
+      selectedPageIndices = new Set([
+        1,
+        Math.round(1 + step),
+        Math.round(1 + step * 2),
+        Math.round(1 + step * 3),
+        Math.round(1 + step * 4),
+        total
+      ]);
+    }
+    pageSelectionMode = "custom";
+    updatePageSelectionModeUI();
+    syncPageRangeInputFromSelection();
+    renderLargeSlidesGrid();
+    renderThumbnails();
+  });
+
+  on("btn-large-select-all", "click", () => {
+    selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
+    syncPageRangeInputFromSelection();
+    renderLargeSlidesGrid();
+    renderThumbnails();
+  });
+
+  on("btn-large-clear-sel", "click", () => {
+    selectedPageIndices.clear();
+    pageSelectionMode = "custom";
+    updatePageSelectionModeUI();
+    syncPageRangeInputFromSelection();
+    renderLargeSlidesGrid();
+    renderThumbnails();
+  });
+
+  // 鍵盤快捷鍵：Escape 關閉大畫面挑選；Ctrl+Z / Cmd+Z 喚回誤刪投影片
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isLargePickerOpen()) {
+      closeLargePickerModal();
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z") && !e.shiftKey) {
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.isContentEditable)) {
+        return; // 保留原生輸入框的復原行為
+      }
+      if (removedSlidesHistory.length > 0) {
+        e.preventDefault();
+        undoRemoveSlide();
+      }
+    }
   });
 
   // 結果頁籤切換監聽
@@ -833,7 +920,7 @@ function updatePageSelectionModeUI() {
   }
 }
 
-// === 3. 縮圖渲染與逐頁刪除管理 ===
+// === 3. 縮圖渲染、大畫面挑選與逐頁喚回管理 ===
 function renderThumbnails() {
   const gallery = document.getElementById("thumbnail-gallery");
   const previewSec = document.getElementById("file-preview-section");
@@ -841,6 +928,8 @@ function renderThumbnails() {
 
   if (!gallery) return;
   gallery.innerHTML = "";
+
+  updateUndoButtonsUI();
 
   if (!uploadedSlidePages || uploadedSlidePages.length === 0) {
     if (previewSec) previewSec.classList.add("hidden");
@@ -855,7 +944,7 @@ function renderThumbnails() {
   // 檢查是否超過 8 頁觸發精選控制項
   checkAndUpdatePageSelectionPanel();
 
-  const isCustomMode = (pageSelectionMode === "custom" && uploadedSlidePages.length > 8);
+  const isCustomMode = (pageSelectionMode === "custom");
 
   uploadedSlidePages.forEach((slide, idx) => {
     const pageNum = idx + 1;
@@ -872,7 +961,7 @@ function renderThumbnails() {
       <div class="relative w-full h-20 overflow-hidden rounded-lg bg-black border border-white/[0.06]">
         <img src="${slide.image}" class="w-full h-full object-cover" alt="第 ${pageNum} 頁">
         
-        <!-- 勾選狀態標記 (當頁數 > 8 頁時啟用) -->
+        <!-- 勾選狀態標記 (自選模式時啟用) -->
         ${isCustomMode ? `
           <div class="absolute top-1 left-1 w-5 h-5 rounded-md flex items-center justify-center transition-all ${
             isSelected ? "bg-emerald-500 text-black shadow-sm" : "bg-black/70 border border-white/30 text-transparent"
@@ -884,7 +973,7 @@ function renderThumbnails() {
         <span class="absolute bottom-1 left-1 bg-black/80 backdrop-blur-sm text-[9px] px-1.5 py-0.2 rounded text-zinc-300 font-mono border border-white/10">
           P.${pageNum}
         </span>
-        <button type="button" class="btn-delete-slide absolute top-1 right-1 w-5 h-5 rounded-full bg-black/80 hover:bg-rose-600 text-zinc-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-sm border border-white/20" title="移除第 ${pageNum} 頁" data-slide-index="${idx}">
+        <button type="button" class="btn-delete-slide absolute top-1 right-1 w-5 h-5 rounded-full bg-black/80 hover:bg-rose-600 text-zinc-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-sm border border-white/20" title="移除第 ${pageNum} 頁（誤刪可喚回）" data-slide-index="${idx}">
           <i data-lucide="x" class="w-3 h-3 pointer-events-none"></i>
         </button>
       </div>
@@ -893,7 +982,10 @@ function renderThumbnails() {
 
     // 點擊卡片切換選取狀態
     card.addEventListener("click", () => {
-      if (!isCustomMode) return;
+      if (!isCustomMode) {
+        pageSelectionMode = "custom";
+        updatePageSelectionModeUI();
+      }
       if (selectedPageIndices.has(pageNum)) {
         selectedPageIndices.delete(pageNum);
       } else {
@@ -901,6 +993,7 @@ function renderThumbnails() {
       }
       syncPageRangeInputFromSelection();
       renderThumbnails();
+      if (isLargePickerOpen()) renderLargeSlidesGrid();
     });
 
     const delBtn = card.querySelector(".btn-delete-slide");
@@ -917,9 +1010,156 @@ function renderThumbnails() {
   if (window.lucide) window.lucide.createIcons();
 }
 
+// === 大畫面挑選與檢視 (Full-screen Lightbox Grid Picker) ===
+function openLargePickerModal() {
+  if (!uploadedSlidePages || uploadedSlidePages.length === 0) {
+    showToast("目前尚無投影片，請先上傳 PDF 或投影片圖片！", "warning");
+    return;
+  }
+  const modal = document.getElementById("modal-large-picker");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  document.body.classList.add("overflow-hidden");
+  renderLargeSlidesGrid();
+  updateUndoButtonsUI();
+}
+window.openLargePickerModal = openLargePickerModal;
+
+function closeLargePickerModal() {
+  const modal = document.getElementById("modal-large-picker");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  document.body.classList.remove("overflow-hidden");
+  syncPageRangeInputFromSelection();
+  renderThumbnails();
+}
+window.closeLargePickerModal = closeLargePickerModal;
+
+function isLargePickerOpen() {
+  const modal = document.getElementById("modal-large-picker");
+  return modal && !modal.classList.contains("hidden");
+}
+
+function renderLargeSlidesGrid() {
+  const grid = document.getElementById("large-slides-grid");
+  const badge = document.getElementById("large-picker-badge");
+  const footerTip = document.getElementById("large-picker-footer-tip");
+  if (!grid) return;
+
+  grid.innerHTML = "";
+
+  const total = uploadedSlidePages.length;
+  const selectedCount = selectedPageIndices.size;
+
+  if (badge) {
+    badge.textContent = `已選 ${selectedCount} / ${total} 頁`;
+  }
+  if (footerTip) {
+    footerTip.innerHTML = `已選取 <strong class="text-emerald-400 font-mono">${selectedCount}</strong> / ${total} 頁 · 建議挑選 <strong class="text-amber-300 font-mono">3～8 頁</strong> 以獲取最佳 NotebookLM 提示詞精度`;
+  }
+
+  if (total === 0) {
+    grid.innerHTML = `
+      <div class="col-span-full py-16 flex flex-col items-center justify-center text-center text-zinc-500">
+        <i data-lucide="layers" class="w-12 h-12 stroke-[1.2] mb-3 text-zinc-600"></i>
+        <p class="text-sm font-medium text-zinc-400">目前沒有任何投影片頁面</p>
+        <p class="text-xs text-zinc-600 mt-1">若不小心刪除，可點擊上方「喚回」按鈕復原</p>
+      </div>
+    `;
+    if (window.lucide) window.lucide.createIcons();
+    return;
+  }
+
+  uploadedSlidePages.forEach((slide, idx) => {
+    const pageNum = idx + 1;
+    const isSelected = selectedPageIndices.has(pageNum);
+
+    const card = document.createElement("div");
+    card.className = `relative group rounded-xl border-2 transition-all cursor-pointer overflow-hidden flex flex-col bg-[#141720] select-none ${
+      isSelected
+        ? "border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.22)] ring-1 ring-emerald-500/30"
+        : "border-white/[0.08] opacity-60 hover:opacity-100 hover:border-white/30"
+    }`;
+
+    card.innerHTML = `
+      <!-- 16:9 大畫面投影片預覽容器 -->
+      <div class="relative w-full aspect-video overflow-hidden bg-black/60 flex items-center justify-center">
+        <img src="${slide.image}" class="w-full h-full object-contain" alt="第 ${pageNum} 頁" loading="lazy">
+        
+        <!-- 勾選指示器徽章 -->
+        <div class="absolute top-2.5 left-2.5 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+          isSelected
+            ? "bg-emerald-500 text-zinc-950 shadow-md font-bold"
+            : "bg-black/60 border border-white/30 text-transparent"
+        }">
+          <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+        </div>
+
+        <!-- 頁碼標籤 -->
+        <span class="absolute bottom-2 left-2.5 bg-black/80 backdrop-blur-md text-[11px] px-2 py-0.5 rounded-md text-zinc-200 font-mono border border-white/15 shadow-sm">
+          第 ${pageNum} 頁
+        </span>
+
+        <!-- 單頁刪除按鈕 (誤刪可喚回) -->
+        <button type="button" class="btn-large-delete-slide absolute top-2.5 right-2.5 w-7 h-7 rounded-lg bg-black/70 hover:bg-rose-600 text-zinc-400 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-md border border-white/15" title="移除第 ${pageNum} 頁（誤刪可喚回）" data-slide-index="${idx}">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i>
+        </button>
+      </div>
+
+      <!-- 底部資訊列 -->
+      <div class="px-3 py-2 bg-[#101218] border-t border-white/[0.06] flex items-center justify-between text-[11px]">
+        <span class="text-zinc-400 font-mono truncate max-w-[180px]">${slide.name || `投影片第 ${pageNum} 頁`}</span>
+        <span class="text-[10px] font-mono ${isSelected ? 'text-emerald-400 font-semibold' : 'text-zinc-500'}">
+          ${isSelected ? '已納入解析' : '未勾選'}
+        </span>
+      </div>
+    `;
+
+    // 點擊卡片本體切換選取狀態
+    card.addEventListener("click", () => {
+      if (selectedPageIndices.has(pageNum)) {
+        selectedPageIndices.delete(pageNum);
+      } else {
+        selectedPageIndices.add(pageNum);
+      }
+      pageSelectionMode = "custom";
+      updatePageSelectionModeUI();
+      syncPageRangeInputFromSelection();
+      renderLargeSlidesGrid();
+      renderThumbnails();
+    });
+
+    // 刪除按鈕
+    const delBtn = card.querySelector(".btn-large-delete-slide");
+    if (delBtn) {
+      delBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeSlideAtIndex(idx);
+      });
+    }
+
+    grid.appendChild(card);
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+// === 誤刪投影片喚回復原機制 (Undo / Restore) ===
 function removeSlideAtIndex(index) {
   if (index < 0 || index >= uploadedSlidePages.length) return;
-  const removedName = uploadedSlidePages[index].name || `第 ${index + 1} 頁`;
+  const removedItem = uploadedSlidePages[index];
+  const removedName = removedItem.name || `第 ${index + 1} 頁`;
+  const wasSelected = selectedPageIndices.has(index + 1);
+
+  // 存入喚回復原堆疊
+  removedSlidesHistory.push({
+    type: "single",
+    slide: { ...removedItem },
+    originalIndex: index,
+    wasSelected: wasSelected,
+    timestamp: Date.now()
+  });
+
   uploadedSlidePages.splice(index, 1);
   uploadedSlidePages.forEach((item, i) => {
     item.page = i + 1;
@@ -938,10 +1178,91 @@ function removeSlideAtIndex(index) {
     currentComparisonPage = Math.max(0, uploadedSlidePages.length - 1);
   }
 
+  updateUndoButtonsUI();
   renderThumbnails();
+  if (isLargePickerOpen()) {
+    renderLargeSlidesGrid();
+  }
   updateComparisonView();
-  showToast(`已移除投影片：${removedName}`, "info");
+  showToastWithUndo(`已移除投影片：${removedName}（誤刪可點擊喚回）`, () => undoRemoveSlide(), "info");
 }
+window.removeSlideAtIndex = removeSlideAtIndex;
+
+function undoRemoveSlide() {
+  if (removedSlidesHistory.length === 0) {
+    showToast("目前沒有可喚回的投影片！", "info");
+    return;
+  }
+
+  const record = removedSlidesHistory.pop();
+
+  if (record.type === "single") {
+    const insertIdx = Math.min(record.originalIndex, uploadedSlidePages.length);
+    uploadedSlidePages.splice(insertIdx, 0, record.slide);
+
+    // 重新排序頁碼
+    uploadedSlidePages.forEach((item, i) => {
+      item.page = i + 1;
+    });
+
+    // 調整 selectedPageIndices
+    const restoredPage = insertIdx + 1;
+    const newSet = new Set();
+    selectedPageIndices.forEach(p => {
+      if (p < restoredPage) newSet.add(p);
+      else newSet.add(p + 1);
+    });
+    if (record.wasSelected) {
+      newSet.add(restoredPage);
+    }
+    selectedPageIndices = newSet;
+    syncPageRangeInputFromSelection();
+
+    showToast(`已成功喚回：${record.slide.name || `第 ${restoredPage} 頁`}！`, "success");
+  } else if (record.type === "clear") {
+    uploadedSlidePages = [...record.slides];
+    uploadedSlidePages.forEach((item, i) => {
+      item.page = i + 1;
+    });
+    selectedPageIndices = new Set(record.selectedIndices);
+    syncPageRangeInputFromSelection();
+
+    showToast("已成功復原所有清空的投影片！", "success");
+  }
+
+  updateUndoButtonsUI();
+  renderThumbnails();
+  if (isLargePickerOpen()) {
+    renderLargeSlidesGrid();
+  }
+  updateComparisonView();
+}
+window.undoRemoveSlide = undoRemoveSlide;
+
+function updateUndoButtonsUI() {
+  const btnUndoSidebar = document.getElementById("btn-undo-delete");
+  const labelUndoSidebar = document.getElementById("undo-delete-label");
+  const btnUndoLarge = document.getElementById("btn-large-undo");
+  const labelUndoLarge = document.getElementById("btn-large-undo-label");
+
+  const count = removedSlidesHistory.length;
+
+  if (count > 0) {
+    if (btnUndoSidebar) {
+      btnUndoSidebar.classList.remove("hidden");
+      if (labelUndoSidebar) labelUndoSidebar.textContent = `喚回 (${count})`;
+    }
+    if (btnUndoLarge) {
+      btnUndoLarge.classList.remove("hidden");
+      if (labelUndoLarge) labelUndoLarge.textContent = `喚回 (${count})`;
+    }
+  } else {
+    if (btnUndoSidebar) btnUndoSidebar.classList.add("hidden");
+    if (btnUndoLarge) btnUndoLarge.classList.add("hidden");
+  }
+  if (window.lucide) window.lucide.createIcons();
+}
+window.updateUndoButtonsUI = updateUndoButtonsUI;
 
 // 剪貼簿一鍵貼上金鑰
 async function pasteClipboardToInput(inputId) {
@@ -2103,33 +2424,63 @@ function fallbackExtractMeta(markdown) {
   };
 }
 
+let toastTimeoutId = null;
+
 function showToast(message, type = "info") {
+  showToastWithUndo(message, null, type);
+}
+
+function showToastWithUndo(message, onUndo = null, type = "info") {
   const toast = document.getElementById("toast");
   const icon = document.getElementById("toast-icon");
   const text = document.getElementById("toast-text");
+  const actionBtn = document.getElementById("toast-action-btn");
 
+  if (!toast || !text) return;
   text.textContent = message;
 
-  if (type === "success") {
-    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-xs shadow-xl text-white";
-    icon.className = "w-4 h-4 text-emerald-400";
-    icon.setAttribute("data-lucide", "check-circle");
-  } else if (type === "warning" || type === "error") {
-    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-rose-900 border border-rose-700 text-xs shadow-xl text-white";
-    icon.className = "w-4 h-4 text-rose-300";
-    icon.setAttribute("data-lucide", "alert-circle");
-  } else {
-    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-xs shadow-xl text-white";
-    icon.className = "w-4 h-4 text-blue-400";
-    icon.setAttribute("data-lucide", "info");
+  if (actionBtn) {
+    if (typeof onUndo === "function") {
+      actionBtn.classList.remove("hidden");
+      actionBtn.onclick = (e) => {
+        e.stopPropagation();
+        onUndo();
+        toast.classList.remove("translate-y-0", "opacity-100");
+        toast.classList.add("translate-y-20", "opacity-0");
+      };
+    } else {
+      actionBtn.classList.add("hidden");
+      actionBtn.onclick = null;
+    }
   }
 
-  lucide.createIcons();
+  if (type === "success") {
+    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-emerald-500/40 text-xs shadow-2xl text-white max-w-md";
+    if (icon) {
+      icon.className = "w-4 h-4 text-emerald-400 shrink-0";
+      icon.setAttribute("data-lucide", "check-circle");
+    }
+  } else if (type === "warning" || type === "error") {
+    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-rose-950 border border-rose-500/40 text-xs shadow-2xl text-white max-w-md";
+    if (icon) {
+      icon.className = "w-4 h-4 text-rose-300 shrink-0";
+      icon.setAttribute("data-lucide", "alert-circle");
+    }
+  } else {
+    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-white/[0.12] text-xs shadow-2xl text-zinc-100 max-w-md";
+    if (icon) {
+      icon.className = "w-4 h-4 text-sky-400 shrink-0";
+      icon.setAttribute("data-lucide", "info");
+    }
+  }
 
-  setTimeout(() => {
+  if (window.lucide) window.lucide.createIcons();
+
+  if (toastTimeoutId) clearTimeout(toastTimeoutId);
+  toastTimeoutId = setTimeout(() => {
     toast.classList.remove("translate-y-0", "opacity-100");
     toast.classList.add("translate-y-20", "opacity-0");
-  }, 3500);
+  }, 4500);
 }
 
 function updateUiState() {

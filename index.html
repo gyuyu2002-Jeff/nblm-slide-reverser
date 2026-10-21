@@ -150,10 +150,20 @@
         <div id="file-preview-section" class="hidden space-y-2.5 pt-1">
           <div class="flex items-center justify-between text-xs text-zinc-400">
             <span id="file-count-label" class="font-medium text-zinc-300">已選取 0 個檔案</span>
-            <button id="btn-clear-files" class="text-zinc-400 hover:text-rose-400 flex items-center gap-1 font-medium cursor-pointer transition-colors text-[11px]">
-              <i data-lucide="trash-2" class="w-3 h-3"></i>
-              清空
-            </button>
+            <div class="flex items-center gap-1.5">
+              <button id="btn-undo-delete" type="button" class="hidden text-amber-400 hover:text-amber-300 flex items-center gap-1 font-medium cursor-pointer transition-colors text-[11px] bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/20">
+                <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+                <span id="undo-delete-label">喚回 (0)</span>
+              </button>
+              <button id="btn-open-large-picker" type="button" class="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium cursor-pointer transition-colors text-[11px] bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                <i data-lucide="maximize-2" class="w-3 h-3"></i>
+                <span>大畫面挑選</span>
+              </button>
+              <button id="btn-clear-files" class="text-zinc-400 hover:text-rose-400 flex items-center gap-1 font-medium cursor-pointer transition-colors text-[11px]">
+                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                清空
+              </button>
+            </div>
           </div>
 
           <!-- 頁數較多 (>8頁) 觸發之解析範圍選擇面板 -->
@@ -207,6 +217,10 @@
                   <button type="button" id="btn-quick-sample" class="px-1.5 py-0.5 rounded bg-white/[0.06] hover:bg-white/10 text-zinc-300 transition-colors cursor-pointer">均勻抽樣</button>
                   <button type="button" id="btn-quick-select-all" class="px-1.5 py-0.5 rounded bg-white/[0.06] hover:bg-white/10 text-zinc-300 transition-colors cursor-pointer">全選</button>
                   <button type="button" id="btn-quick-clear" class="px-1.5 py-0.5 rounded bg-white/[0.06] hover:bg-white/10 text-zinc-300 transition-colors cursor-pointer">清空</button>
+                  <button type="button" id="btn-quick-large-picker" class="px-1.5 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-colors cursor-pointer flex items-center gap-1 font-mono">
+                    <i data-lucide="maximize-2" class="w-2.5 h-2.5"></i>
+                    <span>大畫面</span>
+                  </button>
                 </div>
               </div>
 
@@ -218,6 +232,18 @@
               </div>
             </div>
           </div>
+          <!-- 縮圖區輔助列與大畫面快捷切換 -->
+          <div class="flex items-center justify-between text-[11px] text-zinc-400 px-0.5 pt-0.5">
+            <span class="flex items-center gap-1 text-[10px] text-zinc-500">
+              <i data-lucide="info" class="w-3 h-3"></i>
+              點擊卡片勾選 · 點擊 X 移除
+            </span>
+            <button type="button" id="btn-gallery-enlarge" class="text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 text-[10px] font-mono cursor-pointer">
+              <i data-lucide="maximize-2" class="w-2.5 h-2.5"></i>
+              <span>切換大畫面挑選</span>
+            </button>
+          </div>
+
           <!-- 縮圖滾動區 -->
           <div id="thumbnail-gallery" class="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto p-1 custom-scrollbar">
             <!-- 動態插入縮圖 -->
@@ -1313,13 +1339,85 @@
     </div>
   </div>
 
-  <!-- 全局 Toast 提示 -->
-  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-200 flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-[#181A20] border border-white/[0.1] text-xs shadow-2xl text-zinc-100">
-    <i data-lucide="info" id="toast-icon" class="w-3.5 h-3.5 text-zinc-400"></i>
-    <span id="toast-text">通知內容</span>
+  <!-- ================= 大畫面挑選與檢視燈箱彈窗 (Full-screen Lightbox Grid Picker) ================= -->
+  <div id="modal-large-picker" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-3 sm:p-6 transition-all duration-200">
+    <div class="bg-[#12151B] border border-white/[0.12] rounded-2xl w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- 頂部標題列與操作列 -->
+      <div class="px-5 py-3.5 border-b border-white/[0.08] flex flex-wrap items-center justify-between gap-3 bg-[#161A22] shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-inner">
+            <i data-lucide="layout-grid" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-sm font-bold text-zinc-100 tracking-wide">投影片大畫面挑選與檢視</h3>
+              <span id="large-picker-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                已選 0 / 0 頁
+              </span>
+            </div>
+            <p class="text-[11px] text-zinc-400 mt-0.5">點擊投影片卡片即可切換勾選；點右上角垃圾桶刪除（刪除後可隨時喚回復原）。</p>
+          </div>
+        </div>
+
+        <!-- 快速批次操作按鈕群 -->
+        <div class="flex items-center flex-wrap gap-2 text-xs font-mono">
+          <button type="button" id="btn-large-first-6" class="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/10 text-zinc-200 border border-white/[0.08] transition-colors cursor-pointer flex items-center gap-1.5 text-xs">
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
+            前 6 頁
+          </button>
+          <button type="button" id="btn-large-sample" class="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/10 text-zinc-200 border border-white/[0.08] transition-colors cursor-pointer flex items-center gap-1.5 text-xs">
+            <i data-lucide="shuffle" class="w-3.5 h-3.5 text-cyan-400"></i>
+            均勻抽樣
+          </button>
+          <button type="button" id="btn-large-select-all" class="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/10 text-zinc-200 border border-white/[0.08] transition-colors cursor-pointer text-xs">
+            全選
+          </button>
+          <button type="button" id="btn-large-clear-sel" class="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/10 text-zinc-400 border border-white/[0.08] transition-colors cursor-pointer text-xs">
+            全不選
+          </button>
+          <button type="button" id="btn-large-undo" class="hidden px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-medium">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+            <span id="btn-large-undo-label">喚回 (0)</span>
+          </button>
+          <button type="button" id="btn-close-large-picker" class="w-8 h-8 rounded-lg bg-white/[0.06] hover:bg-white/10 text-zinc-400 hover:text-zinc-100 flex items-center justify-center transition-colors cursor-pointer ml-1" title="關閉大畫面挑選">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 投影片大圖格狀展示區 -->
+      <div id="large-slides-grid" class="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 custom-scrollbar bg-[#0C0E12]">
+        <!-- 動態渲染大圖卡片 -->
+      </div>
+
+      <!-- 底部總結與確認列 -->
+      <div class="px-5 py-3 border-t border-white/[0.08] bg-[#14171E] flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2 text-xs text-zinc-400">
+          <i data-lucide="info" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+          <span id="large-picker-footer-tip">已選取 0 頁 · 建議挑選 3～8 頁最具代表性版型以確保最高逆向精度</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btn-large-finish" class="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold text-xs transition-all shadow-lg shadow-emerald-500/20 cursor-pointer flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            完成挑選
+          </button>
+        </div>
+      </div>
+
+    </div>
   </div>
 
-  <script src="app.js?v=6.17.0"></script>
+  <!-- 全局 Toast 提示（支援誤刪一鍵復原） -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-200 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#181A20] border border-white/[0.12] text-xs shadow-2xl text-zinc-100 max-w-md">
+    <i data-lucide="info" id="toast-icon" class="w-4 h-4 text-zinc-400 shrink-0"></i>
+    <span id="toast-text" class="flex-1">通知內容</span>
+    <button id="toast-action-btn" type="button" class="hidden px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-medium cursor-pointer transition-colors ml-2 shrink-0">
+      復原
+    </button>
+  </div>
+
+  <script src="app.js?v=6.18.0"></script>
   <script>
     lucide.createIcons();
   </script>
