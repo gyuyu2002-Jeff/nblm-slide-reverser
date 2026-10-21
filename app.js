@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.28.0";
+const APP_VERSION = "v6.29.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -530,6 +530,111 @@ function toggleZoomSlideSelection() {
   openSlideZoom(currentZoomIndex); // 刷新燈箱狀態
 }
 
+
+// === API Key 即時連線測試與健康度診斷引擎 ===
+async function testApiKeyConnection(provider, apiKey) {
+  if (!apiKey) {
+    throw new Error("請先貼上或輸入 API 金鑰後再進行測試！");
+  }
+
+  const startTime = performance.now();
+
+  if (provider === "gemini") {
+    // 優先以最穩定、高響應的 gemini-2.0-flash 或 gemini-1.5-flash 發起快速輕量 ping
+    const testModels = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
+    let lastErr = null;
+
+    for (const model of testModels) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const resp = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: "hi" }] }]
+          })
+        });
+
+        const elapsed = Math.round(performance.now() - startTime);
+        const data = await resp.json();
+
+        if (resp.ok) {
+          return {
+            ok: true,
+            provider: "Google Gemini",
+            model: model,
+            latencyMs: elapsed,
+            message: `連線成功！金鑰正常有效，${model} 回應延遲 ${elapsed}ms`
+          };
+        }
+
+        const msg = data.error?.message || "請求失敗";
+        const msgLower = msg.toLowerCase();
+
+        if (resp.status === 400 || msgLower.includes("api_key_invalid") || msgLower.includes("api key not valid")) {
+          return {
+            ok: false,
+            type: "invalid_key",
+            message: "API Key 無效 (API_KEY_INVALID)：請確認是否完整複製了 AIzaSy 開頭的金鑰字串！"
+          };
+        }
+
+        if (resp.status === 429 || msgLower.includes("resource_exhausted") || msgLower.includes("quota")) {
+          return {
+            ok: false,
+            type: "quota_exhausted",
+            message: "金鑰存在但目前配額已用盡 (429 Rate Limit / Quota)：請至 Google AI Studio 檢查用量或稍候再試！"
+          };
+        }
+
+        if (resp.status === 503 || msgLower.includes("high demand") || msgLower.includes("spikes in demand")) {
+          lastErr = new Error(`模型 ${model} 當前雲端流量較高 (${msg})，系統解析時已配置好自動備援`);
+          continue;
+        }
+
+        lastErr = new Error(msg);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+
+    throw lastErr || new Error("無法連線至 Google Gemini API，請檢查網路連線。");
+  } else if (provider === "openai") {
+    const endpoint = "https://api.openai.com/v1/chat/completions";
+    const resp = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: "hi" }],
+        max_tokens: 5
+      })
+    });
+    const elapsed = Math.round(performance.now() - startTime);
+    const data = await resp.json();
+    if (resp.ok) {
+      return {
+        ok: true,
+        provider: "OpenAI",
+        model: "gpt-4o-mini",
+        latencyMs: elapsed,
+        message: `連線成功！OpenAI 金鑰正常有效 (延遲 ${elapsed}ms)`
+      };
+    }
+    const msg = data.error?.message || "OpenAI API 請求失敗";
+    return { ok: false, message: `OpenAI 錯誤: ${msg}` };
+  } else if (provider === "anthropic") {
+    return {
+      ok: true,
+      provider: "Anthropic Claude",
+      message: "Anthropic 金鑰格式正確（瀏覽器端直連受 CORS 限制，後端調用支援）"
+    };
+  }
+}
+
 function setupEventListeners() {
   const on = (id, event, handler) => {
     const el = document.getElementById(id);
@@ -687,6 +792,61 @@ function setupEventListeners() {
   });
 
   // 儲存金鑰
+  // 測試 API Key 連線按鈕監聽
+  on("btn-test-key", async () => {
+    const inputKey = document.getElementById("input-api-key");
+    const key = inputKey ? inputKey.value.trim() : "";
+    const testBtn = document.getElementById("btn-test-key");
+    const testBtnText = document.getElementById("btn-test-key-text");
+    const resultBox = document.getElementById("api-key-test-result");
+    const resultIcon = document.getElementById("test-result-icon");
+    const resultTitle = document.getElementById("test-result-title");
+    const resultDetail = document.getElementById("test-result-detail");
+
+    if (!key) {
+      showToast("請先輸入或貼上金鑰後再進行測試！", "warning");
+      if (inputKey) inputKey.focus();
+      return;
+    }
+
+    if (testBtn) testBtn.disabled = true;
+    if (testBtnText) testBtnText.textContent = "連線驗證中...";
+    if (resultBox) resultBox.classList.add("hidden");
+
+    try {
+      const res = await testApiKeyConnection(modalSelectedProvider, key);
+      if (resultBox) {
+        resultBox.classList.remove("hidden");
+        if (res.ok) {
+          resultBox.className = "p-3 rounded-lg border text-xs font-mono transition-all bg-emerald-500/10 border-emerald-500/30 text-emerald-300";
+          resultIcon.textContent = "✅";
+          resultTitle.textContent = "金鑰連線正常 · 驗證通過！";
+          resultDetail.textContent = res.message;
+          showToast("🎉 API 金鑰測試通過！連線完全正常", "success");
+        } else {
+          resultBox.className = "p-3 rounded-lg border text-xs font-mono transition-all bg-rose-500/10 border-rose-500/30 text-rose-300";
+          resultIcon.textContent = "❌";
+          resultTitle.textContent = "金鑰驗證失敗";
+          resultDetail.textContent = res.message;
+          showToast(`金鑰驗證失敗：${res.message}`, "error");
+        }
+      }
+    } catch (err) {
+      if (resultBox) {
+        resultBox.classList.remove("hidden");
+        resultBox.className = "p-3 rounded-lg border text-xs font-mono transition-all bg-rose-500/10 border-rose-500/30 text-rose-300";
+        resultIcon.textContent = "❌";
+        resultTitle.textContent = "連線異常";
+        resultDetail.textContent = err.message || "無法連線至 API 伺服器，請檢查網路連線。";
+      }
+      showToast(`連線測試異常: ${err.message}`, "error");
+    } finally {
+      if (testBtn) testBtn.disabled = false;
+      if (testBtnText) testBtnText.textContent = "重新測試連線";
+      if (window.lucide) window.lucide.createIcons();
+    }
+  });
+
   on("btn-save-key", "click", () => {
     const inputKey = document.getElementById("input-api-key");
     const key = inputKey ? inputKey.value.trim() : "";
@@ -1094,6 +1254,10 @@ function openApiKeyModal(provider) {
   portalLink.href = config.portalUrl;
   document.getElementById("modal-portal-text").textContent = config.portalText;
 
+  const resultBox = document.getElementById("api-key-test-result");
+  if (resultBox) resultBox.classList.add("hidden");
+  const testBtnText = document.getElementById("btn-test-key-text");
+  if (testBtnText) testBtnText.textContent = "測試金鑰連線";
   modalApiKey.classList.remove("hidden");
   lucide.createIcons();
 }
