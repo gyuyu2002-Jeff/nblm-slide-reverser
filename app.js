@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.24.0";
+const APP_VERSION = "v6.25.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -755,11 +755,9 @@ function setupEventListeners() {
   on("btn-mode-custom-pages", "click", () => {
     pageSelectionMode = "custom";
     updatePageSelectionModeUI();
-    if (selectedPageIndices.size === 0) {
-      selectedPageIndices = new Set([1, 2, 3, 4, 5, 6].filter(p => p <= uploadedSlidePages.length));
-    }
     syncPageRangeInputFromSelection();
     renderThumbnails();
+    if (isLargePickerOpen()) renderLargeSlidesGrid();
   });
 
   on("btn-mode-all-pages", "click", () => {
@@ -790,8 +788,12 @@ function setupEventListeners() {
 
   on("btn-quick-clear", "click", () => {
     selectedPageIndices.clear();
+    pageSelectionMode = "custom";
+    updatePageSelectionModeUI();
     syncPageRangeInputFromSelection();
     renderThumbnails();
+    if (isLargePickerOpen()) renderLargeSlidesGrid();
+    showToast("已清空所有勾選", "info");
   });
 
   // 大畫面挑選彈窗與喚回監聽
@@ -816,6 +818,7 @@ function setupEventListeners() {
     syncPageRangeInputFromSelection();
     renderLargeSlidesGrid();
     renderThumbnails();
+    showToast("已全不選，請點擊卡片勾選您想要解析的投影片", "info");
   });
 
   // 鍵盤快捷鍵：Escape 關閉大畫面挑選；Ctrl+Z / Cmd+Z 喚回誤刪投影片
@@ -1146,20 +1149,8 @@ function checkAndUpdatePageSelectionPanel() {
     panel.classList.remove("hidden");
     if (badge) badge.textContent = `共 ${totalSlides} 頁`;
     if (promptTotal) promptTotal.textContent = totalSlides;
-
-    // 若尚未初始化選取集合，預設啟動「自選喜好頁面」並全選，讓使用者在大畫面自由挑選
-    if (pageSelectionMode === "all" || selectedPageIndices.size === 0) {
-      pageSelectionMode = "custom";
-      updatePageSelectionModeUI();
-      selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
-      syncPageRangeInputFromSelection();
-      renderThumbnails();
-      if (isLargePickerOpen()) renderLargeSlidesGrid();
-    }
   } else {
     panel.classList.add("hidden");
-    pageSelectionMode = "all";
-    selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
   }
 }
 
