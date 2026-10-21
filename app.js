@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.21.0";
+const APP_VERSION = "v6.22.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -6,12 +6,12 @@ console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 // =========================================================================
 
 /**
- * 抽取單張投影片的高維視覺特徵指紋（亮度、對比、四象限佈局重心、邊緣差分感知雜湊 dHash）
+ * 抽取單張投影片的高維視覺特徵指紋（亮度、對比、四象限佈局重心、邊緣幾何複雜度、感知雜湊 dHash、水頁去噪辨識）
  */
 function extractSlideVisualFeatures(slide, pageNum) {
   return new Promise((resolve) => {
     if (!slide || !slide.image) {
-      resolve({ page: pageNum, avgBrightness: 128, isDarkTheme: false, quadrants: [0.25, 0.25, 0.25, 0.25], dHash: [] });
+      resolve({ page: pageNum, avgBrightness: 128, isDarkTheme: false, complexity: 0, isTrivial: false, quadrants: [0.25, 0.25, 0.25, 0.25], dHash: [] });
       return;
     }
 
@@ -45,7 +45,20 @@ function extractSlideVisualFeatures(slide, pageNum) {
         const avgBrightness = totalBrightness / (W * H);
         const isDarkTheme = (darkPixelCount / (W * H)) > 0.45;
 
-        // 四象限重心佈局分析 (評估文字/圖表是靠左、靠右、分欄或置中)
+        // 計算邊緣幾何梯度複雜度 (Edge Gradient Density)
+        // 具備同心圓環、3D階梯、表格、多欄卡片的頁面梯度極高；純白或只有中央小字的 Q&A / 結尾頁梯度接近 0
+        let totalGradient = 0;
+        for (let y = 0; y < H - 1; y++) {
+          for (let x = 0; x < W - 1; x++) {
+            const cur = grayscale[y * W + x];
+            const dx = Math.abs(cur - grayscale[y * W + (x + 1)]);
+            const dy = Math.abs(cur - grayscale[(y + 1) * W + x]);
+            totalGradient += (dx + dy);
+          }
+        }
+        const complexity = totalGradient / (W * H * 255);
+
+        // 四象限重心佈局分析 (評估視覺焦點是靠左、靠右、分欄或居中)
         let qTopLeft = 0, qTopRight = 0, qBottomLeft = 0, qBottomRight = 0;
         const halfW = W / 2;
         const halfH = H / 2;
@@ -72,19 +85,42 @@ function extractSlideVisualFeatures(slide, pageNum) {
           }
         }
 
+        // 🚫 嚴格水頁去噪判定（QA、問答、純致謝、感謝、只有中央幾個字的低含金量過場頁）
+        let isTrivial = false;
+        const textToCheck = ((slide.text || "") + " " + (slide.name || "")).toUpperCase().replace(/[\s\-_]+/g, "");
+        
+        // 1. 純文字黑名單：徹底封殺 QA / Q&A / 謝謝聆聽 / 感謝指教
+        if (
+          textToCheck === "Q&A" || textToCheck === "QA" || textToCheck === "QUESTIONS" ||
+          textToCheck.includes("Q&A") || textToCheck.includes("QANDA") || textToCheck.includes("問與答") ||
+          textToCheck.includes("THANKYOU") || textToCheck.includes("THANKS") ||
+          textToCheck.includes("謝謝大家") || textToCheck.includes("謝謝聆聽") ||
+          textToCheck.includes("感謝指教") || textToCheck.includes("敬請指教") || textToCheck.includes("謹請指教") ||
+          textToCheck.includes("相信團隊的力量")
+        ) {
+          isTrivial = true;
+        }
+
+        // 2. 視覺結構極度空洞判定：若大面積留白、中央缺乏豐富幾何，且不是第 1 頁封面，一律視為水頁
+        if (complexity < 0.045 && pageNum > 1) {
+          isTrivial = true;
+        }
+
         resolve({
           page: pageNum,
           avgBrightness,
           isDarkTheme,
+          complexity,
+          isTrivial,
           quadrants: [qTopLeft / qSum, qTopRight / qSum, qBottomLeft / qSum, qBottomRight / qSum],
           dHash
         });
       } catch (err) {
-        resolve({ page: pageNum, avgBrightness: 128, isDarkTheme: false, quadrants: [0.25, 0.25, 0.25, 0.25], dHash: [] });
+        resolve({ page: pageNum, avgBrightness: 128, isDarkTheme: false, complexity: 0.1, isTrivial: false, quadrants: [0.25, 0.25, 0.25, 0.25], dHash: [] });
       }
     };
     img.onerror = () => {
-      resolve({ page: pageNum, avgBrightness: 128, isDarkTheme: false, quadrants: [0.25, 0.25, 0.25, 0.25], dHash: [] });
+      resolve({ page: pageNum, avgBrightness: 128, isDarkTheme: false, complexity: 0.1, isTrivial: false, quadrants: [0.25, 0.25, 0.25, 0.25], dHash: [] });
     };
     img.src = slide.image;
   });
@@ -123,8 +159,10 @@ function computeFeatureDistance(f1, f2) {
 }
 
 /**
- * 智慧版型差異化判斷核心：最大多樣性貪婪挑選 (Farthest-Point Clustering)
- * 自動排除版型高度重複的頁面，挑選出結構最具代表性的 5~8 頁
+ * 智慧版型差異化判斷核心：幾何複雜度加權之最大多樣性貪婪挑選 (Complexity-Weighted Greedy Diversity)
+ * 1. 嚴格過濾 Q&A、純感謝頁等低含金量水頁
+ * 2. 優先加權高幾何結構豐富度頁面（同心圓、3D階梯、三欄卡片、圖解公式）
+ * 3. 自動排除版型高度重複的頁面，挑選出結構最具代表性的 5~8 頁
  */
 async function smartDetectDiverseSlideIndices(slides, maxPages = 6) {
   if (!slides || slides.length === 0) return new Set();
@@ -133,7 +171,7 @@ async function smartDetectDiverseSlideIndices(slides, maxPages = 6) {
     return new Set(slides.map((_, i) => i + 1));
   }
 
-  // 1. 平行計算全篇投影片的視覺指紋特徵
+  // 1. 平行計算全篇投影片的視覺指紋與幾何複雜度特徵
   const slideFeatures = await Promise.all(
     slides.map((slide, idx) => extractSlideVisualFeatures(slide, idx + 1))
   );
@@ -145,22 +183,22 @@ async function smartDetectDiverseSlideIndices(slides, maxPages = 6) {
   selected.push(0);
   selectedSet.add(1);
 
-  // 策略 2：若最後一頁（結尾 / 總結 / Q&A）與第 1 頁風格不同，優先選取作為閉環
-  const lastIdx = total - 1;
-  const distFromFirstToLast = computeFeatureDistance(slideFeatures[0], slideFeatures[lastIdx]);
-  if (distFromFirstToLast > 0.25) {
-    selected.push(lastIdx);
-    selectedSet.add(lastIdx + 1);
-  }
-
-  // 策略 3：最大多樣性貪婪迭代 (Greedy Farthest-Point Selection)
-  // 每一輪挑選與「已選取所有頁面」差異度最大（最不重複、版型最獨立）的中間頁面
+  // 策略 2：徹底取消盲目選取結尾頁（嚴格封殺純 Q&A、純謝謝等過場廢頁）！
+  
+  // 策略 3：高含金量幾何版型貪婪多樣性挑選 (Complexity-Weighted Greedy Diversity)
+  // 每一輪挑選「幾何結構豐富度高」且「與已選所有頁面差異度最大」的核心架構頁
   while (selected.length < maxPages && selected.length < total) {
     let bestCandidateIdx = -1;
-    let maxMinDist = -1;
+    let maxScore = -1;
 
     for (let i = 0; i < total; i++) {
       if (selectedSet.has(i + 1)) continue;
+
+      const candidate = slideFeatures[i];
+      // ★ 核心鐵律：任何被標記為 isTrivial (Q&A / 致謝水頁 / 空白低密度) 者一律嚴格排除！
+      if (candidate.isTrivial) {
+        continue;
+      }
 
       // 計算候選頁面與已選所有頁面的最小距離
       let minDistToSelected = Infinity;
@@ -171,14 +209,17 @@ async function smartDetectDiverseSlideIndices(slides, maxPages = 6) {
         }
       }
 
-      if (minDistToSelected > maxMinDist) {
-        maxMinDist = minDistToSelected;
+      // 綜合評分：幾何結構豐富度 (Complexity ^ 0.6) ✖ 多樣性距離 (minDistToSelected)
+      // 這保證了同心圓靶心 (P.2)、3D階梯 (P.18)、三欄線框卡片 (P.6)、三大圓公式 (P.11) 必然強勢入選！
+      const score = Math.pow(candidate.complexity + 0.05, 0.6) * minDistToSelected;
+
+      if (score > maxScore) {
+        maxScore = score;
         bestCandidateIdx = i;
       }
     }
 
-    // 若找到相異度足夠的版型則納入，若相異度極低代表剩餘皆為重複套版頁面
-    if (bestCandidateIdx !== -1 && maxMinDist > 0.08) {
+    if (bestCandidateIdx !== -1 && maxScore > 0.005) {
       selected.push(bestCandidateIdx);
       selectedSet.add(bestCandidateIdx + 1);
     } else {
@@ -955,7 +996,15 @@ async function parsePdfClientSide(file) {
     canvas.height = viewport.height;
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
     const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
-    pages.push({ page: i, image: dataUrl });
+    
+    let pageText = "";
+    try {
+      const textContent = await page.getTextContent();
+      pageText = textContent.items.map(it => it.str).join(" ").trim();
+    } catch (e) {
+      pageText = "";
+    }
+    pages.push({ page: i, image: dataUrl, text: pageText });
   }
   if (totalPages > 30) {
     setTimeout(() => {
@@ -1712,7 +1761,8 @@ async function handleFilesAdded(files) {
           const pagesToAdd = pdfData.preview_pages.map(p => ({
             page: uploadedSlidePages.length + p.page,
             image: p.image,
-            name: `${file.name} (P.${p.page})`
+            name: `${file.name} (P.${p.page})`,
+            text: p.text || ""
           }));
           uploadedSlidePages.push(...pagesToAdd);
           renderThumbnails();
@@ -1738,7 +1788,8 @@ async function handleFilesAdded(files) {
               const pagesToAdd = data.preview_pages.map(p => ({
                 page: uploadedSlidePages.length + p.page,
                 image: p.image,
-                name: `${file.name} (P.${p.page})`
+                name: `${file.name} (P.${p.page})`,
+                text: p.text || ""
               }));
               uploadedSlidePages.push(...pagesToAdd);
               renderThumbnails();

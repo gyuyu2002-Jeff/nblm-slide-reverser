@@ -333,12 +333,14 @@ async def file_preview(request: Request, file: UploadFile = File(...)):
                 max_preview = min(total_pages, 30)
                 for i in range(max_preview):
                     page = doc.load_page(i)
+                    page_text = page.get_text().strip()
                     pix = page.get_pixmap(dpi=120)
                     img_bytes = pix.tobytes("jpeg")
                     b64_str = base64.b64encode(img_bytes).decode("utf-8")
                     preview_pages.append({
                         "page": i + 1,
-                        "image": f"data:image/jpeg;base64,{b64_str}"
+                        "image": f"data:image/jpeg;base64,{b64_str}",
+                        "text": page_text
                     })
                 
                 return {

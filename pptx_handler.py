@@ -202,7 +202,8 @@ def process_pptx_presentation(content_bytes: bytes, target_pages: Optional[Any] 
             "page": idx + 1,
             "title": slide_title or f"第 {idx + 1} 頁",
             "image": f"data:image/jpeg;base64,{b64_str}",
-            "bytes": buf.getvalue()
+            "bytes": buf.getvalue(),
+            "text": slide_title or ""
         })
 
         structure_lines.append(f"\n[投影片 {idx + 1} 結構]")
