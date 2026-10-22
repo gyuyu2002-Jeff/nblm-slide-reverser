@@ -53,6 +53,15 @@ def main():
                 if count > 0:
                     print("🚀 正在啟動 Auto-Pilot 全自動閉環優化器...\n", flush=True)
                     subprocess.run([sys.executable, "-u", "nblm_pilot.py"], cwd=str(SCRIPT_DIR))
+                    print("\n" + "=" * 68, flush=True)
+                    print("✨ Auto-Pilot 閉環優化全流程已順利完成！", flush=True)
+                    print("📊 評估報告已儲存於: autopilot/output/04_evaluations/evaluation_report.md", flush=True)
+                    print("🛡️ 最新守護規則已自動合併至 guardrails.json 並推播至 GitHub！", flush=True)
+                    print("=" * 68, flush=True)
+                    try:
+                        input("\n👉 請按 [Enter] 鍵結束並關閉視窗...")
+                    except Exception:
+                        pass
                 else:
                     print("⚠️ 未收集到任何圖片，請按 Win+Shift+S 截圖後再按 Enter。", flush=True)
                 break

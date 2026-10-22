@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.32.0";
+const APP_VERSION = "v6.33.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -359,6 +359,38 @@ function _0xgetDecryptedInstruction() {
   }
 }
 
+// 動態學習守護規範快取（來自 Auto-Pilot 自動質檢回傳的 guardrails.json）
+let _dynamicGuardrailsCache = null;
+
+async function loadDynamicGuardrails() {
+  try {
+    const res = await fetch("guardrails.json?v=" + Date.now());
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.rules) && data.rules.length > 0) {
+        _dynamicGuardrailsCache = data.rules;
+        console.log(`[Guardrails] 成功動態加載 ${_dynamicGuardrailsCache.length} 條抗失真規範 (更新時間: ${data.updated_at || '最新'})`);
+      }
+    }
+  } catch (e) {
+    console.debug("[Guardrails] 動態約束載入略過:", e);
+  }
+}
+
+function getEffectiveSystemInstruction() {
+  const base = _0xgetDecryptedInstruction();
+  if (_dynamicGuardrailsCache && _dynamicGuardrailsCache.length > 0) {
+    const ruleLines = _dynamicGuardrailsCache
+      .filter(r => r.title && r.rule)
+      .map(r => `   - ★【${r.title.trim()}】：${r.rule.trim()}`);
+    if (ruleLines.length > 0) {
+      const block = "\n\n5. 🛡️【實證抗失真約束規範（來自真實 NotebookLM 閉環質檢自動更新）】:\n" + ruleLines.join("\n");
+      return base + block;
+    }
+  }
+  return base;
+}
+
 // 服務商配置
 const PROVIDER_CONFIG = {
   gemini: {
@@ -388,6 +420,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupEventListeners();
   updateUiState();
   checkFirstTimeVisitor();
+  loadDynamicGuardrails();
 });
 
 // === 1. API KEY 管理與資安脫敏防護 ===
@@ -2581,7 +2614,7 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
     ],
     systemInstruction: {
       parts: [
-        { text: _0xgetDecryptedInstruction() }
+        { text: getEffectiveSystemInstruction() }
       ]
     },
     generationConfig: {
@@ -2697,7 +2730,7 @@ async function callOpenAiDirectly(apiKey, selectedModel, slideImages, promptText
   const payload = {
     model: modelName,
     messages: [
-      { role: "system", content: _0xgetDecryptedInstruction() },
+      { role: "system", content: getEffectiveSystemInstruction() },
       { role: "user", content: content }
     ],
     temperature: 0.4
