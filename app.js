@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.29.0";
+const APP_VERSION = "v6.30.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -635,6 +635,248 @@ async function testApiKeyConnection(provider, apiKey) {
   }
 }
 
+
+/**
+ * 處理網址爬取 (支援 Google Slides, 線上 PDF, 線上圖片, 以及通用網頁/簡報)
+ */
+async function handleUrlCrawl(url) {
+  if (!/^https?:\/\//i.test(url)) {
+    showToast("網址格式無效，請以 http:// 或 https:// 開頭", "warning");
+    return;
+  }
+
+  const btnCrawl = document.getElementById("btn-crawl-url");
+  const statusEl = document.getElementById("url-crawl-status");
+  const statusText = document.getElementById("url-crawl-status-text");
+
+  const setStatus = (msg) => {
+    if (statusEl) statusEl.classList.remove("hidden");
+    if (statusText) statusText.textContent = msg;
+  };
+
+  const clearStatus = () => {
+    if (statusEl) statusEl.classList.add("hidden");
+    if (btnCrawl) {
+      btnCrawl.disabled = false;
+      btnCrawl.classList.remove("opacity-50", "cursor-not-allowed");
+    }
+  };
+
+  if (btnCrawl) {
+    btnCrawl.disabled = true;
+    btnCrawl.classList.add("opacity-50", "cursor-not-allowed");
+  }
+
+  setStatus("正在建立連線並分析網址內容...");
+
+  try {
+    // 1. 若處於本機 Python 環境 (localhost / 127.0.0.1)，優先呼叫本機爬蟲後端 (具備完整 Playwright 與 fitz 引擎)
+    if (!isGitHubPages && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      try {
+        setStatus("呼叫 Python 爬蟲引擎進行多頁面截取與解析...");
+        const fd = new FormData();
+        fd.append("source_url", url);
+        const resp = await fetch("/api/crawl-preview", { method: "POST", body: fd });
+        if (resp.ok) {
+          const res = await resp.json();
+          if (res.preview_pages && res.preview_pages.length > 0) {
+            uploadedSlidePages = res.preview_pages.map(p => ({
+              page: p.page_number,
+              image: p.data_uri,
+              name: `網址素材 (第 ${p.page_number} 頁)`,
+              text: ""
+            }));
+            selectedFiles = [];
+            currentComparisonPage = 0;
+            renderThumbnails();
+            clearStatus();
+            showToast(`成功自網址載入 ${uploadedSlidePages.length} 頁投影片！`, "success");
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("本機爬蟲端點連線失敗，切換至純前端解析模式:", err);
+      }
+    }
+
+    // 2. 純前端解析模式 (適用於 GitHub Pages 靜態網站環境)
+    // 策略 A: Google Slides
+    const gmatch = url.match(/\/presentation\/d\/([a-zA-Z0-9_-]+)/);
+    if (gmatch) {
+      setStatus("偵測到 Google Slides，正在匯出並轉譯投影片...");
+      const presId = gmatch[1];
+      const exportUrl = `https://docs.google.com/presentation/d/${presId}/export/pdf`;
+
+      let arrayBuffer = null;
+      const proxies = [
+        `https://corsproxy.io/?url=${encodeURIComponent(exportUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(exportUrl)}`
+      ];
+
+      for (const pUrl of proxies) {
+        try {
+          const r = await fetch(pUrl);
+          if (r.ok) {
+            arrayBuffer = await r.arrayBuffer();
+            if (arrayBuffer && arrayBuffer.byteLength > 1000) break;
+          }
+        } catch (e) { /* try next */ }
+      }
+
+      if (arrayBuffer && typeof pdfjsLib !== "undefined") {
+        setStatus("正在算繪 Google Slides 投影片高畫質縮圖...");
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const total = Math.min(pdf.numPages, 30);
+        const pages = [];
+        for (let i = 1; i <= total; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 1.25 });
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+          pages.push({
+            page: i,
+            image: canvas.toDataURL("image/jpeg", 0.85),
+            name: `Google Slides (第 ${i} 頁)`,
+            text: ""
+          });
+        }
+        uploadedSlidePages = pages;
+        selectedFiles = [];
+        currentComparisonPage = 0;
+        renderThumbnails();
+        clearStatus();
+        showToast(`成功自 Google Slides 載入 ${uploadedSlidePages.length} 頁簡報！`, "success");
+        return;
+      }
+    }
+
+    // 策略 B: 線上 PDF (結尾或路徑包含 .pdf)
+    if (url.toLowerCase().includes(".pdf")) {
+      setStatus("偵測到線上 PDF，正在下載檔案...");
+      let pdfBuffer = null;
+      const proxies = [
+        `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+      ];
+      for (const pUrl of proxies) {
+        try {
+          const r = await fetch(pUrl);
+          if (r.ok) {
+            pdfBuffer = await r.arrayBuffer();
+            if (pdfBuffer && pdfBuffer.byteLength > 1000) break;
+          }
+        } catch (e) { /* try next */ }
+      }
+
+      if (pdfBuffer && typeof pdfjsLib !== "undefined") {
+        setStatus("正在算繪 PDF 各頁投影片...");
+        const pdf = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
+        const total = Math.min(pdf.numPages, 30);
+        const pages = [];
+        for (let i = 1; i <= total; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 1.25 });
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+          pages.push({
+            page: i,
+            image: canvas.toDataURL("image/jpeg", 0.85),
+            name: `線上 PDF (第 ${i} 頁)`,
+            text: ""
+          });
+        }
+        uploadedSlidePages = pages;
+        selectedFiles = [];
+        currentComparisonPage = 0;
+        renderThumbnails();
+        clearStatus();
+        showToast(`成功自線上 PDF 載入 ${uploadedSlidePages.length} 頁投影片！`, "success");
+        return;
+      }
+    }
+
+    // 策略 C: 線上圖片連結 (.png / .jpg / .webp)
+    if (/\.(png|jpe?g|webp)(\?.*)?$/i.test(url)) {
+      setStatus("正在載入線上投影片圖片...");
+      const dataUri = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth || 1920;
+          canvas.height = img.naturalHeight || 1080;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL("image/jpeg", 0.88));
+        };
+        img.onerror = () => {
+          const proxyImg = new Image();
+          proxyImg.crossOrigin = "anonymous";
+          proxyImg.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = proxyImg.naturalWidth || 1920;
+            canvas.height = proxyImg.naturalHeight || 1080;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(proxyImg, 0, 0);
+            resolve(canvas.toDataURL("image/jpeg", 0.88));
+          };
+          proxyImg.onerror = () => reject(new Error("圖片載入失敗"));
+          proxyImg.src = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
+        };
+        img.src = url;
+      });
+
+      uploadedSlidePages = [
+        { page: 1, image: dataUri, name: "線上圖片投影片", text: "" }
+      ];
+      selectedFiles = [];
+      currentComparisonPage = 0;
+      renderThumbnails();
+      clearStatus();
+      showToast("成功載入線上投影片圖片！", "success");
+      return;
+    }
+
+    // 策略 D: 一般網頁 / 線上簡報平台 (以 16:9 投影片視角截圖)
+    setStatus("以 16:9 投影片視角截取網頁視覺版面...");
+    const shotServiceUrl = `https://image.thum.io/get/width/1920/crop/1080/noanimate/${encodeURIComponent(url)}`;
+    const shotDataUri = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1920;
+        canvas.height = 1080;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, 1920, 1080);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => reject(new Error("網頁截圖服務暫不可用"));
+      img.src = shotServiceUrl;
+    });
+
+    uploadedSlidePages = [
+      { page: 1, image: shotDataUri, name: "網頁版面視覺截圖", text: "" }
+    ];
+    selectedFiles = [];
+    currentComparisonPage = 0;
+    renderThumbnails();
+    clearStatus();
+    showToast("成功自網址抓取 16:9 網頁版面截圖！", "success");
+
+  } catch (err) {
+    console.error("網址抓取失敗:", err);
+    clearStatus();
+    showToast(`抓取失敗：${err.message || "無法解析該網址"}。若是 Google Slides，請確認簡報已開啟「知道連結的人皆可檢視」公開分享權限。`, "error");
+  }
+}
+
 function setupEventListeners() {
   const on = (id, event, handler) => {
     const el = document.getElementById(id);
@@ -898,6 +1140,52 @@ function setupEventListeners() {
   on("btn-open-apikey-quick", "click", () => {
     openApiKeyModal(currentProvider);
   });
+
+
+  // 來源切換 Tabs (檔案上傳 vs 網址爬取)
+  const tabSourceFile = document.getElementById("tab-source-file");
+  const tabSourceUrl = document.getElementById("tab-source-url");
+  const dropZoneEl = document.getElementById("drop-zone");
+  const urlZoneEl = document.getElementById("url-zone");
+  const btnCrawlUrl = document.getElementById("btn-crawl-url");
+  const inputSourceUrl = document.getElementById("input-source-url");
+
+  if (tabSourceFile && tabSourceUrl && dropZoneEl && urlZoneEl) {
+    tabSourceFile.addEventListener("click", () => {
+      tabSourceFile.className = "flex-1 py-1 px-2.5 rounded-md font-medium text-white bg-white/[0.1] shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer";
+      tabSourceUrl.className = "flex-1 py-1 px-2.5 rounded-md font-medium text-zinc-400 hover:text-zinc-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer";
+      dropZoneEl.classList.remove("hidden");
+      urlZoneEl.classList.add("hidden");
+    });
+
+    tabSourceUrl.addEventListener("click", () => {
+      tabSourceUrl.className = "flex-1 py-1 px-2.5 rounded-md font-medium text-white bg-white/[0.1] shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer";
+      tabSourceFile.className = "flex-1 py-1 px-2.5 rounded-md font-medium text-zinc-400 hover:text-zinc-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer";
+      dropZoneEl.classList.add("hidden");
+      urlZoneEl.classList.remove("hidden");
+      if (inputSourceUrl) inputSourceUrl.focus();
+      if (window.lucide) window.lucide.createIcons();
+    });
+  }
+
+  if (btnCrawlUrl && inputSourceUrl) {
+    const triggerCrawl = () => {
+      const u = inputSourceUrl.value.trim();
+      if (!u) {
+        showToast("請輸入欲爬取的簡報或網頁連結", "warning");
+        return;
+      }
+      handleUrlCrawl(u);
+    };
+
+    btnCrawlUrl.addEventListener("click", triggerCrawl);
+    inputSourceUrl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        triggerCrawl();
+      }
+    });
+  }
 
   // 拖曳上傳與檔案選擇
   const dropZone = document.getElementById("drop-zone");

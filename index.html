@@ -44,7 +44,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=6.4.0">
   <link rel="shortcut icon" href="favicon.ico?v=6.4.0">
   <meta name="theme-color" content="#0B0C0E">
-  <link rel="stylesheet" href="style.css?v=6.29.0">
+  <link rel="stylesheet" href="style.css?v=6.30.0">
 </head>
 <body class="studio-canvas-bg text-zinc-200 min-h-screen flex flex-col font-sans selection:bg-zinc-700 selection:text-white antialiased">
 
@@ -65,7 +65,7 @@
           </span>
           <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 font-mono border border-emerald-500/30 font-semibold shadow-sm flex items-center gap-1.5" title="系統當前版本號">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>v6.29.0</span>
+            <span>v6.30.0</span>
           </span>
         </div>
       </div>
@@ -118,6 +118,18 @@
           <span class="text-[10px] text-zinc-400 font-mono bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">支援 1~30 頁 · PDF/PPTX/圖片</span>
         </div>
 
+        <!-- 來源模式切換：檔案上傳 vs 網址爬取 -->
+        <div class="flex items-center gap-1 p-1 bg-black/40 rounded-lg border border-white/[0.08] text-[11px] font-mono">
+          <button id="tab-source-file" type="button" class="flex-1 py-1 px-2.5 rounded-md font-medium text-white bg-white/[0.1] shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer">
+            <i data-lucide="file-up" class="w-3.5 h-3.5 text-sky-400"></i>
+            <span>上傳檔案</span>
+          </button>
+          <button id="tab-source-url" type="button" class="flex-1 py-1 px-2.5 rounded-md font-medium text-zinc-400 hover:text-zinc-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer">
+            <i data-lucide="globe" class="w-3.5 h-3.5 text-zinc-400"></i>
+            <span>貼上簡報網址</span>
+          </button>
+        </div>
+
         <!-- 檔案上傳原生 Input -->
         <input type="file" id="file-input" class="hidden" multiple accept=".pptx,.pdf,.png,.jpg,.jpeg,.webp">
 
@@ -139,6 +151,46 @@
                 支援整份 PDF、PPTX 或 16:9 投影片高畫質截圖
               </p>
             </div>
+          </div>
+        </div>
+
+        <!-- 網址爬取區域 -->
+        <div id="url-zone" class="hidden p-4 rounded-xl bg-black/40 border border-white/[0.08] space-y-3">
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-[11px]">
+              <label for="input-source-url" class="font-medium text-zinc-300 flex items-center gap-1.5 font-mono">
+                <i data-lucide="link" class="w-3.5 h-3.5 text-sky-400"></i>
+                <span>線上簡報或網頁連結：</span>
+              </label>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <input 
+                type="url" 
+                id="input-source-url" 
+                placeholder="貼上 Google Slides、線上 PDF、Gamma 或網頁連結..." 
+                class="flex-1 px-3 py-2 text-xs bg-white/[0.04] border border-white/[0.1] rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/50 font-mono transition-colors"
+              />
+              <button 
+                id="btn-crawl-url" 
+                type="button" 
+                class="px-3.5 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-lg shadow-sm flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <i data-lucide="arrow-down-to-dot" class="w-3.5 h-3.5"></i>
+                <span>抓取</span>
+              </button>
+            </div>
+          </div>
+          
+          <div class="flex flex-wrap items-center gap-1 text-[10px] text-zinc-400 font-mono">
+            <span class="bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">Google 簡報 (公開檢視)</span>
+            <span class="bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">線上 PDF / 圖片連結</span>
+            <span class="bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">SpeakerDeck / 網頁</span>
+          </div>
+
+          <!-- 抓取狀態回饋 -->
+          <div id="url-crawl-status" class="hidden text-xs py-2 px-3 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-300 flex items-center gap-2 font-mono">
+            <i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin shrink-0"></i>
+            <span id="url-crawl-status-text">正在分析並截取網址內容...</span>
           </div>
         </div>
 
@@ -714,7 +766,7 @@
       <div class="flex items-center gap-2 flex-wrap">
         <span>© 2026 簡報風格逆向解析 (NBLM Slide Reverser)</span>
         <span class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-white/[0.06] text-emerald-300 border border-white/[0.08]">
-          v6.29.0
+          v6.30.0
         </span>
         <span class="text-zinc-700 hidden sm:inline">·</span>
         <span class="text-zinc-400">非 Google 或 NotebookLM 官方專案</span>
@@ -1438,7 +1490,7 @@
     </button>
   </div>
 
-  <script src="app.js?v=6.29.0"></script>
+  <script src="app.js?v=6.30.0"></script>
   <script>
     lucide.createIcons();
   </script>
