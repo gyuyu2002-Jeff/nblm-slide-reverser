@@ -8,7 +8,7 @@
   1. 自動讀取您放入 input/ 的簡報檔案（PDF、PPTX 或多張截圖）
   2. 透過 Gemini 多模態視覺模型深度逆向提取 NotebookLM 專用結構化提示詞
   3. 透過 Playwright 自動操控 Chrome 瀏覽器，貼入 NotebookLM 自動生成簡報
-  4. 自動將 NotebookLM 產出的投影片逐頁高解析截圖
+  4. 自動將 NotebookLM 產出的投影片逐頁高解析截圖（CDP 直取畫面，零延遲不卡字型）
   5. 由 AI 視覺質檢官進行「原圖 vs 生成圖」成對比對、打分、診斷走鐘並輸出優化建議
 =============================================================================
 """
@@ -21,6 +21,7 @@ import re
 import glob
 import shutil
 import socket
+import base64
 import logging
 import threading
 import subprocess
@@ -522,56 +523,97 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
             prompt_textarea.fill(prompt_text)
             time.sleep(1)
 
-            # 點擊「產生」按鈕
-            gen_btn = target_page.locator("mat-dialog-container button:has-text('產生')").first
+            # 點擊「立即生成」按鈕（精準對應 NotebookLM 正確按鈕文字）
+            gen_btn = target_page.locator("mat-dialog-container button:has-text('立即生成'), button:has-text('立即生成')").first
             if gen_btn.is_visible(timeout=3000):
                 gen_btn.click()
-                print("🚀 已觸發 NotebookLM 簡報算繪！", flush=True)
+                print("🚀 已成功點擊【立即生成】按鈕，觸發 NotebookLM 算繪！", flush=True)
             else:
-                target_page.keyboard.press("Control+Enter")
-                print("🚀 已送出生成請求！", flush=True)
+                # 透過 JS 尋找點擊
+                clicked_gen = target_page.evaluate('''() => {
+                    const btns = Array.from(document.querySelectorAll('button, [role="button"]'));
+                    const btn = btns.find(b => b.textContent.includes('立即生成'));
+                    if (btn) { btn.click(); return true; }
+                    return false;
+                }''')
+                if clicked_gen:
+                    print("🚀 已透過 JS 點擊【立即生成】按鈕！", flush=True)
+                else:
+                    target_page.keyboard.press("Control+Enter")
+                    print("🚀 已送出生成請求！", flush=True)
         else:
             print("⚠️ 未檢測到自訂簡報輸入框，可能已在進行生成。", flush=True)
 
-        # 6. 動態等待 NotebookLM 算繪完成 (通常需 35~60 秒)
+        # 6. 動態輪詢等待 NotebookLM 算繪完成 (監控「正在生成簡報」消失)
         print("\n" + "─" * 60, flush=True)
-        with ProgressTimer("NotebookLM 正在為您生成高美感投影片 (約需 40~60 秒)"):
-            for _ in range(70):
-                time.sleep(1)
-                dialog_visible = target_page.evaluate('''() => {
-                    return document.querySelector('mat-dialog-container') !== null;
+        with ProgressTimer("NotebookLM 正在為您繪製簡報與視覺細節 (通常需 60~90 秒)"):
+            # 輪詢最多 150 秒
+            for _ in range(75):
+                time.sleep(2)
+                status = target_page.evaluate('''() => {
+                    const all = Array.from(document.querySelectorAll('*'));
+                    const isGenerating = all.some(e => e.textContent.includes('正在生成') || e.textContent.includes('生成中'));
+                    const hasDialog = document.querySelector('mat-dialog-container') !== null;
+                    return { isGenerating, hasDialog };
                 }''')
-                if not dialog_visible and _ > 35:
+                # 至少等過 25 秒，且生成標籤消失，代表算繪完成
+                if not status["isGenerating"] and not status["hasDialog"] and _ > 12:
                     break
         print("─" * 60, flush=True)
 
-        time.sleep(4)
-
-        # 7. 點擊生成出的簡報以進入全螢幕/檢視器
-        print("🔍 尋找生成完畢的簡報卡片並打開檢視...", flush=True)
-        target_page.evaluate('''() => {
-            const artifacts = Array.from(document.querySelectorAll('.artifact-item, .studio-artifact-card, [role="listitem"]'));
-            if (artifacts.length > 0) {
-                artifacts[artifacts.length - 1].click();
-            }
-        }''')
         time.sleep(3)
 
-        # 8. 逐頁截取投影片畫面
+        # 7. 點擊生成完畢的簡報卡片以打開檢視器
+        print("🔍 尋找生成完畢的簡報卡片並打開檢視...", flush=True)
+        target_page.evaluate('''() => {
+            // 關閉橫幅
+            const closeBtns = document.querySelectorAll('.studio-panel button[aria-label*="關閉"], .notification-banner button');
+            closeBtns.forEach(b => b.click());
+            
+            // 滾動到底部
+            const scrollers = document.querySelectorAll('.panel-content-scrollable, .studio-panel');
+            scrollers.forEach(s => s.scrollTop = s.scrollHeight);
+        }''')
+        time.sleep(1)
+
+        # 使用 force=True 點擊最新產出的簡報按鈕
+        deck_button = target_page.locator("button.artifact-stretched-button").last
+        if deck_button.is_visible(timeout=3000):
+            deck_button.click(force=True)
+        else:
+            target_page.evaluate('''() => {
+                const artifacts = Array.from(document.querySelectorAll('.artifact-stretched-button, .artifact-item-button, .artifact-title'));
+                if (artifacts.length > 0) {
+                    artifacts[artifacts.length - 1].click();
+                }
+            }''')
+        time.sleep(3)
+
+        # 8. 逐頁截取投影片畫面 (使用 CDP 原生幀緩衝區，0.1秒秒存，無超時、不卡字型加載)
         print("📸 正在為您逐頁截取 NotebookLM 產出的投影片...", flush=True)
-        for page_idx in range(1, 6):
-            shot_path = DIR_NBLM_SLIDES / f"generated_slide_{page_idx:02d}.png"
-            try:
-                target_page.screenshot(path=str(shot_path), timeout=5000, animations="disabled")
+        try:
+            cdp_session = target_page.context.new_cdp_session(target_page)
+            for page_idx in range(1, 6):
+                shot_path = DIR_NBLM_SLIDES / f"generated_slide_{page_idx:02d}.png"
+                res = cdp_session.send("Page.captureScreenshot", {"format": "png"})
+                with open(shot_path, "wb") as f:
+                    f.write(base64.b64decode(res["data"]))
                 captured_slides.append(shot_path)
-            except Exception:
+                
+                # 翻頁
+                target_page.keyboard.press("ArrowRight")
+                time.sleep(1.5)
+        except Exception as cdp_err:
+            print(f"⚠️ CDP 截圖備援切換: {cdp_err}")
+            for page_idx in range(1, 6):
+                shot_path = DIR_NBLM_SLIDES / f"generated_slide_{page_idx:02d}.png"
                 try:
-                    target_page.screenshot(path=str(shot_path), timeout=5000)
+                    target_page.locator("body").screenshot(path=str(shot_path), timeout=5000)
                     captured_slides.append(shot_path)
                 except Exception:
                     pass
-            target_page.keyboard.press("ArrowRight")
-            time.sleep(1.5)
+                target_page.keyboard.press("ArrowRight")
+                time.sleep(1.5)
 
         print(f"🎉 成功截取 {len(captured_slides)} 張生成畫面，已儲存至 output/03_nblm_slides/", flush=True)
 
@@ -667,7 +709,7 @@ def main():
     print("""
 =============================================================================
    🚀 NBLM Auto-Pilot 投影片全自動閉環逆向優化器
-   Version: 1.1.0 (Live Progress & Precision Selectors)
+   Version: 1.2.0 (Precision '立即生成' & Instant CDP Capture)
 =============================================================================
     """, flush=True)
 
