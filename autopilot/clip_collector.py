@@ -52,11 +52,15 @@ def main():
                 print(f"\n🎉 截圖收集結束！共收集 {count} 張投影片圖片。", flush=True)
                 if count > 0:
                     print("🚀 正在啟動 Auto-Pilot 全自動閉環優化器...\n", flush=True)
-                    subprocess.run([sys.executable, "-u", "nblm_pilot.py"], cwd=str(SCRIPT_DIR))
+                    res = subprocess.run([sys.executable, "-u", "nblm_pilot.py"], cwd=str(SCRIPT_DIR))
                     print("\n" + "=" * 68, flush=True)
-                    print("✨ Auto-Pilot 閉環優化全流程已順利完成！", flush=True)
-                    print("📊 評估報告已儲存於: autopilot/output/04_evaluations/evaluation_report.md", flush=True)
-                    print("📦 最新約束規則已自動合併至 guardrails.json 並推播至 GitHub！", flush=True)
+                    if res.returncode == 0:
+                        print("✨ Auto-Pilot 閉環優化全流程已順利完成！", flush=True)
+                        print("📊 評估報告已儲存於: autopilot/output/04_evaluations/evaluation_report.md", flush=True)
+                        print("📦 最新約束規則已自動合併至 guardrails.json 並推播至 GitHub！", flush=True)
+                    else:
+                        print(f"❌ Auto-Pilot 執行過程發生異常 (Exit Code: {res.returncode})", flush=True)
+                        print("⚠️ 請查看上方執行紀錄以排查問題。", flush=True)
                     print("=" * 68, flush=True)
                     try:
                         input("\n👉 請按 [Enter] 鍵結束並關閉視窗...")

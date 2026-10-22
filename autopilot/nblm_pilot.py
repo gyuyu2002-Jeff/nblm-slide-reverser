@@ -349,7 +349,7 @@ def reverse_engineer_prompt(images: List[Path], config: dict) -> Tuple[str, str,
 
     # 候選模型清單（按新版相容性順序）
     configured_model = config.get("gemini_model", "gemini-3.5-flash")
-    candidate_models = [configured_model, "gemini-3.5-flash", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-3.1-pro-preview"]
+    candidate_models = [configured_model, "gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.1-pro-preview"]
     # 去重保留順序
     seen = set()
     candidate_models = [m for m in candidate_models if not (m in seen or seen.add(m))]
@@ -525,17 +525,19 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
         except Exception:
             pass
 
-        # 1. 確保不在記事編輯狀態（若在編輯狀態，點擊工作室回到首頁）
+        # 1. 確保切換至 Studio / 工作室 分頁（若在記事編輯或對話分頁中）
         target_page.evaluate('''() => {
             const all = Array.from(document.querySelectorAll('*'));
             for (const el of all) {
-                if (el.textContent.trim() === '工作室' && el.children.length === 0) {
-                    el.click();
+                const txt = el.textContent.trim();
+                if ((txt === 'Studio' || txt === '工作室') && el.children.length === 0) {
+                    const target = el.closest('button') || el.closest('[role="tab"]') || el;
+                    target.click();
                     break;
                 }
             }
         }''')
-        time.sleep(1)
+        time.sleep(1.5)
 
         # 2. 檢查來源數量是否為 0；若為 0，自動新增一則記事來源
         sources_count_text = target_page.evaluate('''() => {
@@ -676,97 +678,109 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
         print("✅ NotebookLM 簡報算繪完成！", flush=True)
         time.sleep(2)
 
-        # 7. 點擊最新產出的簡報，並獲取專屬檢視器
-        print("🔍 正在定位最新生成的投影片並開啟 16:9 純淨檢視器...", flush=True)
+        # 7. 切換至 Studio 分頁並定位最新產出的簡報
+        print("🔍 正在定位最新生成的投影片並開啟 16:9 檢視器...", flush=True)
+        target_page.evaluate('''() => {
+            const tabs = Array.from(document.querySelectorAll('*'));
+            for (const el of tabs) {
+                const txt = el.textContent.trim();
+                if ((txt === 'Studio' || txt === '工作室') && el.children.length === 0) {
+                    const target = el.closest('button') || el.closest('[role="tab"]') || el;
+                    target.click();
+                    break;
+                }
+            }
+        }''')
+        time.sleep(2)
+
         try:
             target_page.wait_for_selector("artifact-library-item", timeout=10000)
         except Exception:
             pass
 
-        newest_item = target_page.locator("artifact-library-item").first
-        newest_title = newest_item.inner_text().replace("\n", " | ")
-        print(f"🎯 目標簡報: {newest_title}", flush=True)
+        extracted = target_page.evaluate('''() => {
+            const items = document.querySelectorAll('artifact-library-item');
+            if (!items || items.length === 0) return null;
+            const first = items[0];
+            const btn = first.querySelector('button[jslog]') || first.querySelector('button.artifact-stretched-button') || first.querySelector('button');
+            const jslog = btn ? btn.getAttribute('jslog') : (first.getAttribute('jslog') || '');
+            const aria = (btn ? btn.getAttribute('aria-labelledby') : '') || first.getAttribute('aria-labelledby') || '';
+            return {
+                title: first.innerText ? first.innerText.replace(/\\n/g, ' ') : '',
+                jslog: jslog || '',
+                aria: aria || ''
+            };
+        }''')
 
-        # 點擊項目以展開
-        newest_btn = newest_item.locator("button.artifact-stretched-button, .artifact-item-button").first
-        newest_btn.click(force=True)
-        time.sleep(2)
-
-        # 尋找 open_in_new 按鈕並提取 artifact_id
         target_notebook_id = ""
         target_artifact_id = ""
 
-        # 嘗試從 open_in_new 按鈕的 jslog base64 提取精確的 artifact ID
-        open_btn = target_page.locator("button:has(mat-icon:has-text('open_in_new'))").first
-        if open_btn.is_visible(timeout=4000):
-            jslog_str = open_btn.get_attribute("jslog") or ""
-            # jslog 格式: 359929;track:...;0:<BASE64>
-            match = re.search(r"0:([A-Za-z0-9+/=]+)", jslog_str)
-            if match:
-                try:
-                    decoded = base64.b64decode(match.group(1)).decode("latin1", errors="ignore")
-                    ids = re.findall(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", decoded)
-                    if len(ids) >= 2:
-                        target_notebook_id = ids[0]
-                        target_artifact_id = ids[1]
-                except Exception:
-                    pass
+        m_nb = re.search(r"/notebook/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", target_page.url)
+        if m_nb:
+            target_notebook_id = m_nb.group(1)
 
-        # 若成功提取到 ID，直接導向專屬 16:9 檢視頁面（100% 免疫彈窗攔截與分頁競態）
+        if extracted:
+            print(f"🎯 目標簡報: {extracted.get('title', '')[:80]}", flush=True)
+            m_aria = re.search(r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", extracted.get("aria", ""))
+            if m_aria:
+                target_artifact_id = m_aria.group(1)
+
+            if not target_artifact_id and extracted.get("jslog"):
+                m_js = re.search(r"0:([A-Za-z0-9+/=]+)", extracted["jslog"])
+                if m_js:
+                    try:
+                        decoded = base64.b64decode(m_js.group(1)).decode("latin1", errors="ignore")
+                        ids = re.findall(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", decoded)
+                        if len(ids) >= 2:
+                            if not target_notebook_id:
+                                target_notebook_id = ids[0]
+                            target_artifact_id = ids[1]
+                    except Exception:
+                        pass
+
+        # 8. 直達簡報獨立檢視器並進行 16:9 高清截圖
         art_page = None
         if target_notebook_id and target_artifact_id:
             artifact_url = f"https://notebook.google.com/notebook/{target_notebook_id}/artifact/{target_artifact_id}"
-            print(f"🚀 直達純淨簡報檢視器: {artifact_url}", flush=True)
+            print(f"🚀 直達簡報檢視器: {artifact_url}", flush=True)
             art_page = context.new_page()
             art_page.goto(artifact_url, wait_until="domcontentloaded")
+            time.sleep(3)
         else:
-            # 備援：透過點擊 open_in_new 開啟新分頁
-            if open_btn.is_visible():
-                try:
-                    with context.expect_page(timeout=8000) as p_info:
-                        open_btn.click()
-                    art_page = p_info.value
-                    art_page.wait_for_url("**/artifact/**", timeout=12000)
-                except Exception:
-                    pass
-
-        if not art_page:
-            # 最後備援：使用目前分頁
+            # 備援：透過點擊開新頁面
+            newest_item = target_page.locator("artifact-library-item").first
+            if newest_item.is_visible():
+                btn = newest_item.locator("button.artifact-stretched-button, button").first
+                if btn.is_visible():
+                    btn.click()
+                    time.sleep(2)
             art_page = target_page
 
         art_page.bring_to_front()
 
-        # 等待縮圖導航器加載
+        # 等待簡報圖片元素算繪加載
         try:
-            art_page.wait_for_selector(".thumbnail-container", timeout=15000)
+            art_page.wait_for_selector("img[src*='notebooklm']", timeout=15000)
         except Exception:
             pass
 
-        thumbs = art_page.locator(".thumbnail-container")
-        thumb_count = thumbs.count()
-        print(f"📑 檢測到投影片頁數: {thumb_count} 頁，開始逐頁 16:9 高清截圖...", flush=True)
+        slide_imgs = art_page.locator("img[src*='notebooklm']")
+        slide_count = slide_imgs.count()
+        print(f"📑 檢測到投影片頁數: {slide_count} 頁，開始逐頁截圖...", flush=True)
 
-        # 8. 逐頁截取純淨 16:9 投影片畫面
-        slide_limit = min(thumb_count, config.get("slide_page_limit", 6))
-        if thumb_count > 0:
+        slide_limit = min(slide_count, config.get("slide_page_limit", 6))
+        if slide_count > 0:
             for idx in range(slide_limit):
-                thumbs.nth(idx).click()
-                time.sleep(2.0)  # 確保 Google 高清 SVG/WebP 算繪就緒
+                img_el = slide_imgs.nth(idx)
+                img_el.scroll_into_view_if_needed()
+                time.sleep(0.5)
 
                 shot_path = DIR_NBLM_SLIDES / f"generated_slide_{idx+1:02d}.png"
-                img_el = art_page.locator("image-viewer img, .image-viewer-container img").first
-                
-                if img_el.is_visible():
-                    # 像素級裁切投影片核心畫面（去除任何按鈕邊框）
-                    img_el.screenshot(path=str(shot_path))
-                else:
-                    # 全頁截圖備援
-                    art_page.screenshot(path=str(shot_path))
-
+                img_el.screenshot(path=str(shot_path))
                 captured_slides.append(shot_path)
                 print(f"   📸 已截取第 {idx+1}/{slide_limit} 頁 -> generated_slide_{idx+1:02d}.png", flush=True)
         else:
-            print("⚠️ 未偵測到投影片縮圖列，嘗試使用全域畫面截圖...", flush=True)
+            print("⚠️ 未偵測到 notebooklm 簡報圖片，嘗試使用全域畫面截圖備援...", flush=True)
             for idx in range(1, 4):
                 shot_path = DIR_NBLM_SLIDES / f"generated_slide_{idx:02d}.png"
                 art_page.screenshot(path=str(shot_path))
@@ -835,7 +849,7 @@ def evaluate_and_optimize(original_images: List[Path], generated_images: List[Pa
 
     report_markdown = ""
     configured_model = config.get("gemini_model", "gemini-3.5-flash")
-    candidate_models = [configured_model, "gemini-3.5-flash", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-3.1-pro-preview"]
+    candidate_models = [configured_model, "gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.1-pro-preview"]
     seen = set()
     candidate_models = [m for m in candidate_models if not (m in seen or seen.add(m))]
 
