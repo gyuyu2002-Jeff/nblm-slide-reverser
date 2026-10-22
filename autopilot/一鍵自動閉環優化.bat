@@ -7,10 +7,10 @@ echo =====================================================================
 echo    🤖 NBLM Auto-Pilot 全自動投影片逆向與生成閉環測試系統
 echo =====================================================================
 echo.
-echo [檢查中] 正在啟動 Python 引擎...
+echo [檢查中] 正在啟動 Python 引擎 (無緩衝即時輸出模式)...
 echo.
 
-python nblm_pilot.py
+python -u nblm_pilot.py
 
 if %ERRORLEVEL% neq 0 (
     echo.
