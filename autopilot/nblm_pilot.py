@@ -424,16 +424,22 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
             print(f"❌ 無法透過 CDP 連接 Chrome ({c_err})", flush=True)
             return captured_slides
 
+        # 0. 先關閉任何上次遺留的 /artifact/ 獨立分頁，確保回到乾淨的工作區
+        for ctx in browser.contexts:
+            for pg in list(ctx.pages):
+                if "/artifact/" in pg.url:
+                    try:
+                        pg.close()
+                    except Exception:
+                        pass
+
         contexts = browser.contexts
         target_page = None
 
-        # 優先尋找已經在筆記本內的分頁
+        # 尋找主要的筆記本工作區分頁 (非 artifact)
         for ctx in contexts:
             for pg in ctx.pages:
-                if "/artifact/" in pg.url:
-                    target_page = pg
-                    break
-                elif "/notebook/" in pg.url and pg.url.rstrip("/").split("/")[-1] != "notebook":
+                if "/notebook/" in pg.url and "/artifact/" not in pg.url:
                     target_page = pg
                     break
             if target_page:
@@ -507,6 +513,12 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
                 time.sleep(1)
                 print("✅ 基礎來源記事已就緒！", flush=True)
 
+        # 記錄生成前的工作室組件總數
+        initial_artifact_count = target_page.evaluate('''() => {
+            const studio = document.querySelector('.studio-panel') || document.body;
+            return studio.querySelectorAll('.artifact-item-button, button.artifact-stretched-button').length;
+        }''')
+
         # 3. 點擊右側工作室「簡報」按鈕（若已開過自訂對話框則略過）
         dialog_already_open = target_page.evaluate('''() => {
             return document.querySelector('mat-dialog-container') !== null;
@@ -568,24 +580,40 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
         else:
             print("⚠️ 未檢測到自訂簡報輸入框，可能已在進行生成。", flush=True)
 
-        # 6. 動態輪詢等待 NotebookLM 算繪完成 (監控「正在生成簡報」消失)
-        print("\n" + "─" * 60, flush=True)
-        with ProgressTimer("NotebookLM 正在為您繪製簡報與視覺細節 (通常需 60~90 秒)"):
-            for _ in range(75):
-                time.sleep(2)
-                status = target_page.evaluate('''() => {
-                    const all = Array.from(document.querySelectorAll('*'));
-                    const isGenerating = all.some(e => e.textContent.includes('正在生成') || e.textContent.includes('生成中'));
-                    const hasDialog = document.querySelector('mat-dialog-container') !== null;
-                    return { isGenerating, hasDialog };
-                }''')
-                if not status["isGenerating"] and not status["hasDialog"] and _ > 12:
-                    break
-        print("─" * 60, flush=True)
-
+        # 等待對話框關閉並給予 NotebookLM 啟動渲染的時間
         time.sleep(3)
 
-        # 7. 點擊生成完畢的簡報卡片以打開檢視器
+        # 6. 動態輪詢等待 NotebookLM 算繪完成 (嚴謹監控「正在生成簡報」徽章與 Spinner)
+        print("\n" + "─" * 60, flush=True)
+        with ProgressTimer("NotebookLM 正在為您繪製簡報與視覺細節 (通常需 60~100 秒，請勿中斷)"):
+            # 最長等待 180 秒 (60 次輪詢 * 3 秒)；且前 45 秒絕對不提前退出
+            for loop_i in range(60):
+                time.sleep(3)
+                elapsed_sec = (loop_i + 1) * 3
+
+                status = target_page.evaluate('''() => {
+                    const studio = document.querySelector('.studio-panel') || document.body;
+                    const text = studio.innerText || '';
+                    const hasGenText = text.includes('正在生成') || text.includes('生成中') || text.includes('正在建立');
+                    const hasSpinner = studio.querySelector('mat-progress-spinner, mat-spinner, svg.rotating, .artifact-loading') !== null;
+                    const isGenerating = hasGenText || hasSpinner;
+                    const currentCount = studio.querySelectorAll('.artifact-item-button, button.artifact-stretched-button').length;
+                    return { isGenerating, currentCount };
+                }''')
+
+                # 只有當：
+                # 1. 已經度過至少 45 秒 (NotebookLM 生成簡報絕不可能低於 45 秒)
+                # 2. 且畫面不再顯示「正在生成」或轉圈 Spinner
+                # 3. 且產出的組件數量增加，或已等待超過 90 秒
+                if elapsed_sec >= 45 and not status["isGenerating"]:
+                    if status["currentCount"] > initial_artifact_count or elapsed_sec >= 90:
+                        break
+
+        print("─" * 60, flush=True)
+        print("✅ NotebookLM 簡報算繪完成！", flush=True)
+        time.sleep(3)
+
+        # 7. 點擊生成完畢的簡報卡片並打開檢視器
         print("🔍 尋找生成完畢的簡報卡片並打開檢視...", flush=True)
         target_page.evaluate('''() => {
             const closeBtns = document.querySelectorAll('.studio-panel button[aria-label*="關閉"], .notification-banner button');
@@ -595,32 +623,29 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
         }''')
         time.sleep(1)
 
-        # 使用 force=True 點擊最新產出的簡報按鈕
-        deck_button = target_page.locator("button.artifact-stretched-button").last
+        # 點擊工作室中最新產出的簡報按鈕
+        deck_button = target_page.locator(".artifact-item-button, button.artifact-stretched-button").first
         if deck_button.is_visible(timeout=3000):
             deck_button.click(force=True)
             time.sleep(2)
 
-        # 檢查是否已有開啟的 artifact 頁面，或嘗試點擊「在新分頁中開啟」
+        # 嘗試點擊「在新分頁中開啟」按鈕 (open_in_new) 以開啟純淨 16:9 簡報檢視器
         artifact_page = None
-        for ctx in browser.contexts:
-            for pg in ctx.pages:
+        open_tab_btn = target_page.locator("button:has(mat-icon:has-text('open_in_new')), button[aria-label*='新分頁'], button[aria-label*='在新分頁中開啟']").first
+        if open_tab_btn.is_visible(timeout=3000):
+            try:
+                with target_page.context.expect_page(timeout=5000) as new_page_info:
+                    open_tab_btn.click()
+                artifact_page = new_page_info.value
+                artifact_page.wait_for_load_state("domcontentloaded")
+            except Exception:
+                pass
+
+        if not artifact_page:
+            for pg in browser.contexts[0].pages:
                 if "/artifact/" in pg.url:
                     artifact_page = pg
                     break
-            if artifact_page:
-                break
-
-        if not artifact_page:
-            open_tab_btn = target_page.locator("button[aria-label*='在新分頁中開啟'], [aria-label*='在新分頁中開啟']").first
-            if open_tab_btn.is_visible(timeout=2000):
-                try:
-                    with target_page.context.expect_page(timeout=4000) as new_page_info:
-                        open_tab_btn.click()
-                    artifact_page = new_page_info.value
-                    artifact_page.wait_for_load_state("domcontentloaded")
-                except Exception:
-                    pass
 
         if not artifact_page:
             artifact_page = target_page
@@ -639,12 +664,13 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
                 print(f"🎯 檢測到投影片專屬導航器（共 {thumb_count} 頁），開始逐頁高清截圖...", flush=True)
                 for page_idx in range(min(thumb_count, 6)):
                     thumbs.nth(page_idx).click()
-                    time.sleep(1.0)
+                    time.sleep(1.2)
                     shot_path = DIR_NBLM_SLIDES / f"generated_slide_{page_idx+1:02d}.png"
                     res = cdp_session.send("Page.captureScreenshot", {"format": "png"})
                     with open(shot_path, "wb") as f:
                         f.write(base64.b64decode(res["data"]))
                     captured_slides.append(shot_path)
+                    print(f"   已截取第 {page_idx+1} 頁 -> generated_slide_{page_idx+1:02d}.png", flush=True)
             else:
                 for page_idx in range(1, 6):
                     shot_path = DIR_NBLM_SLIDES / f"generated_slide_{page_idx:02d}.png"
@@ -666,6 +692,13 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
                     pass
                 artifact_page.keyboard.press("ArrowRight")
                 time.sleep(1.5)
+
+        # 截圖完成後關閉獨立的 /artifact/ 分頁，以防干擾下次執行
+        if artifact_page != target_page and "/artifact/" in artifact_page.url:
+            try:
+                artifact_page.close()
+            except Exception:
+                pass
 
         print(f"🎉 成功截取 {len(captured_slides)} 張生成畫面，已儲存至 output/03_nblm_slides/", flush=True)
 
@@ -746,9 +779,12 @@ def evaluate_and_optimize(original_images: List[Path], generated_images: List[Pa
     print("🏆 【AI 視覺質檢核心摘要】", flush=True)
     print("─" * 60, flush=True)
     lines = report_markdown.split("\n")
-    for line in lines[:25]:
-        if any(k in line for k in ["還原度", "總分", "評分", "指標", "走鐘", "對策", "*", "#"]):
-            print(line, flush=True)
+    for line in lines[:30]:
+        if any(k in line for k in ["還原度", "總分", "評分", "指標", "走鐘", "對策", "*", "#", "分數", "建議"]):
+            try:
+                print(line, flush=True)
+            except Exception:
+                print(line.encode("ascii", errors="ignore").decode("ascii"), flush=True)
     print("─" * 60, flush=True)
 
     return {"report_path": str(report_path), "report_markdown": report_markdown}
