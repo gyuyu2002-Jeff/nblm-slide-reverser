@@ -428,10 +428,55 @@ def parse_selected_pages_str(pages_str: Optional[str]) -> Optional[set]:
     return result if result else None
 
 
+
+@app.post("/api/crawl-preview")
+async def crawl_preview(request: Request, source_url: str = Form(...)):
+    """接收網址 (Google Slides, PDF, 線上簡報, 網頁)，爬取前 6 頁投影片縮圖給前端即時預覽"""
+    client_ip = get_client_ip(request)
+    if not rate_limiter.is_allowed(f"preview:{client_ip}", max_requests=30, window_seconds=60):
+        raise HTTPException(
+            status_code=429,
+            detail="預覽請求過於頻繁，請稍候 30 秒後再試（已觸發安全限流防護）。",
+            headers={"Retry-After": "30"}
+        )
+
+    from url_crawler import crawl_url_to_images, is_valid_url
+    clean_url = source_url.strip()
+    if not is_valid_url(clean_url):
+        raise HTTPException(status_code=400, detail="請提供有效的 HTTP/HTTPS 網址")
+
+    try:
+        images = crawl_url_to_images(clean_url, limit=6)
+        if not images:
+            raise HTTPException(status_code=400, detail="無法從目標網址截取或解析出簡報影像")
+        
+        preview_pages = []
+        for idx, (img_bytes, mime) in enumerate(images, start=1):
+            b64 = base64.b64encode(img_bytes).decode("utf-8")
+            data_uri = f"data:{mime};base64,{b64}"
+            preview_pages.append({
+                "page_number": idx,
+                "data_uri": data_uri
+            })
+
+        return {
+            "status": "success",
+            "source_type": "url",
+            "total_slides": len(images),
+            "preview_pages": preview_pages
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"網址預覽爬取失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"網址爬取失敗: {str(e)}")
+
+
 @app.post("/api/analyze")
 async def analyze_style(
     request: Request,
-    files: List[UploadFile] = File(...),
+    files: Optional[List[UploadFile]] = File(None),
+    source_url: Optional[str] = Form(None),
     provider: str = Form("gemini"),
     model: str = Form("auto"),
     target_use: str = Form("notebooklm_slide"),
@@ -493,19 +538,37 @@ async def analyze_style(
             detail=f"提供的 {provider_name} API Key 格式不合規，請確認未包含換行符或特殊空格。"
         )
 
-    if not files or len(files) == 0:
-        raise HTTPException(status_code=400, detail="請至少上傳一個 PDF、PPTX 或圖片檔案")
+    if not source_url and (not files or len(files) == 0):
+        raise HTTPException(status_code=400, detail="請至少上傳一個 PDF/PPTX/圖片檔案，或提供簡報網址")
 
-    if len(files) > MAX_UPLOAD_FILES_COUNT:
+    if files and len(files) > MAX_UPLOAD_FILES_COUNT:
         raise HTTPException(status_code=400, detail=f"單次分析最多允許上傳 {MAX_UPLOAD_FILES_COUNT} 個檔案")
 
     # 統一收集圖像素材與投影片結構
     standard_images = []  # List of tuples: (bytes, mime_type)
     pptx_summaries = []
     total_detected_pages = 0
+
+    if source_url and source_url.strip():
+        from url_crawler import crawl_url_to_images, is_valid_url
+        clean_url = source_url.strip()
+        if not is_valid_url(clean_url):
+            raise HTTPException(status_code=400, detail="提供的網址格式無效，請輸入包含 http:// 或 https:// 的有效連結")
+        logger.info(f"正在自指定網址爬取投影片與視覺素材: {clean_url}")
+        try:
+            url_images = crawl_url_to_images(clean_url, limit=6)
+            if not url_images:
+                raise HTTPException(status_code=400, detail="無法從目標網址截取到有效影像")
+            for img_bytes, mime in url_images:
+                standard_images.append((img_bytes, mime))
+            total_detected_pages += len(url_images)
+        except HTTPException:
+            raise
+        except Exception as ue:
+            raise HTTPException(status_code=400, detail=f"網址爬取失敗: {str(ue)}")
     
     try:
-        for uploaded_file in files:
+        for uploaded_file in (files or []):
             content = await read_uploaded_file_safely(uploaded_file, MAX_UPLOAD_SIZE)
             filename = uploaded_file.filename.lower()
             

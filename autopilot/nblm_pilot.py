@@ -167,9 +167,9 @@ def load_config() -> dict:
 # =============================================================================
 # 2. 步驟一：簡報輸入與影像抽取 (PDF / PPTX / 圖片)
 # =============================================================================
-def extract_input_slides(limit: int = 6) -> List[Path]:
+def extract_input_slides(limit: int = 6, config: Optional[dict] = None) -> List[Path]:
     print("\n" + "=" * 60, flush=True)
-    print("📂 [步驟 1/5] 掃描輸入檔案並提取投影片影像...", flush=True)
+    print("📂 [步驟 1/5] 掃描輸入來源 (支援網址爬取與本機檔案) 並提取投影片影像...", flush=True)
     print("=" * 60, flush=True)
 
     # 清空先前的抽取目錄
@@ -179,6 +179,47 @@ def extract_input_slides(limit: int = 6) -> List[Path]:
         except Exception:
             pass
 
+    sys.path.append(str(PROJECT_ROOT))
+    from url_crawler import crawl_url_to_images, is_valid_url
+
+    # 1. 優先檢測網址來源 (config.json 或 input/ 目錄下的 txt/url 檔案)
+    target_url = None
+    if config and config.get("source_url") and is_valid_url(config["source_url"]):
+        target_url = config["source_url"].strip()
+
+    if not target_url:
+        url_files = list(DIR_INPUT.glob("*.txt")) + list(DIR_INPUT.glob("*.url"))
+        for uf in url_files:
+            try:
+                content_txt = uf.read_text(encoding="utf-8").strip()
+                for line in content_txt.splitlines():
+                    line = line.strip()
+                    if line.lower().startswith("url="):
+                        line = line.split("=", 1)[1].strip()
+                    if is_valid_url(line):
+                        target_url = line
+                        print(f"🔗 從 {uf.name} 偵測到目標網址: {target_url}", flush=True)
+                        break
+                if target_url:
+                    break
+            except Exception:
+                pass
+
+    if target_url:
+        print(f"🌐 啟動網址爬蟲自動抓取簡報/網頁視覺素材: {target_url}", flush=True)
+        try:
+            cdp_port = config.get("cdp_port") if config else None
+            crawl_url_to_images(target_url, output_dir=DIR_EXTRACTED, limit=limit, cdp_port=cdp_port)
+            extracted_images = sorted(list(DIR_EXTRACTED.glob("page_*.png")))
+            if extracted_images:
+                print(f"🎉 成功從網址爬取並提取 {len(extracted_images)} 頁投影片影像，已存入 output/01_extracted/", flush=True)
+                return extracted_images
+            else:
+                print("⚠️ 網址爬取未產生有效影像，切換為掃描本機檔案...", flush=True)
+        except Exception as u_err:
+            print(f"⚠️ 網址爬取失敗: {u_err}，切換為掃描本機檔案...", flush=True)
+
+    # 2. 掃描本機檔案 (PDF / PPTX / 圖片)
     input_files = []
     for ext in ["*.pdf", "*.pptx", "*.png", "*.jpg", "*.jpeg", "*.webp"]:
         input_files.extend(list(DIR_INPUT.glob(ext)))
@@ -963,7 +1004,7 @@ def main():
     """, flush=True)
 
     config = load_config()
-    extracted_slides = extract_input_slides(limit=config.get("slide_page_limit", 6))
+    extracted_slides = extract_input_slides(limit=config.get("slide_page_limit", 6), config=config)
     prompt_text, global_p, slide_p = reverse_engineer_prompt(extracted_slides, config)
     captured_slides = drive_notebooklm_and_capture(prompt_text, config)
 

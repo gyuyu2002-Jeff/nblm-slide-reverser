@@ -45,8 +45,10 @@ nblm-slide-reverser/autopilot/
 * 此時會開啟一個乾淨且獨立的 Chrome 視窗（不會影響您平常使用的 Chrome 與分頁）。
 * 請在該視窗中**登入您的 Google 帳號一次**，登入後即可隨時放著，後續無須再次輸入密碼！
 
-### 步驟 2：放入想復刻的簡報
-* 把您想復刻的簡報檔案（支援 `.pdf`、`.pptx` 或 `.png`、`.jpg` 圖片），直接複製貼進 **`autopilot/input/`** 資料夾中。
+### 步驟 2：放入想復刻的簡報或提供網址
+* **方式 A（本機檔案）**：把您想復刻的簡報檔案（支援 `.pdf`、`.pptx` 或 `.png`、`.jpg` 圖片），直接複製貼進 **`autopilot/input/`** 資料夾中。
+* **方式 B（線上網址自動爬取）**：在 **`autopilot/input/`** 中放入 `urls.txt`（直接填入網址）或 Windows `.url` 捷徑；亦可在 `config.json` 中配置 `"source_url": "https://..."`。
+  * 支援類型：Google Slides 連結、線上簡報平台（Speaker Deck、SlideShare、Gamma 等）、公開 PDF / 圖片 URL、或一般品牌 Landing Page（自動分屏截圖）。
 * *(註：若 input 內為空，系統會自動使用內建的 5 張 Demo 簡報進行測試演示)*
 
 ### 步驟 3：一鍵啟動自動閉環
