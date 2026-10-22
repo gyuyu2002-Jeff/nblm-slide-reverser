@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updated_at": "2026-10-22 19:51:59",
+  "updated_at": "2026-10-22 23:35:26",
   "rules": [
     {
       "id": "anti_topology_swapping",
@@ -96,6 +96,26 @@
       "id": "FALLBACK_RENDER_PROTECTION_1792669919",
       "title": "FALLBACK & RENDER PROTECTION",
       "rule": "Ensure complete DOM/Canvas rendering on every page. Empty white frames are strictly forbidden; apply standard 2-column fallback layouts if complex 3D graphic rendering fails."
+    },
+    {
+      "id": "rule_1792683326",
+      "title": "禁止省略或簡化任何視覺化元素",
+      "rule": "嚴格要求 NotebookLM 不得省略、簡化或替換原始簡報中的任何圖表類型（如折線圖、甜甜圈圖）、進度條、圖示及數據標籤。所有視覺元素必須完整且精確地呈現，不得僅以文字描述取代。"
+    },
+    {
+      "id": "rule_1792683326",
+      "title": "禁止替換或修改數據與文字內容",
+      "rule": "必須忠實還原原始簡報中的所有數值數據、百分比、狀態描述（如 \"on target\", \"Pending\"）及表格內容。嚴禁使用佔位符號（如 \"--\"）或自行生成不符的內容，確保資訊的精確性與完整性。"
+    },
+    {
+      "id": "rule_1792683326",
+      "title": "嚴格維持版型幾何結構與空間佈局",
+      "rule": "必須精確複製原始簡報的卡片佈局、元素相對位置、間距與視覺層次感。禁止任何導致元素擠壓、錯位或破壞整體空間節奏感的變動，確保幾何結構與視覺空間感完全一致。"
+    },
+    {
+      "id": "rule_1792683326",
+      "title": "禁止更改投影片標題與副標題",
+      "rule": "投影片的主標題與副標題必須精確翻譯或直接引用原始簡報內容，嚴禁自行修改、縮減或生成任何不符的標題，以確保內容的一致性。"
     }
   ]
 }

@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.33.3";
+const APP_VERSION = "v6.33.4";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
