@@ -1,0 +1,11 @@
+{
+  "gemini_api_key": "",
+  "gemini_model": "gemini-2.5-flash",
+  "notebooklm_url": "https://notebooklm.google.com/",
+  "cdp_port": 9222,
+  "cdp_url": "http://127.0.0.1:9222",
+  "chrome_profile_dir": "%LOCALAPPDATA%\\Google\\Chrome\\AutomationProfile",
+  "slide_page_limit": 6,
+  "prompt_mode": "global",
+  "auto_evaluate": true
+}

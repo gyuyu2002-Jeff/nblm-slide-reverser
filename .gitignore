@@ -45,3 +45,17 @@ tmp/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Autopilot 自動化產物與機密金鑰保護
+autopilot/config.json
+autopilot/input/*
+!autopilot/input/.gitkeep
+autopilot/output/01_extracted/*
+!autopilot/output/01_extracted/.gitkeep
+autopilot/output/02_prompts/*
+!autopilot/output/02_prompts/.gitkeep
+autopilot/output/03_nblm_slides/*
+!autopilot/output/03_nblm_slides/.gitkeep
+autopilot/output/04_evaluations/*
+!autopilot/output/04_evaluations/.gitkeep
+
