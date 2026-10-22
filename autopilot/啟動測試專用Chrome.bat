@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 title NotebookLM 自動化專用 Chrome 啟動器
 echo =====================================================================

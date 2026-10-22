@@ -37,8 +37,7 @@ def extract_google_slides_id(url: str) -> Optional[str]:
 def crawl_url_to_images(
     url: str,
     output_dir: Optional[Path] = None,
-    limit: int = 6,
-    cdp_port: Optional[int] = None
+    limit: int = 6
 ) -> List[Tuple[bytes, str]]:
     """
     爬取目標網址並轉譯為 16:9 高清投影片影像列表。
@@ -113,53 +112,43 @@ def crawl_url_to_images(
             logger.warning(f"直接下載檔案失敗: {e}，切換為瀏覽器渲染模式")
 
     # -------------------------------------------------------------
-    # 策略 3: 使用 Playwright 進行動態瀏覽與 16:9 投影片截圖
+    # 策略 3: 使用獨立無頭 Chromium 進行動態瀏覽與 16:9 投影片截圖
     # -------------------------------------------------------------
     from playwright.sync_api import sync_playwright
 
-    logger.info(f"啟動 Playwright 渲染引擎抓取網頁: {url}")
+    logger.info(f"啟動獨立無頭瀏覽器截取網頁: {url}")
     with sync_playwright() as p:
-        browser = None
-        context = None
-        
-        # 若有指定 CDP 端口且本機 Chrome 正在運行，優先複用已有瀏覽器
-        if cdp_port:
-            try:
-                browser = p.chromium.connect_over_cdp(f"http://127.0.0.1:{cdp_port}")
-                context = browser.contexts[0] if browser.contexts else browser.new_context()
-            except Exception:
-                browser = None
-
-        if not context:
-            browser = p.chromium.launch(
-                headless=True,
-                args=[
-                    "--no-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-blink-features=AutomationControlled"
-                ]
-            )
-            context = browser.new_context(
-                viewport={"width": 1920, "height": 1080},
-                device_scale_factor=2,
-                user_agent=HEADERS["User-Agent"]
-            )
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-blink-features=AutomationControlled"
+            ]
+        )
+        context = browser.new_context(
+            viewport={"width": 1920, "height": 1080},
+            device_scale_factor=2,
+            user_agent=HEADERS["User-Agent"]
+        )
 
         page = context.new_page()
         page.set_viewport_size({"width": 1920, "height": 1080})
 
         try:
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            page.wait_for_timeout(3000)  # 等待 JS 框架加載
+            page.goto(url, wait_until="domcontentloaded", timeout=25000)
+            page.wait_for_timeout(3000)  # 等待 JS 框架與渲染
         except Exception as e:
             logger.warning(f"加載頁面超時或警告: {e}")
 
         # 檢測頁面是否為簡報型容器（如 SpeakerDeck / SlideShare / Reveal / Gamma）
-        # 嘗試偵測是否有可翻頁之按鈕或特定 Slide 元件
-        is_presentation = False
         next_button = page.locator("button[aria-label*='Next'], button[aria-label*='next'], .slide-next, button:has-text('下一頁'), [data-action='next']").first
-        if next_button.is_visible(timeout=1500):
-            is_presentation = True
+        is_presentation = False
+        try:
+            if next_button.is_visible(timeout=1500):
+                is_presentation = True
+        except Exception:
+            is_presentation = False
 
         if is_presentation:
             logger.info("偵測到線上簡報翻頁控制項，正在逐頁截取...")
@@ -167,35 +156,46 @@ def crawl_url_to_images(
                 time.sleep(1)
                 shot = page.screenshot(type="png")
                 results.append((shot, "image/png"))
-                if not next_button.is_visible() or not next_button.is_enabled():
-                    break
                 try:
+                    if not next_button.is_visible() or not next_button.is_enabled():
+                        break
                     next_button.click(timeout=2000)
                     page.wait_for_timeout(1500)
                 except Exception:
                     break
         else:
-            # 策略：網頁視覺版面抓取（滾動分屏截圖，捕捉完整排版風格）
-            logger.info("以 16:9 投影片視角滾動截取網頁版面風格...")
-            total_height = page.evaluate("() => document.body.scrollHeight")
+            # 策略：網頁視覺版面抓取（以 16:9 比例分屏截圖）
+            logger.info("以 16:9 投影片視角截取網頁版面風格...")
+            total_height = 1080
+            try:
+                total_height = page.evaluate("() => document.body.scrollHeight")
+            except Exception:
+                total_height = 1080
             viewport_height = 1080
             
-            # 依頁面總高決定截圖分段步長
             steps = min(limit, max(1, total_height // viewport_height + 1))
             step_scroll = max(600, total_height // steps)
 
             for idx in range(steps):
                 current_scroll = idx * step_scroll
-                page.evaluate(f"window.scrollTo(0, {current_scroll});")
-                page.wait_for_timeout(1000)
+                try:
+                    page.evaluate(f"window.scrollTo(0, {current_scroll});")
+                    page.wait_for_timeout(1000)
+                except Exception:
+                    pass
                 shot = page.screenshot(type="png")
                 results.append((shot, "image/png"))
                 if current_scroll + viewport_height >= total_height:
                     break
 
-        page.close()
-        if browser and not cdp_port:
+        try:
+            page.close()
+        except Exception:
+            pass
+        try:
             browser.close()
+        except Exception:
+            pass
 
     _save_if_needed(results, output_dir)
     return results

@@ -1,0 +1,11 @@
+# Ensure Windows batch files always use CRLF line endings
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Source code files
+*.py text eol=lf
+*.js text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md text eol=lf

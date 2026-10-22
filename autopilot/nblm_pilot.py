@@ -209,7 +209,7 @@ def extract_input_slides(limit: int = 6, config: Optional[dict] = None) -> List[
         print(f"🌐 啟動網址爬蟲自動抓取簡報/網頁視覺素材: {target_url}", flush=True)
         try:
             cdp_port = config.get("cdp_port") if config else None
-            crawl_url_to_images(target_url, output_dir=DIR_EXTRACTED, limit=limit, cdp_port=cdp_port)
+            crawl_url_to_images(target_url, output_dir=DIR_EXTRACTED, limit=limit)
             extracted_images = sorted(list(DIR_EXTRACTED.glob("page_*.png")))
             if extracted_images:
                 print(f"🎉 成功從網址爬取並提取 {len(extracted_images)} 頁投影片影像，已存入 output/01_extracted/", flush=True)

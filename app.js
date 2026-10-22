@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.30.0";
+const APP_VERSION = "v6.29.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -1164,7 +1164,6 @@ function setupEventListeners() {
       dropZoneEl.classList.add("hidden");
       urlZoneEl.classList.remove("hidden");
       if (inputSourceUrl) inputSourceUrl.focus();
-      if (window.lucide) window.lucide.createIcons();
     });
   }
 
