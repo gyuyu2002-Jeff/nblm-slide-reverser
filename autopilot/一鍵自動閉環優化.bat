@@ -1,22 +1,26 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 title NBLM Auto-Pilot 投影片全自動閉環優化器
 cd /d "%~dp0"
 
 echo =====================================================================
-echo    🤖 NBLM Auto-Pilot 全自動投影片逆向與生成閉環測試系統
+echo    NBLM Auto-Pilot 投影片全自動閉環優化器
 echo =====================================================================
 echo.
-echo [檢查中] 正在啟動 Python 引擎 (無緩衝即時輸出模式)...
+echo [系統] 啟動 Python 引擎執行閉環流程...
 echo.
 
 python -u nblm_pilot.py
+set EXIT_CODE=%ERRORLEVEL%
 
-if %ERRORLEVEL% neq 0 (
+if %EXIT_CODE% neq 0 (
     echo.
-    echo [提示] 執行過程中發生錯誤或被中斷。
+    echo [提示] 執行過程中發生異常 (Exit Code: %EXIT_CODE%)。
+) else (
+    echo.
+    echo [完成] 執行結束，狀態碼正常。
 )
 
 echo.
-echo 按任意鍵結束...
+echo 請按任意鍵關閉視窗...
 pause >nul

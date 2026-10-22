@@ -12,10 +12,10 @@
    * 透過 Chrome 遠端除錯通道（Port 9222）接管瀏覽器。
    * 自動打開 NotebookLM、填入提示詞、觸發生成、監控算繪進度。
    * 生成完畢自動逐頁高解析度截圖儲存。
-4. **AI 視覺質檢官 (Ground Truth Calibration)**：
+4. **AI 視覺質檢評估 (Ground Truth Calibration)**：
    * 拿「原始簡報」與「NotebookLM 截圖」逐頁成對評比。
-   * 自動給出「版型結構分數」、「色彩準確度」、「文字節奏評分」。
-   * 自動診斷走鐘點，並產出下一輪防走鐘的「負面約束咒語（Guardrails）」。
+   - 自動給出「版型結構分數」、「色彩準確度」、「文字節奏評分」。
+   - 自動診斷樣式偏差，並產出下一輪的「約束規範（Guardrails）」。
 
 ---
 
@@ -29,7 +29,7 @@ nblm-slide-reverser/autopilot/
 │   ├── 01_extracted/       (從原簡報抽取出的高清頁面)
 │   ├── 02_prompts/         (反推生成的 NotebookLM 專用提示詞)
 │   ├── 03_nblm_slides/     (NotebookLM 實際生成的截圖)
-│   └── 04_evaluations/     (AI 視覺質檢評分與走鐘診斷報告)
+│   └── 04_evaluations/     (AI 視覺質檢評分與優化診斷報告)
 ├── config.json             (設定檔：API Key、模型、端口)
 ├── 啟動測試專用Chrome.bat  (一鍵啟動獨立除錯 Chrome)
 ├── 一鍵自動閉環優化.bat    (雙擊執行全自動閉環測試)

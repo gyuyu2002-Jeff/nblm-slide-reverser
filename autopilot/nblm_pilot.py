@@ -764,11 +764,11 @@ def evaluate_and_optimize(original_images: List[Path], generated_images: List[Pa
 * **視覺密度與節奏感 (Typography & Rhythm)**: [分數] - 說明：標題字級、內文長度是否得宜？文字有無爆框擠壓？
 * **綜合還原總分 (Overall Alignment Score)**: [加權總分]
 
-## 2. 具體走鐘診斷 (Deviations & Hallucinations)
+## 2. 具體視覺偏差診斷 (Deviations & Inconsistencies)
 * 條列具體哪一頁、哪個組件失真或表現不理想。
 
 ## 3. 提示詞強化對策 (Prompt Hardening & Guardrails)
-* 精準給出 2~4 條可立即補入下一次提示詞的「硬性約束咒語（Negative Prompts）」，防止 NotebookLM 再次走鐘！
+* 精準給出 2~4 條可立即補入下一次提示詞的「硬性約束規範（Negative Prompts & Strict Constraints）」，防止 NotebookLM 再次產生樣式偏差。
 """
 
     eval_prompt = f"請逐頁比對上述 {compare_count} 組投影片（前一張為原始設計，後一張為 NotebookLM 生成成果），產出詳細評分與優化診斷。"
@@ -808,7 +808,7 @@ def evaluate_and_optimize(original_images: List[Path], generated_images: List[Pa
     print("─" * 60, flush=True)
     lines = report_markdown.split("\n")
     for line in lines[:35]:
-        if any(k in line for k in ["還原度", "總分", "評分", "指標", "走鐘", "對策", "*", "#", "分數", "建議"]):
+        if any(k in line for k in ["還原度", "總分", "評分", "指標", "偏差", "對策", "*", "#", "分數", "建議"]):
             try:
                 print(line, flush=True)
             except Exception:
@@ -848,7 +848,7 @@ def auto_harden_and_sync_website(eval_result: dict, config: dict) -> None:
             capture_output=True, text=True
         )
         if cmd_status.stdout.strip():
-            print("📦 正在將最新防走鐘約束咒語提交至 GitHub 專案庫...", flush=True)
+            print("📦 正在將最新提示詞約束規範提交至 GitHub 儲存庫...", flush=True)
             subprocess.run(
                 ["git", "-C", str(PROJECT_ROOT), "add", "app.py"],
                 check=True
@@ -861,7 +861,7 @@ def auto_harden_and_sync_website(eval_result: dict, config: dict) -> None:
                 ["git", "-C", str(PROJECT_ROOT), "push", "origin", "main"],
                 check=True
             )
-            print("🚀 ✅ 網站提示詞引擎已全自動升級並推播至 GitHub 雲端！", flush=True)
+            print("✅ 網站提示詞引擎已更新並推播至 GitHub 儲存庫。", flush=True)
         else:
             print("✅ 網站提示詞引擎已是最新狀態，無需重複推播。", flush=True)
     except Exception as g_err:
@@ -889,7 +889,7 @@ def main():
         auto_harden_and_sync_website(eval_result, config)
 
     print("\n" + "=" * 60, flush=True)
-    print("🎉 全流程閉環自動化完成！", flush=True)
+    print("全流程閉環自動化執行完畢。", flush=True)
     print(f"📁 原始影像抽取區: {DIR_EXTRACTED}", flush=True)
     print(f"📁 逆向提示詞目錄: {DIR_PROMPTS}", flush=True)
     print(f"📁 NotebookLM 截圖區: {DIR_NBLM_SLIDES}", flush=True)
