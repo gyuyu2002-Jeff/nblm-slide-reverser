@@ -285,6 +285,38 @@ SYSTEM_INSTRUCTION = """
 ```
 """
 
+
+
+def get_system_instruction() -> str:
+    """動態載入最新 guardrails.json 並將學習到的約束組裝入提示詞引擎"""
+    base = SYSTEM_INSTRUCTION
+    guardrails_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "guardrails.json")
+    if os.path.exists(guardrails_path):
+        try:
+            with open(guardrails_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            rules = data.get("rules", [])
+            if rules:
+                rule_lines = []
+                for r in rules:
+                    title = r.get("title", "").strip()
+                    rule_body = r.get("rule", "").strip()
+                    if title and rule_body:
+                        rule_lines.append(f"   - ★【{title}】：{rule_body}")
+                
+                if rule_lines:
+                    rules_block = "5. 🛡️【實證抗失真約束規範（來自真實 NotebookLM 閉環質檢自動更新）】:\n" + "\n".join(rule_lines)
+                    if "5. 🛡️【實證抗失真約束規範" in base:
+                        head, rest = base.split("5. 🛡️【實證抗失真約束規範", 1)
+                        tail = rest.split("請以繁體中文（台灣習慣用語）輸出以下結構化報告：", 1)[1]
+                        return head + rules_block + "\n\n請以繁體中文（台灣習慣用語）輸出以下結構化報告：" + tail
+                    else:
+                        return base + "\n\n" + rules_block
+        except Exception as err:
+            logger.warning(f"動態加載 guardrails.json 失敗: {err}")
+    return base
+
+
 from pptx_handler import process_pptx_presentation
 
 @app.post("/api/preview")
@@ -580,7 +612,7 @@ async def analyze_style(
                         model=candidate,
                         contents=gemini_parts,
                         config=types.GenerateContentConfig(
-                            system_instruction=SYSTEM_INSTRUCTION,
+                            system_instruction=get_system_instruction(),
                             temperature=0.4,
                         )
                     )
@@ -623,7 +655,7 @@ async def analyze_style(
             response = client.chat.completions.create(
                 model=selected_model,
                 messages=[
-                    {"role": "system", "content": SYSTEM_INSTRUCTION},
+                    {"role": "system", "content": get_system_instruction()},
                     {"role": "user", "content": content_list}
                 ],
                 temperature=0.4
@@ -656,7 +688,7 @@ async def analyze_style(
             response = client.messages.create(
                 model=selected_model,
                 max_tokens=4096,
-                system=SYSTEM_INSTRUCTION,
+                system=get_system_instruction(),
                 messages=[{"role": "user", "content": content_list}],
                 temperature=0.4
             )

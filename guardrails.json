@@ -1,0 +1,51 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2026-10-22 16:12:07",
+  "rules": [
+    {
+      "id": "anti_topology_swapping",
+      "title": "幾何拓撲防錯位規範 (Anti-Topology Swapping)",
+      "rule": "若該頁原圖為「橫向 4 欄流程卡片」，提示詞必須強制約束『🚫 嚴禁退化為 2x2 矩陣』；若原圖為「2x2 四象限矩陣」，『🚫 嚴禁退化為水平時間軸』；若原圖為「連續 Chevron 流程箭頭」，『🚫 嚴禁退化為普通方塊』！每一頁的視覺拓撲必須剛性鎖定！"
+    },
+    {
+      "id": "solid_color_fill",
+      "title": "幾何組件實心飽滿填色 (Solid Color Fill, No Wireframes)",
+      "rule": "所有箭頭、卡片與圖示徽章必須使用飽滿的實心色彩填充（Solid Color Fill），『🚫 絕對嚴禁生成黑色單線條無填色外框（Hollow Wireframe / Empty Outlines）』，確保畫面具備足夠的視覺量感與衝擊力！"
+    },
+    {
+      "id": "step_count_integrity",
+      "title": "步驟數量 1:1 剛性守恆 (Step-Count Integrity)",
+      "rule": "原圖有幾個步驟（例如 4 步或 5 步），生成內容必須剛性產出相同數量的欄位或節點，『🚫 絕對嚴禁擅自合併或縮減步驟數量』！"
+    },
+    {
+      "id": "chart_palette_purity",
+      "title": "圖表色彩純度防雜色污染 (Chart Palette Purity & Anti-Color Contamination)",
+      "rule": "圓餅圖、長條圖與區域圖之數據組件，必須嚴格限定使用該風格指定之純色扁平填色；『🚫 嚴禁自動衍生非預期的泥褐色、濁黃色、中灰色等雜色扇形或長條』，維持色彩系統之純度！"
+    },
+    {
+      "id": "vector_stroke_fidelity",
+      "title": "插畫線條與形狀保真 (Vector Stroke & Graphic Fidelity)",
+      "rule": "原圖若為向量線條插畫（如階梯、引線、軸線），必須維持簡潔之扁平向量線條；『🚫 嚴禁畸變為笨重之 3D 塊狀物或實心色塊堆疊』！"
+    },
+    {
+      "id": "Color_Lock_Constraint_1792656727",
+      "title": "Color Lock Constraint",
+      "rule": "Strictly limit palette to exact 3 colors: Crimson Red (#FF0033), Pure Black (#000000), and Off-White background (#F5F5F0). NO brown, NO yellow, NO grey, NO gradients. Force 100% flat vector flat colors."
+    },
+    {
+      "id": "Visual_Element_Guardrail_1792656727",
+      "title": "Visual Element Guardrail",
+      "rule": "Do NOT render 3D blocks or mud-colored shapes. If stairs/graphs are requested, render them using clean stroke lines or solid red/black flat vector shapes only."
+    },
+    {
+      "id": "Chart_Color_Consistency_1792656727",
+      "title": "Chart Color Consistency",
+      "rule": "All pie slices and bar charts MUST strictly use solid Crimson Red or Pure Black. Prohibit automatically generating tertiary color fills (like beige, grey, brown) in chart elements."
+    },
+    {
+      "id": "Layout_Consistency_1792656727",
+      "title": "Layout Consistency",
+      "rule": "Maintain top-right red dot matrix grid (5x5) and exact vertical thick red accent border on the slide edges (left edge for slide 1, right edge for slide 3)."
+    }
+  ]
+}
