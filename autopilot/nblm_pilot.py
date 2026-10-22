@@ -427,18 +427,42 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
         contexts = browser.contexts
         target_page = None
 
+        # 優先尋找已經在筆記本內的分頁
         for ctx in contexts:
             for pg in ctx.pages:
-                if "notebook.google.com" in pg.url or "notebooklm.google.com" in pg.url:
+                if "/artifact/" in pg.url:
+                    target_page = pg
+                    break
+                elif "/notebook/" in pg.url and pg.url.rstrip("/").split("/")[-1] != "notebook":
                     target_page = pg
                     break
             if target_page:
                 break
 
         if not target_page:
+            for ctx in contexts:
+                for pg in ctx.pages:
+                    if "notebook.google.com" in pg.url or "notebooklm.google.com" in pg.url:
+                        target_page = pg
+                        break
+                if target_page:
+                    break
+
+        if not target_page:
             target_page = contexts[0].new_page()
-            target_page.goto("https://notebooklm.google.com/", wait_until="domcontentloaded")
+
+        # 若目前停在首頁，且 config 中有指定 notebook_url，自動導向目標筆記本
+        target_notebook = config.get("notebook_url")
+        if target_notebook and ("/notebook/" not in target_page.url or target_page.url.rstrip("/").endswith("notebook.google.com")):
+            print(f"📖 正在導向您的專屬筆記本: {target_notebook}", flush=True)
+            target_page.goto(target_notebook, wait_until="domcontentloaded")
             time.sleep(3)
+        elif "/notebook/" not in target_page.url:
+            print("📑 檢測到目前位於 NotebookLM 首頁，正在開啟第一本筆記本...", flush=True)
+            card = target_page.locator("a[href*='/notebook/'], .project-card, [role='button']:has-text('筆記本')").first
+            if card.is_visible(timeout=4000):
+                card.click()
+                time.sleep(3)
 
         target_page.bring_to_front()
         print(f"👀 目標筆記本頁面: {target_page.url}", flush=True)
@@ -547,7 +571,6 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
         # 6. 動態輪詢等待 NotebookLM 算繪完成 (監控「正在生成簡報」消失)
         print("\n" + "─" * 60, flush=True)
         with ProgressTimer("NotebookLM 正在為您繪製簡報與視覺細節 (通常需 60~90 秒)"):
-            # 輪詢最多 150 秒
             for _ in range(75):
                 time.sleep(2)
                 status = target_page.evaluate('''() => {
@@ -556,7 +579,6 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
                     const hasDialog = document.querySelector('mat-dialog-container') !== null;
                     return { isGenerating, hasDialog };
                 }''')
-                # 至少等過 25 秒，且生成標籤消失，代表算繪完成
                 if not status["isGenerating"] and not status["hasDialog"] and _ > 12:
                     break
         print("─" * 60, flush=True)
@@ -566,11 +588,8 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
         # 7. 點擊生成完畢的簡報卡片以打開檢視器
         print("🔍 尋找生成完畢的簡報卡片並打開檢視...", flush=True)
         target_page.evaluate('''() => {
-            // 關閉橫幅
             const closeBtns = document.querySelectorAll('.studio-panel button[aria-label*="關閉"], .notification-banner button');
             closeBtns.forEach(b => b.click());
-            
-            // 滾動到底部
             const scrollers = document.querySelectorAll('.panel-content-scrollable, .studio-panel');
             scrollers.forEach(s => s.scrollTop = s.scrollHeight);
         }''')
@@ -580,39 +599,72 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
         deck_button = target_page.locator("button.artifact-stretched-button").last
         if deck_button.is_visible(timeout=3000):
             deck_button.click(force=True)
-        else:
-            target_page.evaluate('''() => {
-                const artifacts = Array.from(document.querySelectorAll('.artifact-stretched-button, .artifact-item-button, .artifact-title'));
-                if (artifacts.length > 0) {
-                    artifacts[artifacts.length - 1].click();
-                }
-            }''')
-        time.sleep(3)
+            time.sleep(2)
 
-        # 8. 逐頁截取投影片畫面 (使用 CDP 原生幀緩衝區，0.1秒秒存，無超時、不卡字型加載)
-        print("📸 正在為您逐頁截取 NotebookLM 產出的投影片...", flush=True)
+        # 檢查是否已有開啟的 artifact 頁面，或嘗試點擊「在新分頁中開啟」
+        artifact_page = None
+        for ctx in browser.contexts:
+            for pg in ctx.pages:
+                if "/artifact/" in pg.url:
+                    artifact_page = pg
+                    break
+            if artifact_page:
+                break
+
+        if not artifact_page:
+            open_tab_btn = target_page.locator("button[aria-label*='在新分頁中開啟'], [aria-label*='在新分頁中開啟']").first
+            if open_tab_btn.is_visible(timeout=2000):
+                try:
+                    with target_page.context.expect_page(timeout=4000) as new_page_info:
+                        open_tab_btn.click()
+                    artifact_page = new_page_info.value
+                    artifact_page.wait_for_load_state("domcontentloaded")
+                except Exception:
+                    pass
+
+        if not artifact_page:
+            artifact_page = target_page
+
+        artifact_page.bring_to_front()
+        time.sleep(2)
+
+        # 8. 逐頁截取投影片畫面 (優先使用 .thumbnail-container 縮圖點擊切換，精準截取 16:9 全尺寸)
+        print("📸 正在為您逐頁截取 NotebookLM 產出的 16:9 投影片...", flush=True)
         try:
-            cdp_session = target_page.context.new_cdp_session(target_page)
-            for page_idx in range(1, 6):
-                shot_path = DIR_NBLM_SLIDES / f"generated_slide_{page_idx:02d}.png"
-                res = cdp_session.send("Page.captureScreenshot", {"format": "png"})
-                with open(shot_path, "wb") as f:
-                    f.write(base64.b64decode(res["data"]))
-                captured_slides.append(shot_path)
-                
-                # 翻頁
-                target_page.keyboard.press("ArrowRight")
-                time.sleep(1.5)
+            cdp_session = artifact_page.context.new_cdp_session(artifact_page)
+            thumbs = artifact_page.locator(".thumbnail-container")
+            thumb_count = thumbs.count()
+
+            if thumb_count > 0:
+                print(f"🎯 檢測到投影片專屬導航器（共 {thumb_count} 頁），開始逐頁高清截圖...", flush=True)
+                for page_idx in range(min(thumb_count, 6)):
+                    thumbs.nth(page_idx).click()
+                    time.sleep(1.0)
+                    shot_path = DIR_NBLM_SLIDES / f"generated_slide_{page_idx+1:02d}.png"
+                    res = cdp_session.send("Page.captureScreenshot", {"format": "png"})
+                    with open(shot_path, "wb") as f:
+                        f.write(base64.b64decode(res["data"]))
+                    captured_slides.append(shot_path)
+            else:
+                for page_idx in range(1, 6):
+                    shot_path = DIR_NBLM_SLIDES / f"generated_slide_{page_idx:02d}.png"
+                    res = cdp_session.send("Page.captureScreenshot", {"format": "png"})
+                    with open(shot_path, "wb") as f:
+                        f.write(base64.b64decode(res["data"]))
+                    captured_slides.append(shot_path)
+                    artifact_page.keyboard.press("ArrowRight")
+                    time.sleep(1.5)
+
         except Exception as cdp_err:
             print(f"⚠️ CDP 截圖備援切換: {cdp_err}")
             for page_idx in range(1, 6):
                 shot_path = DIR_NBLM_SLIDES / f"generated_slide_{page_idx:02d}.png"
                 try:
-                    target_page.locator("body").screenshot(path=str(shot_path), timeout=5000)
+                    artifact_page.locator("body").screenshot(path=str(shot_path), timeout=5000)
                     captured_slides.append(shot_path)
                 except Exception:
                     pass
-                target_page.keyboard.press("ArrowRight")
+                artifact_page.keyboard.press("ArrowRight")
                 time.sleep(1.5)
 
         print(f"🎉 成功截取 {len(captured_slides)} 張生成畫面，已儲存至 output/03_nblm_slides/", flush=True)
