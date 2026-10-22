@@ -819,13 +819,63 @@ def evaluate_and_optimize(original_images: List[Path], generated_images: List[Pa
 
 
 # =============================================================================
-# 6. 主流程串接 (Master Loop)
+# 6. 步驟五：自動閉環自癒反饋 (Auto-Hardening & Website Sync)
+# =============================================================================
+def auto_harden_and_sync_website(eval_result: dict, config: dict) -> None:
+    print("\n" + "=" * 60, flush=True)
+    print("🔄 [步驟 5/5] 自動閉環自癒反饋：將本次質檢診斷回寫至網站核心提示詞引擎...", flush=True)
+    print("=" * 60, flush=True)
+
+    report_markdown = eval_result.get("report_markdown", "")
+    if not report_markdown:
+        print("⚠️ 無質檢報告可供反饋。", flush=True)
+        return
+
+    # 1. 儲存本次反饋規則至 active_guardrails.json
+    guardrails_file = DIR_EVALUATIONS / "active_guardrails.json"
+    guardrails_data = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "source_report": str(eval_result.get("report_path", "")),
+        "status": "synchronized_to_web_engine"
+    }
+    with open(guardrails_file, "w", encoding="utf-8") as f:
+        json.dump(guardrails_data, f, ensure_ascii=False, indent=2)
+
+    # 2. 自動執行 Git 提交與推播，將優化後的 app.py 同步至遠端網站
+    try:
+        cmd_status = subprocess.run(
+            ["git", "-C", str(PROJECT_ROOT), "status", "--porcelain"],
+            capture_output=True, text=True
+        )
+        if cmd_status.stdout.strip():
+            print("📦 正在將最新防走鐘約束咒語提交至 GitHub 專案庫...", flush=True)
+            subprocess.run(
+                ["git", "-C", str(PROJECT_ROOT), "add", "app.py"],
+                check=True
+            )
+            subprocess.run(
+                ["git", "-C", str(PROJECT_ROOT), "commit", "-m", "feat(engine): auto-hardened prompt rules from closed-loop visual QA"],
+                check=True
+            )
+            subprocess.run(
+                ["git", "-C", str(PROJECT_ROOT), "push", "origin", "main"],
+                check=True
+            )
+            print("🚀 ✅ 網站提示詞引擎已全自動升級並推播至 GitHub 雲端！", flush=True)
+        else:
+            print("✅ 網站提示詞引擎已是最新狀態，無需重複推播。", flush=True)
+    except Exception as g_err:
+        print(f"⚠️ 自動 Git 推播略過: {g_err}（本機 app.py 已成功更新）", flush=True)
+
+
+# =============================================================================
+# 7. 主流程串接 (Master Loop)
 # =============================================================================
 def main():
     print("""
 =============================================================================
    🚀 NBLM Auto-Pilot 投影片全自動閉環逆向優化器
-   Version: 2.0.0 (Resilient Zero-Timeout & Direct Artifact Capture)
+   Version: 2.1.0 (Closed-Loop Self-Evolution & Web Sync)
 =============================================================================
     """, flush=True)
 
@@ -835,7 +885,8 @@ def main():
     captured_slides = drive_notebooklm_and_capture(prompt_text, config)
 
     if config.get("auto_evaluate", True):
-        evaluate_and_optimize(extracted_slides, captured_slides, config)
+        eval_result = evaluate_and_optimize(extracted_slides, captured_slides, config)
+        auto_harden_and_sync_website(eval_result, config)
 
     print("\n" + "=" * 60, flush=True)
     print("🎉 全流程閉環自動化完成！", flush=True)
