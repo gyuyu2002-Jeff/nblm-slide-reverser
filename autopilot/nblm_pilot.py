@@ -374,7 +374,9 @@ def reverse_engineer_prompt(images: List[Path], config: dict) -> Tuple[str, str,
         except Exception as err:
             err_str = str(err)
             print(f"\n⚠️ 調用 {model_name} 失敗: {err_str}，切換備援模型...", flush=True)
-            time.sleep(1)
+            if "10054" in err_str or "ConnectError" in err_str:
+                print("💡 [網路診斷提示] 檢測到連線被主機重設 (WinError 10054)。若您有使用 VPN (例如 NordVPN) 或代理軟體，請確認目前是否處於連線狀態。", flush=True)
+            time.sleep(2)
 
     if not analysis_text:
         print("❌ 所有 Gemini 候選模型皆無法回應，請檢查 API Key 或網路連線。", flush=True)
