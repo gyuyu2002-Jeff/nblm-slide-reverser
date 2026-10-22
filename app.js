@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.29.0";
+const APP_VERSION = "v6.31.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -1163,6 +1163,7 @@ function setupEventListeners() {
       tabSourceFile.className = "flex-1 py-1 px-2.5 rounded-md font-medium text-zinc-400 hover:text-zinc-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer";
       dropZoneEl.classList.add("hidden");
       urlZoneEl.classList.remove("hidden");
+      if (window.lucide) window.lucide.createIcons();
       if (inputSourceUrl) inputSourceUrl.focus();
     });
   }
@@ -1184,6 +1185,28 @@ function setupEventListeners() {
         triggerCrawl();
       }
     });
+
+    // 清空網址按鈕事件處理 (支援頂部清空文字按鈕與輸入框右側清空按鈕)
+    const btnClearUrl = document.getElementById("btn-clear-url");
+    const btnClearUrlText = document.getElementById("btn-clear-url-text");
+    const handleClearUrl = () => {
+      const hadValue = inputSourceUrl.value.trim().length > 0;
+      inputSourceUrl.value = "";
+      inputSourceUrl.focus();
+
+      const statusEl = document.getElementById("url-crawl-status");
+      if (statusEl) statusEl.classList.add("hidden");
+
+      btnCrawlUrl.disabled = false;
+      btnCrawlUrl.classList.remove("opacity-50", "cursor-not-allowed");
+
+      if (hadValue) {
+        showToast("已清空簡報網址", "info");
+      }
+    };
+
+    if (btnClearUrl) btnClearUrl.addEventListener("click", handleClearUrl);
+    if (btnClearUrlText) btnClearUrlText.addEventListener("click", handleClearUrl);
   }
 
   // 拖曳上傳與檔案選擇
