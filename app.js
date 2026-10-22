@@ -591,8 +591,8 @@ async function testApiKeyConnection(provider, apiKey) {
   const startTime = performance.now();
 
   if (provider === "gemini") {
-    // 優先以最穩定、高響應的 gemini-2.0-flash 或 gemini-1.5-flash 發起快速輕量 ping
-    const testModels = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
+    // 優先以最穩定、高響應的現代 Gemini Flash 模型發起快速輕量 ping
+    const testModels = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.8-flash"];
     let lastErr = null;
 
     for (const model of testModels) {
@@ -2579,8 +2579,8 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
   if (selectedModel && selectedModel !== "auto") {
     candidateModels.push(selectedModel);
   }
-  // 候選優先級：gemini-2.5-flash ➔ gemini-2.0-flash ➔ gemini-1.5-flash ➔ gemini-1.5-pro
-  const defaultList = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+  // 候選優先級：gemini-2.5-flash ➔ gemini-3.5-flash ➔ gemini-3.8-flash ➔ gemini-flash-latest
+  const defaultList = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-latest"];
   for (const m of defaultList) {
     if (!candidateModels.includes(m)) {
       candidateModels.push(m);

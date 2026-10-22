@@ -22,4 +22,4 @@ if %EXIT_CODE% neq 0 (
 )
 
 echo.
-set /p DUMMY="👉 執行已結束，請按 [Enter] 鍵關閉視窗..."
+pause

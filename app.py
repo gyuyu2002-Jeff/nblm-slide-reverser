@@ -657,7 +657,7 @@ async def analyze_style(
             candidate_models = []
             if model and model != "auto":
                 candidate_models.append(model)
-            for m in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+            for m in ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-latest"]:
                 if m not in candidate_models:
                     candidate_models.append(m)
 
