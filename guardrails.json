@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updated_at": "2026-10-22 16:12:20",
+  "updated_at": "2026-10-22 18:13:05",
   "rules": [
     {
       "id": "anti_topology_swapping",
@@ -46,6 +46,21 @@
       "id": "Layout_Consistency_1792656727",
       "title": "Layout Consistency",
       "rule": "Maintain top-right red dot matrix grid (5x5) and exact vertical thick red accent border on the slide edges (left edge for slide 1, right edge for slide 3)."
+    },
+    {
+      "id": "rule_1792663985",
+      "title": "幾何架構鎖定",
+      "rule": "Strict Grid Enforcement: Maintain exact layout topology; do not replace a 2x3 grid with radial/arc timelines or vice versa."
+    },
+    {
+      "id": "rule_1792663985",
+      "title": "渲染防空保底",
+      "rule": "Anti-Blank Canvas: Ensure all nodes, text fields, and visual anchors are fully populated; no empty slides or omitted containers."
+    },
+    {
+      "id": "rule_1792663985",
+      "title": "色彩數量強約束",
+      "rule": "Color Cardinality: Exactly match the N-step dynamic color mapping per node; prohibit collapsing multi-color sequences into a single accent color."
     }
   ]
 }
