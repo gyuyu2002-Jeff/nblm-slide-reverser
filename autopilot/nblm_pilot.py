@@ -261,9 +261,12 @@ def reverse_engineer_prompt(images: List[Path], config: dict) -> Tuple[str, str,
     system_instruction = ""
     try:
         sys.path.append(str(PROJECT_ROOT))
-        from app import SYSTEM_INSTRUCTION
-        system_instruction = SYSTEM_INSTRUCTION
-        print("✅ 成功掛載 nblm-slide-reverser 官方設計師系統提示詞核心！", flush=True)
+        import app
+        if hasattr(app, "get_system_instruction"):
+            system_instruction = app.get_system_instruction()
+        else:
+            system_instruction = app.SYSTEM_INSTRUCTION
+        print("✅ 成功掛載 nblm-slide-reverser 官方設計師系統提示詞核心（含動態約束庫）！", flush=True)
     except Exception:
         system_instruction = (
             "你是一位頂級簡報視覺逆向工程師。請深度剖析上傳的簡報圖片，"
@@ -818,12 +821,51 @@ def evaluate_and_optimize(original_images: List[Path], generated_images: List[Pa
     return {"report_path": str(report_path), "report_markdown": report_markdown}
 
 
+#
+
+def extract_rules_from_report(report_markdown: str) -> List[Dict[str, str]]:
+    """從 AI 質檢報告的第 3 節提取約束規則"""
+    rules = []
+    if "## 3. 提示詞強化對策" not in report_markdown:
+        return rules
+    
+    sec3 = report_markdown.split("## 3. 提示詞強化對策", 1)[1]
+    sec3 = re.split(r"\n##\s+", sec3)[0]
+
+    lines = sec3.splitlines()
+    curr_title = None
+    curr_rule_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+        m = re.match(r"^(?:\d+\.|\*|-)\s+\*\*\[?([^\]\*]+)\]?\*\*(?:\s*[:：])?\s*(.*)$", stripped)
+        if m:
+            if curr_title and curr_rule_lines:
+                rule_text = " ".join(curr_rule_lines).strip("` ")
+                if rule_text:
+                    rules.append({"title": curr_title, "rule": rule_text})
+                curr_rule_lines = []
+            curr_title = m.group(1).strip()
+            rest = m.group(2).strip()
+            if rest:
+                curr_rule_lines.append(rest)
+        elif curr_title and stripped and not stripped.startswith("##"):
+            curr_rule_lines.append(stripped)
+
+    if curr_title and curr_rule_lines:
+        rule_text = " ".join(curr_rule_lines).strip("` ")
+        if rule_text:
+            rules.append({"title": curr_title, "rule": rule_text})
+
+    return rules
+
+
 # =============================================================================
-# 6. 步驟五：自動閉環自癒反饋 (Auto-Hardening & Website Sync)
+# 6. 步驟五：自動閉環反饋與網站同步 (Auto-Sync & Git Push)
 # =============================================================================
 def auto_harden_and_sync_website(eval_result: dict, config: dict) -> None:
     print("\n" + "=" * 60, flush=True)
-    print("🔄 [步驟 5/5] 自動閉環自癒反饋：將本次質檢診斷回寫至網站核心提示詞引擎...", flush=True)
+    print("🔄 [步驟 5/5] 自動閉環反饋：將本次質檢診斷同步至網站提示詞引擎...", flush=True)
     print("=" * 60, flush=True)
 
     report_markdown = eval_result.get("report_markdown", "")
@@ -831,41 +873,82 @@ def auto_harden_and_sync_website(eval_result: dict, config: dict) -> None:
         print("⚠️ 無質檢報告可供反饋。", flush=True)
         return
 
-    # 1. 儲存本次反饋規則至 active_guardrails.json
-    guardrails_file = DIR_EVALUATIONS / "active_guardrails.json"
-    guardrails_data = {
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "source_report": str(eval_result.get("report_path", "")),
-        "status": "synchronized_to_web_engine"
-    }
+    # 1. 自動從質檢報告中提煉約束規則
+    extracted_rules = extract_rules_from_report(report_markdown)
+    
+    # 2. 自動合併至 guardrails.json
+    guardrails_file = PROJECT_ROOT / "guardrails.json"
+    guardrails_data = {"version": "1.0.0", "updated_at": "", "rules": []}
+    
+    if guardrails_file.exists():
+        try:
+            with open(guardrails_file, "r", encoding="utf-8") as f:
+                guardrails_data = json.load(f)
+        except Exception as e:
+            print(f"⚠️ 讀取現有 guardrails.json 失敗: {e}，將建立新檔", flush=True)
+
+    existing_rules = guardrails_data.get("rules", [])
+    existing_texts = {r.get("rule", "").strip().lower() for r in existing_rules if "rule" in r}
+    new_added_count = 0
+
+    for r in extracted_rules:
+        rt = r.get("rule", "").strip()
+        if rt and rt.lower() not in existing_texts:
+            slug = re.sub(r"[^a-zA-Z0-9_]+", "_", r.get("title", "rule")).strip("_") or "rule"
+            existing_rules.append({
+                "id": f"{slug}_{int(time.time())}",
+                "title": r.get("title", "視覺約束規範"),
+                "rule": rt
+            })
+            existing_texts.add(rt.lower())
+            new_added_count += 1
+            print(f"   ➕ 自動納入新規範: 【{r.get('title')}】", flush=True)
+
+    guardrails_data["rules"] = existing_rules
+    guardrails_data["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+
     with open(guardrails_file, "w", encoding="utf-8") as f:
         json.dump(guardrails_data, f, ensure_ascii=False, indent=2)
 
-    # 2. 自動執行 Git 提交與推播，將優化後的 app.py 同步至遠端網站
+    # 3. 儲存本次執行紀錄
+    active_guardrails_file = DIR_EVALUATIONS / "active_guardrails.json"
+    with open(active_guardrails_file, "w", encoding="utf-8") as f:
+        json.dump({
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "source_report": str(eval_result.get("report_path", "")),
+            "new_rules_added": new_added_count,
+            "total_rules": len(existing_rules),
+            "status": "synchronized"
+        }, f, ensure_ascii=False, indent=2)
+
+    print(f"📝 規則庫已更新 (新增 {new_added_count} 條，累計 {len(existing_rules)} 條約束)", flush=True)
+
+    # 4. 自動執行 Git 提交與推播至遠端 GitHub
     try:
+        subprocess.run(
+            ["git", "-C", str(PROJECT_ROOT), "add", "guardrails.json", "app.py"],
+            check=True
+        )
         cmd_status = subprocess.run(
             ["git", "-C", str(PROJECT_ROOT), "status", "--porcelain"],
             capture_output=True, text=True
         )
         if cmd_status.stdout.strip():
-            print("📦 正在將最新提示詞約束規範提交至 GitHub 儲存庫...", flush=True)
+            print("📦 正在將最新約束規範提交至 GitHub 儲存庫...", flush=True)
+            commit_msg = f"feat(guardrails): auto-sync learned constraints ({time.strftime('%Y-%m-%d %H:%M')})"
             subprocess.run(
-                ["git", "-C", str(PROJECT_ROOT), "add", "app.py"],
-                check=True
-            )
-            subprocess.run(
-                ["git", "-C", str(PROJECT_ROOT), "commit", "-m", "feat(engine): auto-hardened prompt rules from closed-loop visual QA"],
+                ["git", "-C", str(PROJECT_ROOT), "commit", "-m", commit_msg],
                 check=True
             )
             subprocess.run(
                 ["git", "-C", str(PROJECT_ROOT), "push", "origin", "main"],
                 check=True
             )
-            print("✅ 網站提示詞引擎已更新並推播至 GitHub 儲存庫。", flush=True)
+            print("🚀 ✅ 網站提示詞引擎已全自動升級並推播至 GitHub 遠端儲存庫！", flush=True)
         else:
-            print("✅ 網站提示詞引擎已是最新狀態，無需重複推播。", flush=True)
+            print("✅ 提示詞約束規則庫已是最新狀態，無需重複推播。", flush=True)
     except Exception as g_err:
-        print(f"⚠️ 自動 Git 推播略過: {g_err}（本機 app.py 已成功更新）", flush=True)
+        print(f"⚠️ 自動 Git 推播略過: {g_err}（本機規則庫已成功更新）", flush=True)
 
 
 # =============================================================================
