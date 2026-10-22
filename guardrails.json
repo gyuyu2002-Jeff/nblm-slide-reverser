@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updated_at": "2026-10-22 19:19:54",
+  "updated_at": "2026-10-22 19:30:11",
   "rules": [
     {
       "id": "anti_topology_swapping",
@@ -61,6 +61,26 @@
       "id": "rule_1792663985",
       "title": "色彩數量強約束",
       "rule": "Color Cardinality: Exactly match the N-step dynamic color mapping per node; prohibit collapsing multi-color sequences into a single accent color."
+    },
+    {
+      "id": "FORBIDDEN_DIAGRAM_CONVERSION_1792668611",
+      "title": "FORBIDDEN DIAGRAM CONVERSION",
+      "rule": "DO NOT convert horizontal timelines into circular or donut charts. DO NOT alter the node count (e.g., if input has 5 or 6 steps, keep EXACTLY 5 or 6 steps, do not decrease or merge)."
+    },
+    {
+      "id": "GEOMETRY_STRUCTURE_LOCK_1792668611",
+      "title": "GEOMETRY & STRUCTURE LOCK",
+      "rule": "Slide 1 MUST BE: A strict 5-column horizontal process flow along a single horizontal baseline. Slide 2 MUST BE: A split layout with a 5-segment graphic on the LEFT and vertical text blocks on the RIGHT. Slide 3 MUST BE: A 6-step serpentine/alternating wave layout (3 steps top, 3 steps bottom)."
+    },
+    {
+      "id": "CONTENT_DEDUPLICATION_RULE_1792668611",
+      "title": "CONTENT DEDUPLICATION RULE",
+      "rule": "STRICTLY PROHIBITED: Repeating text, titles, or descriptions across different nodes. Every node must contain unique, non-repetitive text."
+    },
+    {
+      "id": "VISUAL_ANCHOR_MANDATE_1792668611",
+      "title": "VISUAL ANCHOR MANDATE",
+      "rule": "MUST retain icon containers (circles/hexagons) inside or attached to each step card as visual anchors."
     }
   ]
 }

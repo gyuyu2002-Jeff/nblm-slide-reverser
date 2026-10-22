@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.33.0";
+const APP_VERSION = "v6.33.1";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -370,6 +370,15 @@ async function loadDynamicGuardrails() {
       if (data && Array.isArray(data.rules) && data.rules.length > 0) {
         _dynamicGuardrailsCache = data.rules;
         console.log(`[Guardrails] 成功動態加載 ${_dynamicGuardrailsCache.length} 條抗失真規範 (更新時間: ${data.updated_at || '最新'})`);
+
+        // 動態即時呈現版本與自癒規則數
+        const badge = document.getElementById("system-version-badge");
+        if (badge) {
+          badge.textContent = `${APP_VERSION} · ${_dynamicGuardrailsCache.length}條自癒守護`;
+          if (badge.parentElement) {
+            badge.parentElement.title = `系統已啟動 Auto-Pilot 自動閉環自癒\n當前守護規則數: ${_dynamicGuardrailsCache.length} 條\n最後同步時間: ${data.updated_at || '最新'}`;
+          }
+        }
       }
     }
   } catch (e) {

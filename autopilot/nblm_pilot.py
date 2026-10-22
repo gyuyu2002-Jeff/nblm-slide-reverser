@@ -880,7 +880,7 @@ def evaluate_and_optimize(original_images: List[Path], generated_images: List[Pa
 #
 
 def extract_rules_from_report(report_markdown: str) -> List[Dict[str, str]]:
-    """從 AI 質檢報告的第 3 節提取約束規則"""
+    """從 AI 質檢報告的第 3 節提取約束規則（相容粗體、代碼區塊與純數字編號格式）"""
     rules = []
     if "## 3. 提示詞強化對策" not in report_markdown:
         return rules
@@ -888,32 +888,67 @@ def extract_rules_from_report(report_markdown: str) -> List[Dict[str, str]]:
     sec3 = report_markdown.split("## 3. 提示詞強化對策", 1)[1]
     sec3 = re.split(r"\n##\s+", sec3)[0]
 
-    lines = sec3.splitlines()
+    lines = [l for l in sec3.splitlines() if not l.strip().startswith("```")]
     curr_title = None
-    curr_rule_lines = []
+    curr_body = []
 
-    for line in lines:
-        stripped = line.strip()
-        m = re.match(r"^(?:\d+\.|\*|-)\s+\*\*\[?([^\]\*]+)\]?\*\*(?:\s*[:：])?\s*(.*)$", stripped)
+    for l in lines:
+        s = l.strip()
+        if not s or s.startswith("[STRICT") or s.startswith("為防止"):
+            continue
+        # Pattern 1: bold title e.g. * **[幾何架構鎖定]**: ...
+        m1 = re.match(r"^(?:\d+\.|\*|-)\s+\*\*\[?([^\]\*]+)\]?\*\*(?:\s*[:：])?\s*(.*)$", s)
+        # Pattern 2: numbered plain title e.g. 1. FORBIDDEN DIAGRAM CONVERSION:
+        m2 = re.match(r"^\d+\.\s+([A-Z0-9_\s&-]+)[:：]\s*(.*)$", s)
+
+        m = m1 or m2
         if m:
-            if curr_title and curr_rule_lines:
-                rule_text = " ".join(curr_rule_lines).strip("` ")
+            if curr_title and curr_body:
+                rule_text = " ".join(curr_body).strip("` ")
                 if rule_text:
                     rules.append({"title": curr_title, "rule": rule_text})
-                curr_rule_lines = []
+                curr_body = []
             curr_title = m.group(1).strip()
             rest = m.group(2).strip()
             if rest:
-                curr_rule_lines.append(rest)
-        elif curr_title and stripped and not stripped.startswith("##"):
-            curr_rule_lines.append(stripped)
+                curr_body.append(rest)
+        elif curr_title:
+            curr_body.append(s.lstrip("-* ").strip())
 
-    if curr_title and curr_rule_lines:
-        rule_text = " ".join(curr_rule_lines).strip("` ")
+    if curr_title and curr_body:
+        rule_text = " ".join(curr_body).strip("` ")
         if rule_text:
             rules.append({"title": curr_title, "rule": rule_text})
 
     return rules
+
+
+def bump_project_version(project_root: Path) -> str:
+    """自動遞增 patch 版本號並同步寫入 index.html 與 app.js"""
+    app_js = project_root / "app.js"
+    index_html = project_root / "index.html"
+    
+    current_ver = "v6.33.0"
+    new_ver = current_ver
+    if app_js.exists():
+        try:
+            content = app_js.read_text(encoding="utf-8")
+            m = re.search(r'APP_VERSION\s*=\s*"v?(\d+)\.(\d+)\.(\d+)"', content)
+            if m:
+                major, minor, patch = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                new_ver = f"v{major}.{minor}.{patch + 1}"
+                content = re.sub(r'APP_VERSION\s*=\s*"v?(\d+)\.(\d+)\.(\d+)"', f'APP_VERSION = "{new_ver}"', content)
+                app_js.write_text(content, encoding="utf-8")
+                
+                if index_html.exists():
+                    html_content = index_html.read_text(encoding="utf-8")
+                    html_content = re.sub(r'v(\d+)\.(\d+)\.(\d+)', new_ver, html_content)
+                    index_html.write_text(html_content, encoding="utf-8")
+                print(f"🏷️ 系統版本號已自動遞增至: {new_ver}", flush=True)
+                return new_ver
+        except Exception as e:
+            print(f"⚠️ 版本號自動遞增略過: {e}", flush=True)
+    return new_ver
 
 
 # =============================================================================
@@ -979,10 +1014,11 @@ def auto_harden_and_sync_website(eval_result: dict, config: dict) -> None:
 
     print(f"📝 規則庫已更新 (新增 {new_added_count} 條，累計 {len(existing_rules)} 條約束)", flush=True)
 
-    # 4. 自動執行 Git 提交與推播至遠端 GitHub
+    # 4. 自動遞增網站版本號並同步 Git 推播至遠端 GitHub
     try:
+        new_version = bump_project_version(PROJECT_ROOT)
         subprocess.run(
-            ["git", "-C", str(PROJECT_ROOT), "add", "guardrails.json", "app.py"],
+            ["git", "-C", str(PROJECT_ROOT), "add", "guardrails.json", "app.py", "app.js", "index.html"],
             check=True
         )
         cmd_status = subprocess.run(
@@ -990,8 +1026,8 @@ def auto_harden_and_sync_website(eval_result: dict, config: dict) -> None:
             capture_output=True, text=True
         )
         if cmd_status.stdout.strip():
-            print("📦 正在將最新約束規範提交至 GitHub 儲存庫...", flush=True)
-            commit_msg = f"feat(guardrails): auto-sync learned constraints ({time.strftime('%Y-%m-%d %H:%M')})"
+            print(f"📦 正在將系統版本 {new_version} 及最新約束規範提交至 GitHub 儲存庫...", flush=True)
+            commit_msg = f"feat(autopilot): self-evolve to {new_version} (+{new_added_count} rules) ({time.strftime('%Y-%m-%d %H:%M')})"
             subprocess.run(
                 ["git", "-C", str(PROJECT_ROOT), "commit", "-m", commit_msg],
                 check=True
@@ -1000,7 +1036,7 @@ def auto_harden_and_sync_website(eval_result: dict, config: dict) -> None:
                 ["git", "-C", str(PROJECT_ROOT), "push", "origin", "main"],
                 check=True
             )
-            print("🚀 ✅ 網站提示詞引擎已全自動升級並推播至 GitHub 遠端儲存庫！", flush=True)
+            print(f"🚀 ✅ 網站版本已全自動升級至 {new_version} 並推播至 GitHub 遠端儲存庫！", flush=True)
         else:
             print("✅ 提示詞約束規則庫已是最新狀態，無需重複推播。", flush=True)
     except Exception as g_err:
