@@ -8,9 +8,9 @@
   1. 自動讀取您放入 input/ 的簡報檔案（PDF、PPTX 或多張截圖）
   2. 透過 Gemini 多模態視覺模型深度逆向提取 NotebookLM 專用結構化提示詞
   3. 透過 Playwright 自動操控 Chrome 瀏覽器，貼入 NotebookLM 自動生成簡報
-  4. 實時動態監控算繪進度（完整守護 90~180 秒生成期，絕不提早中斷）
+  4. 實時動態監控算繪進度（輪詢等待生成完畢，超時上限 600 秒）
   5. 自動精準導向專屬簡報檢視器，提取 16:9 像素級超高清投影片
-  6. 由 AI 視覺質檢官進行「原圖 vs 生成圖」成對比對、打分、診斷走鐘並輸出優化建議
+  6. 由 AI 視覺質檢進行「原圖 vs 生成圖」成對比對、評分、診斷視覺偏差並輸出優化建議
 =============================================================================
 """
 
@@ -628,13 +628,13 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
         # 給予 3 秒讓前端初始化算繪狀態
         time.sleep(3)
 
-        # 6. 動態輪詢等待 NotebookLM 算繪完成（全時守護，絕不早退）
+        # 6. 動態輪詢等待 NotebookLM 算繪完成
         print("\n" + "─" * 60, flush=True)
-        max_wait_seconds = config.get("generation_timeout_seconds", 600)  # 充裕守護 600 秒 (10 分鐘)
+        max_wait_seconds = config.get("generation_timeout_seconds", 600)  # 等待上限 600 秒 (10 分鐘)
         start_wait_time = time.time()
         last_reload_time = 0
 
-        with ProgressTimer(f"NotebookLM 正在為您繪製簡報與視覺細節 (最多守護 {max_wait_seconds} 秒，算繪完成即刻自動推進)"):
+        with ProgressTimer(f"NotebookLM 正在繪製簡報與排版結構 (等待上限 {max_wait_seconds} 秒，完成即自動推進)"):
             while True:
                 time.sleep(3)
                 elapsed = int(time.time() - start_wait_time)
@@ -660,13 +660,13 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
                     time.sleep(5)
                     last_reload_time = elapsed
 
-                # 若超過設定的守護上限
+                # 若超過設定的超時上限
                 if elapsed > max_wait_seconds:
                     if not is_generating:
                         break
                     # 若仍在生成，多給 60 秒極限緩衝
                     if elapsed > max_wait_seconds + 60:
-                        print(f"\n⚠️ 雲端算繪已達守護上限 ({elapsed} 秒)，嘗試繼續後續流程...", flush=True)
+                        print(f"\n⚠️ 雲端算繪已達超時上限 ({elapsed} 秒)，嘗試繼續後續流程...", flush=True)
                         break
                     if elapsed % 30 == 0:
                         target_page.reload(wait_until="domcontentloaded")

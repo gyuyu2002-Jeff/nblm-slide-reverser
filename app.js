@@ -359,7 +359,7 @@ function _0xgetDecryptedInstruction() {
   }
 }
 
-// 動態學習守護規範快取（來自 Auto-Pilot 自動質檢回傳的 guardrails.json）
+// 動態約束規範快取（來自 Auto-Pilot 自動質檢回傳的 guardrails.json）
 let _dynamicGuardrailsCache = null;
 
 async function loadDynamicGuardrails() {
@@ -371,12 +371,12 @@ async function loadDynamicGuardrails() {
         _dynamicGuardrailsCache = data.rules;
         console.log(`[Guardrails] 成功動態加載 ${_dynamicGuardrailsCache.length} 條抗失真規範 (更新時間: ${data.updated_at || '最新'})`);
 
-        // 動態即時呈現版本與自癒規則數
+        // 呈現版本與規則數
         const badge = document.getElementById("system-version-badge");
         if (badge) {
-          badge.textContent = `${APP_VERSION} · ${_dynamicGuardrailsCache.length}條自癒守護`;
+          badge.textContent = `${APP_VERSION} (${_dynamicGuardrailsCache.length} 條規則)`;
           if (badge.parentElement) {
-            badge.parentElement.title = `系統已啟動 Auto-Pilot 自動閉環自癒\n當前守護規則數: ${_dynamicGuardrailsCache.length} 條\n最後同步時間: ${data.updated_at || '最新'}`;
+            badge.parentElement.title = `版本: ${APP_VERSION}\n約束規則數: ${_dynamicGuardrailsCache.length} 條\n同步時間: ${data.updated_at || '最新'}`;
           }
         }
       }
