@@ -1,8 +1,9 @@
+from __future__ import annotations
 import io
 import zipfile
 import base64
 import logging
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from PIL import Image, ImageDraw, ImageFont
 import pptx
 from pptx.util import Inches, Pt
