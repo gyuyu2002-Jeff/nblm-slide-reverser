@@ -44,7 +44,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=6.4.0">
   <link rel="shortcut icon" href="favicon.ico?v=6.4.0">
   <meta name="theme-color" content="#0B0C0E">
-  <link rel="stylesheet" href="style.css?v=6.31.0">
+  <link rel="stylesheet" href="style.css?v=6.32.0">
 </head>
 <body class="studio-canvas-bg text-zinc-200 min-h-screen flex flex-col font-sans selection:bg-zinc-700 selection:text-white antialiased">
 
@@ -65,7 +65,7 @@
           </span>
           <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 font-mono border border-emerald-500/30 font-semibold shadow-sm flex items-center gap-1.5" title="系統當前版本號">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>v6.31.0</span>
+            <span>v6.32.0</span>
           </span>
         </div>
       </div>
@@ -148,7 +148,7 @@
                 拖放簡報檔案或截圖至此處
               </p>
               <p class="text-[11px] text-zinc-500 mt-0.5 font-mono">
-                支援整份 PDF、PPTX 或 16:9 投影片高畫質截圖
+                支援整份 PDF、PPTX、截圖，亦支援剪貼簿貼上 (Ctrl+V)
               </p>
             </div>
           </div>
@@ -203,6 +203,7 @@
             <span class="bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">Google 簡報 (公開檢視)</span>
             <span class="bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">線上 PDF / 圖片連結</span>
             <span class="bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">SpeakerDeck / 網頁</span>
+            <span class="bg-amber-500/10 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/20">Canva 請用 Ctrl+V 貼上圖片</span>
           </div>
 
           <!-- 抓取狀態回饋 -->
@@ -784,7 +785,7 @@
       <div class="flex items-center gap-2 flex-wrap">
         <span>© 2026 簡報風格逆向解析 (NBLM Slide Reverser)</span>
         <span class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-white/[0.06] text-emerald-300 border border-white/[0.08]">
-          v6.31.0
+          v6.32.0
         </span>
         <span class="text-zinc-700 hidden sm:inline">·</span>
         <span class="text-zinc-400">非 Google 或 NotebookLM 官方專案</span>
@@ -991,6 +992,14 @@
             </button>
           </div>
           <button id="btn-clear-key" class="text-zinc-500 hover:text-rose-400 font-medium cursor-pointer transition-colors">清除金鑰</button>
+        </div>
+
+        <!-- 金鑰隱私與安全儲存模式 -->
+        <div class="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-zinc-400">
+          <label class="flex items-center gap-1.5 cursor-pointer select-none hover:text-zinc-200">
+            <input type="checkbox" id="check-session-only" class="rounded bg-white/5 border-white/20 text-sky-500 focus:ring-0">
+            <span>隱私模式：關閉分頁後自動銷毀金鑰 (不留永久紀錄)</span>
+          </label>
         </div>
       </div>
 
@@ -1508,7 +1517,7 @@
     </button>
   </div>
 
-  <script src="app.js?v=6.31.0"></script>
+  <script src="app.js?v=6.32.0"></script>
   <script>
     lucide.createIcons();
   </script>

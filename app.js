@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.31.0";
+const APP_VERSION = "v6.32.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -390,16 +390,32 @@ document.addEventListener("DOMContentLoaded", () => {
   checkFirstTimeVisitor();
 });
 
-// === 1. API KEY 管理 ===
-function getApiKey(provider = currentProvider) {
-  return localStorage.getItem(`${provider}_api_key`) || "";
+// === 1. API KEY 管理與資安脫敏防護 ===
+function maskApiKey(key) {
+  if (!key || typeof key !== "string") return "";
+  if (key.length <= 8) return "••••••••";
+  const head = key.slice(0, 6);
+  const tail = key.slice(-4);
+  const dots = "•".repeat(Math.min(18, Math.max(6, key.length - 10)));
+  return `${head}${dots}${tail}`;
 }
 
-function setApiKey(provider, key) {
+function getApiKey(provider = currentProvider) {
+  return sessionStorage.getItem(`${provider}_api_key`) || localStorage.getItem(`${provider}_api_key`) || "";
+}
+
+function setApiKey(provider, key, isSessionOnly = false) {
   if (key && key.trim()) {
-    localStorage.setItem(`${provider}_api_key`, key.trim());
+    if (isSessionOnly) {
+      sessionStorage.setItem(`${provider}_api_key`, key.trim());
+      localStorage.removeItem(`${provider}_api_key`);
+    } else {
+      localStorage.setItem(`${provider}_api_key`, key.trim());
+      sessionStorage.removeItem(`${provider}_api_key`);
+    }
   } else {
     localStorage.removeItem(`${provider}_api_key`);
+    sessionStorage.removeItem(`${provider}_api_key`);
   }
   initApiKeyStatus();
 }
@@ -438,7 +454,9 @@ function openOnboardingModal() {
   if (!modal) return;
   const input = document.getElementById("input-onboarding-key");
   if (input) {
-    input.value = getApiKey("gemini");
+    const k = getApiKey("gemini");
+    input.value = k ? maskApiKey(k) : "";
+    input.dataset.masked = k ? "true" : "false";
   }
   modal.classList.remove("hidden");
   if (window.lucide) window.lucide.createIcons();
@@ -668,6 +686,13 @@ async function handleUrlCrawl(url) {
   }
 
   setStatus("正在建立連線並分析網址內容...");
+
+  // 針對 Canva 網址的防爬保護偵測與即時指引
+  if (/canva\.com\/(templates|design)\//i.test(url)) {
+    clearStatus();
+    showToast("💡 Canva 設有 Cloudflare 驗證保護，無法直接爬取網頁。請在 Canva 圖片按右鍵「複製圖片」後直接按 Ctrl+V 貼上，或下載 PDF 上傳！", "warning", 8000);
+    return;
+  }
 
   try {
     // 1. 若處於本機 Python 環境 (localhost / 127.0.0.1)，優先呼叫本機爬蟲後端 (具備完整 Playwright 與 fitz 引擎)
@@ -940,7 +965,10 @@ function setupEventListeners() {
   });
   on("btn-save-onboarding-key", "click", () => {
     const input = document.getElementById("input-onboarding-key");
-    const key = input ? input.value.trim() : "";
+    let key = input ? input.value.trim() : "";
+    if (input && input.dataset.masked === "true") {
+      key = getApiKey("gemini");
+    }
     if (!key) {
       showToast("請先貼上有效的 Google 官方免費 API Key，或點擊跳過", "warning");
       return;
@@ -1037,7 +1065,10 @@ function setupEventListeners() {
   // 測試 API Key 連線按鈕監聽
   on("btn-test-key", async () => {
     const inputKey = document.getElementById("input-api-key");
-    const key = inputKey ? inputKey.value.trim() : "";
+    let key = inputKey ? inputKey.value.trim() : "";
+    if (inputKey && inputKey.dataset.masked === "true") {
+      key = getApiKey(modalSelectedProvider);
+    }
     const testBtn = document.getElementById("btn-test-key");
     const testBtnText = document.getElementById("btn-test-key-text");
     const resultBox = document.getElementById("api-key-test-result");
@@ -1091,14 +1122,20 @@ function setupEventListeners() {
 
   on("btn-save-key", "click", () => {
     const inputKey = document.getElementById("input-api-key");
-    const key = inputKey ? inputKey.value.trim() : "";
+    const checkSession = document.getElementById("check-session-only");
+    const isSession = checkSession ? checkSession.checked : false;
+    let key = inputKey ? inputKey.value.trim() : "";
+    if (inputKey && inputKey.dataset.masked === "true") {
+      key = getApiKey(modalSelectedProvider);
+    }
     if (!key) {
       showToast("請輸入有效金鑰，或點擊清除", "warning");
       return;
     }
-    setApiKey(modalSelectedProvider, key);
+    setApiKey(modalSelectedProvider, key, isSession);
     if (modalApiKey) modalApiKey.classList.add("hidden");
-    showToast(`${PROVIDER_CONFIG[modalSelectedProvider].name} 金鑰已安全保存！`, "success");
+    const modeDesc = isSession ? "（隱私模式：關閉分頁自動銷毀）" : "（已安全保存）";
+    showToast(`${PROVIDER_CONFIG[modalSelectedProvider].name} 金鑰${modeDesc}！`, "success");
     if (modalSelectedProvider !== currentProvider) {
       switchProvider(modalSelectedProvider);
     }
@@ -1108,11 +1145,14 @@ function setupEventListeners() {
   on("btn-clear-key", "click", () => {
     setApiKey(modalSelectedProvider, "");
     const inputKey = document.getElementById("input-api-key");
-    if (inputKey) inputKey.value = "";
+    if (inputKey) {
+      inputKey.value = "";
+      inputKey.dataset.masked = "false";
+    }
     showToast(`已清除 ${PROVIDER_CONFIG[modalSelectedProvider].name} 本地金鑰`, "info");
   });
 
-  // 密碼顯隱切換
+  // 密碼顯隱切換與脫敏互動
   const toggleBtn = document.getElementById("btn-toggle-key-visibility");
   const keyInput = document.getElementById("input-api-key");
   if (toggleBtn && keyInput) {
@@ -1125,6 +1165,16 @@ function setupEventListeners() {
         toggleBtn.innerHTML = '<i data-lucide="eye" class="w-4 h-4"></i>';
       }
       lucide.createIcons();
+    });
+
+    keyInput.addEventListener("keydown", (e) => {
+      if (keyInput.dataset.masked === "true" && e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+        keyInput.value = "";
+        keyInput.dataset.masked = "false";
+      }
+    });
+    keyInput.addEventListener("paste", () => {
+      keyInput.dataset.masked = "false";
     });
   }
 
@@ -1252,6 +1302,41 @@ function setupEventListeners() {
       }
     });
   }
+
+  // 全域剪貼簿貼上 (Ctrl+V 一鍵貼上截圖或投影片圖片，支援 Canva/Figma/螢幕截圖直接貼上)
+  window.addEventListener("paste", (e) => {
+    const activeEl = document.activeElement;
+    const isTextInput = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
+
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items || items.length === 0) return;
+
+    const imageFiles = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type && item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          let ext = ".png";
+          if (file.type.includes("jpeg") || file.type.includes("jpg")) ext = ".jpg";
+          else if (file.type.includes("webp")) ext = ".webp";
+
+          const filename = (file.name && file.name !== "image.png" && file.name !== "blob")
+            ? file.name
+            : `剪貼簿簡報_${Date.now()}_${i + 1}${ext}`;
+
+          const namedFile = new File([file], filename, { type: file.type || "image/png" });
+          imageFiles.push(namedFile);
+        }
+      }
+    }
+
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      handleFilesAdded(imageFiles);
+      showToast(`已自剪貼簿貼上 ${imageFiles.length} 張簡報圖片！`, "success");
+    }
+  });
 
   on("btn-clear-files", "click", () => {
     if (uploadedSlidePages.length > 0) {
@@ -1558,7 +1643,21 @@ function openApiKeyModal(provider) {
   document.getElementById("modal-key-label").textContent = `${config.name} API Key：`;
   const keyInput = document.getElementById("input-api-key");
   keyInput.placeholder = config.defaultPlaceholder;
-  keyInput.value = getApiKey(provider);
+
+  const storedKey = getApiKey(provider);
+  if (storedKey) {
+    keyInput.value = maskApiKey(storedKey);
+    keyInput.dataset.masked = "true";
+  } else {
+    keyInput.value = "";
+    keyInput.dataset.masked = "false";
+  }
+
+  // 隱私模式勾選狀態
+  const checkSession = document.getElementById("check-session-only");
+  if (checkSession) {
+    checkSession.checked = !!sessionStorage.getItem(`${provider}_api_key`);
+  }
 
   const portalLink = document.getElementById("modal-portal-link");
   portalLink.href = config.portalUrl;
