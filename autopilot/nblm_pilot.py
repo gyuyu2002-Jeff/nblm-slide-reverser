@@ -570,40 +570,47 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
 
         # 6. 動態輪詢等待 NotebookLM 算繪完成（全時守護，絕不早退）
         print("\n" + "─" * 60, flush=True)
-        max_wait_seconds = 240  # 最長守護 4 分鐘
+        max_wait_seconds = 360  # 充裕守護 6 分鐘（尖峰期雲端高解析算繪約需 3~4.5 分鐘）
         start_wait_time = time.time()
         reload_attempted = False
 
-        with ProgressTimer("NotebookLM 正在為您繪製簡報與視覺細節 (通常需 90~150 秒，請耐心等候)"):
+        with ProgressTimer("NotebookLM 正在為您繪製簡報與視覺細節 (雲端精細算繪約需 2~4.5 分鐘，請耐心等候)"):
             while True:
                 time.sleep(3)
                 elapsed = int(time.time() - start_wait_time)
-                if elapsed > max_wait_seconds:
-                    print(f"\n⚠️ 等待超過 {max_wait_seconds} 秒，嘗試重新整理頁面同步最新狀態...", flush=True)
-                    target_page.reload(wait_until="domcontentloaded")
-                    time.sleep(4)
-                    break
 
                 # 實時偵測算繪狀態
-                is_shimmering = target_page.locator(".shimmer-yellow, [class*='shimmer'], [class*='loading']").count() > 0
-                has_gen_text = target_page.locator("artifact-library-item:has-text('正在生成'), :has-text('正在生成簡報')").count() > 0
-                is_generating = is_shimmering or has_gen_text
-
                 items = target_page.locator("artifact-library-item")
                 current_count = items.count()
+                first_text = items.first.inner_text() if current_count > 0 else ""
 
-                # 當生成滿 50 秒後，如果不再顯示 shimmer 或生成文字，且第一個項目已呈現完成狀態
+                is_shimmering = target_page.locator(".shimmer-yellow, [class*='shimmer'], [class*='loading']").count() > 0
+                has_gen_text = any(k in first_text for k in ["正在生成", "正在完成", "progress_activity", "準備程序", "生成中"])
+                is_generating = is_shimmering or has_gen_text
+
+                # 只有當「生成/準備」文字完全消失，且第一個項目已經呈現完成的簡報（具備 tablet 圖標或非 loading 標題）
                 if elapsed >= 50:
-                    if not is_generating:
-                        first_text = items.first.inner_text() if current_count > 0 else ""
-                        if "正在生成" not in first_text and (current_count > initial_artifact_count or "tablet" in first_text):
-                            break
+                    if not is_generating and ("tablet" in first_text or current_count > initial_artifact_count):
+                        break
 
-                # 若超過 150 秒仍在旋轉，可能前端 WebSocket 界面未自動同步，做一次溫和重新整理
-                if elapsed >= 150 and not reload_attempted and is_generating:
+                # 若超過 160 秒仍在旋轉，可能前端介面卡住未及時刷新，進行一次溫和重新整理以同步 Google 雲端最新進度
+                if elapsed >= 160 and not reload_attempted and is_generating:
                     target_page.reload(wait_until="domcontentloaded")
-                    time.sleep(4)
+                    time.sleep(5)
                     reload_attempted = True
+
+                # 若超過 max_wait_seconds (360 秒)
+                if elapsed > max_wait_seconds:
+                    if not is_generating:
+                        break
+                    # 若仍在「正在完成準備程序」，多給予 60 秒緩衝期
+                    if elapsed > max_wait_seconds + 60:
+                        print(f"\n⚠️ 雲端算繪已達守護上限 ({elapsed} 秒)，嘗試繼續後續流程...", flush=True)
+                        break
+                    # 每 30 秒重新整理一次檢查後端是否已完成
+                    if elapsed % 30 == 0:
+                        target_page.reload(wait_until="domcontentloaded")
+                        time.sleep(5)
 
         print("─" * 60, flush=True)
         print("✅ NotebookLM 簡報算繪完成！", flush=True)
