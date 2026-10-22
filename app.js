@@ -690,7 +690,7 @@ async function handleUrlCrawl(url) {
   // 針對 Canva 網址的防爬保護偵測與即時指引
   if (/canva\.com\/(templates|design)\//i.test(url)) {
     clearStatus();
-    showToast("💡 Canva 設有 Cloudflare 驗證保護，無法直接爬取網頁。請在 Canva 圖片按右鍵「複製圖片」後直接按 Ctrl+V 貼上，或下載 PDF 上傳！", "warning", 8000);
+    showToast("💡 Canva 設有防拷透明遮罩。請按鍵盤 Win + Shift + S 框選截圖，切換回本站直接按 Ctrl+V 貼上即可！", "info", 9000);
     return;
   }
 
