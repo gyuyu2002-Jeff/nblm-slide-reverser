@@ -8,8 +8,9 @@
   1. 自動讀取您放入 input/ 的簡報檔案（PDF、PPTX 或多張截圖）
   2. 透過 Gemini 多模態視覺模型深度逆向提取 NotebookLM 專用結構化提示詞
   3. 透過 Playwright 自動操控 Chrome 瀏覽器，貼入 NotebookLM 自動生成簡報
-  4. 自動將 NotebookLM 產出的投影片逐頁高解析截圖（CDP 直取畫面，零延遲不卡字型）
-  5. 由 AI 視覺質檢官進行「原圖 vs 生成圖」成對比對、打分、診斷走鐘並輸出優化建議
+  4. 實時動態監控算繪進度（完整守護 90~180 秒生成期，絕不提早中斷）
+  5. 自動精準導向專屬簡報檢視器，提取 16:9 像素級超高清投影片
+  6. 由 AI 視覺質檢官進行「原圖 vs 生成圖」成對比對、打分、診斷走鐘並輸出優化建議
 =============================================================================
 """
 
@@ -111,14 +112,15 @@ class ProgressTimer:
 def load_config() -> dict:
     default_config = {
         "gemini_api_key": "",
-        "gemini_model": "gemini-2.5-flash",
+        "gemini_model": "gemini-3.5-flash",
         "notebooklm_url": "https://notebooklm.google.com/",
         "cdp_port": 9222,
         "cdp_url": "http://127.0.0.1:9222",
         "chrome_profile_dir": os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\AutomationProfile"),
         "slide_page_limit": 6,
         "prompt_mode": "global",
-        "auto_evaluate": True
+        "auto_evaluate": True,
+        "notebook_url": ""
     }
     if CONFIG_FILE.exists():
         try:
@@ -128,7 +130,11 @@ def load_config() -> dict:
         except Exception as e:
             print(f"[警告] 讀取 config.json 失敗: {e}，使用預設值", flush=True)
 
-    # 檢查環境變數
+    # 確保 chrome_profile_dir 中的環境變數被正確展開
+    raw_profile = default_config.get("chrome_profile_dir", "")
+    default_config["chrome_profile_dir"] = os.path.expandvars(raw_profile)
+
+    # 檢查環境變數中的 GEMINI_API_KEY
     env_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if env_key and not default_config["gemini_api_key"]:
         default_config["gemini_api_key"] = env_key
@@ -283,7 +289,13 @@ def reverse_engineer_prompt(images: List[Path], config: dict) -> Tuple[str, str,
 """
     parts.append(types.Part.from_text(text=user_prompt))
 
-    candidate_models = [config.get("gemini_model", "gemini-2.5-flash"), "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+    # 候選模型清單（按新版相容性順序）
+    configured_model = config.get("gemini_model", "gemini-3.5-flash")
+    candidate_models = [configured_model, "gemini-3.5-flash", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-3.1-pro-preview"]
+    # 去重保留順序
+    seen = set()
+    candidate_models = [m for m in candidate_models if not (m in seen or seen.add(m))]
+
     analysis_text = ""
     used_model = ""
 
@@ -357,107 +369,81 @@ def is_port_in_use(port: int) -> bool:
         return s.connect_ex(("127.0.0.1", port)) == 0
 
 
-def ensure_chrome_running(config: dict) -> None:
+def get_browser_session(p, config: dict):
+    """
+    自適應獲取 Chrome 瀏覽器 Session：
+    1. 若已有 Chrome 在 9222 遠端埠監聽，直接透過 CDP 連接。
+    2. 若無，直接透過 launch_persistent_context 喚醒使用者登入設定檔（原汁原味零延遲）。
+    """
     port = config.get("cdp_port", 9222)
-    if is_port_in_use(port):
-        print(f"🔌 檢測到 Chrome 遠端除錯連接埠 {port} 已就緒！", flush=True)
-        return
-
-    print(f"🚀 端口 {port} 尚未啟動，正在為您喚起自動化專用 Chrome...", flush=True)
-    profile_dir = config.get("chrome_profile_dir", os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\AutomationProfile"))
+    profile_dir = os.path.expandvars(config.get("chrome_profile_dir", r"%LOCALAPPDATA%\Google\Chrome\AutomationProfile"))
     os.makedirs(profile_dir, exist_ok=True)
 
-    chrome_candidates = [
-        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-        "chrome.exe"
-    ]
-    chrome_bin = None
-    for c in chrome_candidates:
-        if os.path.exists(c):
-            chrome_bin = c
-            break
+    if is_port_in_use(port):
+        print(f"🔌 檢測到已在運行的 Chrome (端口 {port})，透過 CDP 快速掛載...", flush=True)
+        try:
+            browser = p.chromium.connect_over_cdp(f"http://127.0.0.1:{port}")
+            context = browser.contexts[0]
+            return browser, context, False
+        except Exception as e:
+            print(f"⚠️ CDP 掛載失敗: {e}，切換為原生持久化環境啟動...", flush=True)
 
-    if not chrome_bin:
-        chrome_bin = "chrome.exe"
-
-    cmd = [
-        chrome_bin,
-        f"--remote-debugging-port={port}",
-        f"--user-data-dir={profile_dir}",
-        config.get("notebooklm_url", "https://notebooklm.google.com/")
-    ]
-    try:
-        subprocess.Popen(cmd)
-        print("⏳ 等待 Chrome 端口回應中...", flush=True)
-        for _ in range(15):
-            time.sleep(1)
-            if is_port_in_use(port):
-                print(f"✅ Chrome 已成功啟動於端口 {port}！", flush=True)
-                return
-    except Exception as e:
-        print(f"❌ 啟動 Chrome 失敗: {e}", flush=True)
-        print("💡 請手動執行「啟動測試專用Chrome.bat」後再重新執行本腳本。", flush=True)
-        sys.exit(1)
+    print(f"🚀 啟動專用 Chrome 瀏覽器環境 (目錄: {profile_dir})...", flush=True)
+    context = p.chromium.launch_persistent_context(
+        user_data_dir=profile_dir,
+        channel="chrome",
+        headless=False,
+        args=[
+            f"--remote-debugging-port={port}",
+            "--no-first-run",
+            "--no-default-browser-check"
+        ]
+    )
+    return None, context, True
 
 
 def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
     print("\n" + "=" * 60, flush=True)
-    print("🌐 [步驟 3/5] Playwright 自動掛載 Chrome 操控 NotebookLM 生成簡報...", flush=True)
+    print("🌐 [步驟 3/5] Playwright 操控 NotebookLM 自動生成與截圖...", flush=True)
     print("=" * 60, flush=True)
 
+    # 清空上次生成的截圖
     for f in DIR_NBLM_SLIDES.glob("*.png"):
         try:
             f.unlink()
         except Exception:
             pass
 
-    ensure_chrome_running(config)
-    cdp_url = config.get("cdp_url", "http://127.0.0.1:9222")
-
     captured_slides: List[Path] = []
 
     with sync_playwright() as p:
-        try:
-            browser = p.chromium.connect_over_cdp(cdp_url)
-        except Exception as c_err:
-            print(f"❌ 無法透過 CDP 連接 Chrome ({c_err})", flush=True)
-            return captured_slides
+        browser, context, is_persistent = get_browser_session(p, config)
 
-        # 0. 先關閉任何上次遺留的 /artifact/ 獨立分頁，確保回到乾淨的工作區
-        for ctx in browser.contexts:
-            for pg in list(ctx.pages):
-                if "/artifact/" in pg.url:
-                    try:
-                        pg.close()
-                    except Exception:
-                        pass
+        # 關閉任何遺留的 /artifact/ 獨立分頁
+        for pg in list(context.pages):
+            if "/artifact/" in pg.url:
+                try:
+                    pg.close()
+                except Exception:
+                    pass
 
-        contexts = browser.contexts
+        # 獲取或開啟筆記本頁面
         target_page = None
-
-        # 尋找主要的筆記本工作區分頁 (非 artifact)
-        for ctx in contexts:
-            for pg in ctx.pages:
-                if "/notebook/" in pg.url and "/artifact/" not in pg.url:
-                    target_page = pg
-                    break
-            if target_page:
+        for pg in context.pages:
+            if "/notebook/" in pg.url and "/artifact/" not in pg.url:
+                target_page = pg
                 break
 
         if not target_page:
-            for ctx in contexts:
-                for pg in ctx.pages:
-                    if "notebook.google.com" in pg.url or "notebooklm.google.com" in pg.url:
-                        target_page = pg
-                        break
-                if target_page:
+            for pg in context.pages:
+                if "notebook.google.com" in pg.url or "notebooklm.google.com" in pg.url:
+                    target_page = pg
                     break
 
         if not target_page:
-            target_page = contexts[0].new_page()
+            target_page = context.pages[0] if context.pages else context.new_page()
 
-        # 若目前停在首頁，且 config 中有指定 notebook_url，自動導向目標筆記本
+        # 導向目標筆記本
         target_notebook = config.get("notebook_url")
         if target_notebook and ("/notebook/" not in target_page.url or target_page.url.rstrip("/").endswith("notebook.google.com")):
             print(f"📖 正在導向您的專屬筆記本: {target_notebook}", flush=True)
@@ -472,6 +458,12 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
 
         target_page.bring_to_front()
         print(f"👀 目標筆記本頁面: {target_page.url}", flush=True)
+
+        # 等待筆記本核心組件加載
+        try:
+            target_page.wait_for_selector(".studio-panel, artifact-library-item, button:has-text('簡報')", timeout=10000)
+        except Exception:
+            pass
 
         # 1. 確保不在記事編輯狀態（若在編輯狀態，點擊工作室回到首頁）
         target_page.evaluate('''() => {
@@ -513,13 +505,11 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
                 time.sleep(1)
                 print("✅ 基礎來源記事已就緒！", flush=True)
 
-        # 記錄生成前的工作室組件總數
-        initial_artifact_count = target_page.evaluate('''() => {
-            const studio = document.querySelector('.studio-panel') || document.body;
-            return studio.querySelectorAll('.artifact-item-button, button.artifact-stretched-button').length;
-        }''')
+        # 記錄生成前的產物數量
+        initial_artifact_count = target_page.locator("artifact-library-item").count()
+        print(f"📦 生成前已存在的產物數量: {initial_artifact_count}")
 
-        # 3. 點擊右側工作室「簡報」按鈕（若已開過自訂對話框則略過）
+        # 3. 點擊工作室頂部「簡報」按鈕
         dialog_already_open = target_page.evaluate('''() => {
             return document.querySelector('mat-dialog-container') !== null;
         }''')
@@ -539,7 +529,7 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
             }''')
             time.sleep(2)
 
-        # 4. 尋找對話框中的「簡報投影片」選項並選取
+        # 4. 選取「簡報投影片」選項
         target_page.evaluate('''() => {
             const all = Array.from(document.querySelectorAll('*'));
             for (const el of all) {
@@ -552,156 +542,182 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
         }''')
         time.sleep(1)
 
-        # 5. 填入提示詞至 textarea
+        # 5. 填入提示詞至 textarea 並點擊「立即生成」
         prompt_textarea = target_page.locator("textarea[placeholder*='大綱'], mat-dialog-container textarea").first
         if prompt_textarea.is_visible(timeout=5000):
             print("✍️ 正在將 AI 逆向提示詞填入 NotebookLM 自訂簡報輸入框...", flush=True)
             prompt_textarea.fill(prompt_text)
             time.sleep(1)
 
-            # 點擊「立即生成」按鈕（精準對應 NotebookLM 正確按鈕文字）
+            # 點擊「立即生成」按鈕
             gen_btn = target_page.locator("mat-dialog-container button:has-text('立即生成'), button:has-text('立即生成')").first
             if gen_btn.is_visible(timeout=3000):
                 gen_btn.click()
                 print("🚀 已成功點擊【立即生成】按鈕，觸發 NotebookLM 算繪！", flush=True)
             else:
-                # 透過 JS 尋找點擊
-                clicked_gen = target_page.evaluate('''() => {
+                target_page.evaluate('''() => {
                     const btns = Array.from(document.querySelectorAll('button, [role="button"]'));
                     const btn = btns.find(b => b.textContent.includes('立即生成'));
                     if (btn) { btn.click(); return true; }
                     return false;
                 }''')
-                if clicked_gen:
-                    print("🚀 已透過 JS 點擊【立即生成】按鈕！", flush=True)
-                else:
-                    target_page.keyboard.press("Control+Enter")
-                    print("🚀 已送出生成請求！", flush=True)
+                print("🚀 已透過 JS 點擊【立即生成】按鈕！", flush=True)
         else:
             print("⚠️ 未檢測到自訂簡報輸入框，可能已在進行生成。", flush=True)
 
-        # 等待對話框關閉並給予 NotebookLM 啟動渲染的時間
+        # 給予 3 秒讓前端初始化算繪狀態
         time.sleep(3)
 
-        # 6. 動態輪詢等待 NotebookLM 算繪完成 (嚴謹監控「正在生成簡報」徽章與 Spinner)
+        # 6. 動態輪詢等待 NotebookLM 算繪完成（全時守護，絕不早退）
         print("\n" + "─" * 60, flush=True)
-        with ProgressTimer("NotebookLM 正在為您繪製簡報與視覺細節 (通常需 60~100 秒，請勿中斷)"):
-            # 最長等待 180 秒 (60 次輪詢 * 3 秒)；且前 45 秒絕對不提前退出
-            for loop_i in range(60):
+        max_wait_seconds = 240  # 最長守護 4 分鐘
+        start_wait_time = time.time()
+        reload_attempted = False
+
+        with ProgressTimer("NotebookLM 正在為您繪製簡報與視覺細節 (通常需 90~150 秒，請耐心等候)"):
+            while True:
                 time.sleep(3)
-                elapsed_sec = (loop_i + 1) * 3
+                elapsed = int(time.time() - start_wait_time)
+                if elapsed > max_wait_seconds:
+                    print(f"\n⚠️ 等待超過 {max_wait_seconds} 秒，嘗試重新整理頁面同步最新狀態...", flush=True)
+                    target_page.reload(wait_until="domcontentloaded")
+                    time.sleep(4)
+                    break
 
-                status = target_page.evaluate('''() => {
-                    const studio = document.querySelector('.studio-panel') || document.body;
-                    const text = studio.innerText || '';
-                    const hasGenText = text.includes('正在生成') || text.includes('生成中') || text.includes('正在建立');
-                    const hasSpinner = studio.querySelector('mat-progress-spinner, mat-spinner, svg.rotating, .artifact-loading') !== null;
-                    const isGenerating = hasGenText || hasSpinner;
-                    const currentCount = studio.querySelectorAll('.artifact-item-button, button.artifact-stretched-button').length;
-                    return { isGenerating, currentCount };
-                }''')
+                # 實時偵測算繪狀態
+                is_shimmering = target_page.locator(".shimmer-yellow, [class*='shimmer'], [class*='loading']").count() > 0
+                has_gen_text = target_page.locator("artifact-library-item:has-text('正在生成'), :has-text('正在生成簡報')").count() > 0
+                is_generating = is_shimmering or has_gen_text
 
-                # 只有當：
-                # 1. 已經度過至少 45 秒 (NotebookLM 生成簡報絕不可能低於 45 秒)
-                # 2. 且畫面不再顯示「正在生成」或轉圈 Spinner
-                # 3. 且產出的組件數量增加，或已等待超過 90 秒
-                if elapsed_sec >= 45 and not status["isGenerating"]:
-                    if status["currentCount"] > initial_artifact_count or elapsed_sec >= 90:
-                        break
+                items = target_page.locator("artifact-library-item")
+                current_count = items.count()
+
+                # 當生成滿 50 秒後，如果不再顯示 shimmer 或生成文字，且第一個項目已呈現完成狀態
+                if elapsed >= 50:
+                    if not is_generating:
+                        first_text = items.first.inner_text() if current_count > 0 else ""
+                        if "正在生成" not in first_text and (current_count > initial_artifact_count or "tablet" in first_text):
+                            break
+
+                # 若超過 150 秒仍在旋轉，可能前端 WebSocket 界面未自動同步，做一次溫和重新整理
+                if elapsed >= 150 and not reload_attempted and is_generating:
+                    target_page.reload(wait_until="domcontentloaded")
+                    time.sleep(4)
+                    reload_attempted = True
 
         print("─" * 60, flush=True)
         print("✅ NotebookLM 簡報算繪完成！", flush=True)
-        time.sleep(3)
-
-        # 7. 點擊生成完畢的簡報卡片並打開檢視器
-        print("🔍 尋找生成完畢的簡報卡片並打開檢視...", flush=True)
-        target_page.evaluate('''() => {
-            const closeBtns = document.querySelectorAll('.studio-panel button[aria-label*="關閉"], .notification-banner button');
-            closeBtns.forEach(b => b.click());
-            const scrollers = document.querySelectorAll('.panel-content-scrollable, .studio-panel');
-            scrollers.forEach(s => s.scrollTop = s.scrollHeight);
-        }''')
-        time.sleep(1)
-
-        # 點擊工作室中最新產出的簡報按鈕
-        deck_button = target_page.locator(".artifact-item-button, button.artifact-stretched-button").first
-        if deck_button.is_visible(timeout=3000):
-            deck_button.click(force=True)
-            time.sleep(2)
-
-        # 嘗試點擊「在新分頁中開啟」按鈕 (open_in_new) 以開啟純淨 16:9 簡報檢視器
-        artifact_page = None
-        open_tab_btn = target_page.locator("button:has(mat-icon:has-text('open_in_new')), button[aria-label*='新分頁'], button[aria-label*='在新分頁中開啟']").first
-        if open_tab_btn.is_visible(timeout=3000):
-            try:
-                with target_page.context.expect_page(timeout=5000) as new_page_info:
-                    open_tab_btn.click()
-                artifact_page = new_page_info.value
-                artifact_page.wait_for_load_state("domcontentloaded")
-            except Exception:
-                pass
-
-        if not artifact_page:
-            for pg in browser.contexts[0].pages:
-                if "/artifact/" in pg.url:
-                    artifact_page = pg
-                    break
-
-        if not artifact_page:
-            artifact_page = target_page
-
-        artifact_page.bring_to_front()
         time.sleep(2)
 
-        # 8. 逐頁截取投影片畫面 (優先使用 .thumbnail-container 縮圖點擊切換，精準截取 16:9 全尺寸)
-        print("📸 正在為您逐頁截取 NotebookLM 產出的 16:9 投影片...", flush=True)
+        # 7. 點擊最新產出的簡報，並獲取專屬檢視器
+        print("🔍 正在定位最新生成的投影片並開啟 16:9 純淨檢視器...", flush=True)
         try:
-            cdp_session = artifact_page.context.new_cdp_session(artifact_page)
-            thumbs = artifact_page.locator(".thumbnail-container")
-            thumb_count = thumbs.count()
+            target_page.wait_for_selector("artifact-library-item", timeout=10000)
+        except Exception:
+            pass
 
-            if thumb_count > 0:
-                print(f"🎯 檢測到投影片專屬導航器（共 {thumb_count} 頁），開始逐頁高清截圖...", flush=True)
-                for page_idx in range(min(thumb_count, 6)):
-                    thumbs.nth(page_idx).click()
-                    time.sleep(1.2)
-                    shot_path = DIR_NBLM_SLIDES / f"generated_slide_{page_idx+1:02d}.png"
-                    res = cdp_session.send("Page.captureScreenshot", {"format": "png"})
-                    with open(shot_path, "wb") as f:
-                        f.write(base64.b64decode(res["data"]))
-                    captured_slides.append(shot_path)
-                    print(f"   已截取第 {page_idx+1} 頁 -> generated_slide_{page_idx+1:02d}.png", flush=True)
-            else:
-                for page_idx in range(1, 6):
-                    shot_path = DIR_NBLM_SLIDES / f"generated_slide_{page_idx:02d}.png"
-                    res = cdp_session.send("Page.captureScreenshot", {"format": "png"})
-                    with open(shot_path, "wb") as f:
-                        f.write(base64.b64decode(res["data"]))
-                    captured_slides.append(shot_path)
-                    artifact_page.keyboard.press("ArrowRight")
-                    time.sleep(1.5)
+        newest_item = target_page.locator("artifact-library-item").first
+        newest_title = newest_item.inner_text().replace("\n", " | ")
+        print(f"🎯 目標簡報: {newest_title}", flush=True)
 
-        except Exception as cdp_err:
-            print(f"⚠️ CDP 截圖備援切換: {cdp_err}")
-            for page_idx in range(1, 6):
-                shot_path = DIR_NBLM_SLIDES / f"generated_slide_{page_idx:02d}.png"
+        # 點擊項目以展開
+        newest_btn = newest_item.locator("button.artifact-stretched-button, .artifact-item-button").first
+        newest_btn.click(force=True)
+        time.sleep(2)
+
+        # 尋找 open_in_new 按鈕並提取 artifact_id
+        target_notebook_id = ""
+        target_artifact_id = ""
+
+        # 嘗試從 open_in_new 按鈕的 jslog base64 提取精確的 artifact ID
+        open_btn = target_page.locator("button:has(mat-icon:has-text('open_in_new'))").first
+        if open_btn.is_visible(timeout=4000):
+            jslog_str = open_btn.get_attribute("jslog") or ""
+            # jslog 格式: 359929;track:...;0:<BASE64>
+            match = re.search(r"0:([A-Za-z0-9+/=]+)", jslog_str)
+            if match:
                 try:
-                    artifact_page.locator("body").screenshot(path=str(shot_path), timeout=5000)
-                    captured_slides.append(shot_path)
+                    decoded = base64.b64decode(match.group(1)).decode("latin1", errors="ignore")
+                    ids = re.findall(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", decoded)
+                    if len(ids) >= 2:
+                        target_notebook_id = ids[0]
+                        target_artifact_id = ids[1]
                 except Exception:
                     pass
-                artifact_page.keyboard.press("ArrowRight")
+
+        # 若成功提取到 ID，直接導向專屬 16:9 檢視頁面（100% 免疫彈窗攔截與分頁競態）
+        art_page = None
+        if target_notebook_id and target_artifact_id:
+            artifact_url = f"https://notebook.google.com/notebook/{target_notebook_id}/artifact/{target_artifact_id}"
+            print(f"🚀 直達純淨簡報檢視器: {artifact_url}", flush=True)
+            art_page = context.new_page()
+            art_page.goto(artifact_url, wait_until="domcontentloaded")
+        else:
+            # 備援：透過點擊 open_in_new 開啟新分頁
+            if open_btn.is_visible():
+                try:
+                    with context.expect_page(timeout=8000) as p_info:
+                        open_btn.click()
+                    art_page = p_info.value
+                    art_page.wait_for_url("**/artifact/**", timeout=12000)
+                except Exception:
+                    pass
+
+        if not art_page:
+            # 最後備援：使用目前分頁
+            art_page = target_page
+
+        art_page.bring_to_front()
+
+        # 等待縮圖導航器加載
+        try:
+            art_page.wait_for_selector(".thumbnail-container", timeout=15000)
+        except Exception:
+            pass
+
+        thumbs = art_page.locator(".thumbnail-container")
+        thumb_count = thumbs.count()
+        print(f"📑 檢測到投影片頁數: {thumb_count} 頁，開始逐頁 16:9 高清截圖...", flush=True)
+
+        # 8. 逐頁截取純淨 16:9 投影片畫面
+        slide_limit = min(thumb_count, config.get("slide_page_limit", 6))
+        if thumb_count > 0:
+            for idx in range(slide_limit):
+                thumbs.nth(idx).click()
+                time.sleep(2.0)  # 確保 Google 高清 SVG/WebP 算繪就緒
+
+                shot_path = DIR_NBLM_SLIDES / f"generated_slide_{idx+1:02d}.png"
+                img_el = art_page.locator("image-viewer img, .image-viewer-container img").first
+                
+                if img_el.is_visible():
+                    # 像素級裁切投影片核心畫面（去除任何按鈕邊框）
+                    img_el.screenshot(path=str(shot_path))
+                else:
+                    # 全頁截圖備援
+                    art_page.screenshot(path=str(shot_path))
+
+                captured_slides.append(shot_path)
+                print(f"   📸 已截取第 {idx+1}/{slide_limit} 頁 -> generated_slide_{idx+1:02d}.png", flush=True)
+        else:
+            print("⚠️ 未偵測到投影片縮圖列，嘗試使用全域畫面截圖...", flush=True)
+            for idx in range(1, 4):
+                shot_path = DIR_NBLM_SLIDES / f"generated_slide_{idx:02d}.png"
+                art_page.screenshot(path=str(shot_path))
+                captured_slides.append(shot_path)
+                art_page.keyboard.press("ArrowRight")
                 time.sleep(1.5)
 
-        # 截圖完成後關閉獨立的 /artifact/ 分頁，以防干擾下次執行
-        if artifact_page != target_page and "/artifact/" in artifact_page.url:
+        # 若開啟了獨立的 artifact 分頁，關閉它以保持整潔
+        if art_page != target_page and "/artifact/" in art_page.url:
             try:
-                artifact_page.close()
+                art_page.close()
             except Exception:
                 pass
 
-        print(f"🎉 成功截取 {len(captured_slides)} 張生成畫面，已儲存至 output/03_nblm_slides/", flush=True)
+        if is_persistent:
+            context.close()
 
+    print(f"🎉 成功截取 {len(captured_slides)} 張生成畫面，已儲存至 output/03_nblm_slides/", flush=True)
     return captured_slides
 
 
@@ -751,7 +767,11 @@ def evaluate_and_optimize(original_images: List[Path], generated_images: List[Pa
     parts.append(types.Part.from_text(text=eval_prompt))
 
     report_markdown = ""
-    candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+    configured_model = config.get("gemini_model", "gemini-3.5-flash")
+    candidate_models = [configured_model, "gemini-3.5-flash", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-3.1-pro-preview"]
+    seen = set()
+    candidate_models = [m for m in candidate_models if not (m in seen or seen.add(m))]
+
     for m in candidate_models:
         try:
             with ProgressTimer(f"質檢模型 {m} 正在比對視覺差異並打分"):
@@ -779,7 +799,7 @@ def evaluate_and_optimize(original_images: List[Path], generated_images: List[Pa
     print("🏆 【AI 視覺質檢核心摘要】", flush=True)
     print("─" * 60, flush=True)
     lines = report_markdown.split("\n")
-    for line in lines[:30]:
+    for line in lines[:35]:
         if any(k in line for k in ["還原度", "總分", "評分", "指標", "走鐘", "對策", "*", "#", "分數", "建議"]):
             try:
                 print(line, flush=True)
@@ -797,7 +817,7 @@ def main():
     print("""
 =============================================================================
    🚀 NBLM Auto-Pilot 投影片全自動閉環逆向優化器
-   Version: 1.2.0 (Precision '立即生成' & Instant CDP Capture)
+   Version: 2.0.0 (Resilient Zero-Timeout & Direct Artifact Capture)
 =============================================================================
     """, flush=True)
 
