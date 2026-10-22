@@ -120,6 +120,7 @@ def load_config() -> dict:
         "slide_page_limit": 6,
         "prompt_mode": "global",
         "auto_evaluate": True,
+        "generation_timeout_seconds": 600,
         "notebook_url": ""
     }
     if CONFIG_FILE.exists():
@@ -570,11 +571,11 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
 
         # 6. 動態輪詢等待 NotebookLM 算繪完成（全時守護，絕不早退）
         print("\n" + "─" * 60, flush=True)
-        max_wait_seconds = 360  # 充裕守護 6 分鐘（尖峰期雲端高解析算繪約需 3~4.5 分鐘）
+        max_wait_seconds = config.get("generation_timeout_seconds", 600)  # 充裕守護 600 秒 (10 分鐘)
         start_wait_time = time.time()
-        reload_attempted = False
+        last_reload_time = 0
 
-        with ProgressTimer("NotebookLM 正在為您繪製簡報與視覺細節 (雲端精細算繪約需 2~4.5 分鐘，請耐心等候)"):
+        with ProgressTimer(f"NotebookLM 正在為您繪製簡報與視覺細節 (最多守護 {max_wait_seconds} 秒，算繪完成即刻自動推進)"):
             while True:
                 time.sleep(3)
                 elapsed = int(time.time() - start_wait_time)
@@ -588,26 +589,26 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
                 has_gen_text = any(k in first_text for k in ["正在生成", "正在完成", "progress_activity", "準備程序", "生成中"])
                 is_generating = is_shimmering or has_gen_text
 
-                # 只有當「生成/準備」文字完全消失，且第一個項目已經呈現完成的簡報（具備 tablet 圖標或非 loading 標題）
-                if elapsed >= 50:
+                # 只要「生成中/準備程序」文字完全消失，且第一個項目已是就緒的簡報（具備 tablet 圖標或非 loading 標題）
+                if elapsed >= 45:
                     if not is_generating and ("tablet" in first_text or current_count > initial_artifact_count):
+                        # 算繪成功完成，立即跳出！
                         break
 
-                # 若超過 160 秒仍在旋轉，可能前端介面卡住未及時刷新，進行一次溫和重新整理以同步 Google 雲端最新進度
-                if elapsed >= 160 and not reload_attempted and is_generating:
+                # 每隔 150 秒進行一次溫和重新整理，確保 Google 雲端 WebSocket 同步
+                if elapsed >= 150 and (elapsed - last_reload_time >= 150) and is_generating:
                     target_page.reload(wait_until="domcontentloaded")
                     time.sleep(5)
-                    reload_attempted = True
+                    last_reload_time = elapsed
 
-                # 若超過 max_wait_seconds (360 秒)
+                # 若超過設定的守護上限
                 if elapsed > max_wait_seconds:
                     if not is_generating:
                         break
-                    # 若仍在「正在完成準備程序」，多給予 60 秒緩衝期
+                    # 若仍在生成，多給 60 秒極限緩衝
                     if elapsed > max_wait_seconds + 60:
                         print(f"\n⚠️ 雲端算繪已達守護上限 ({elapsed} 秒)，嘗試繼續後續流程...", flush=True)
                         break
-                    # 每 30 秒重新整理一次檢查後端是否已完成
                     if elapsed % 30 == 0:
                         target_page.reload(wait_until="domcontentloaded")
                         time.sleep(5)
