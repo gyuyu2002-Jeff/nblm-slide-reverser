@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updated_at": "2026-10-22 18:56:31",
+  "updated_at": "2026-10-22 19:19:54",
   "rules": [
     {
       "id": "anti_topology_swapping",
