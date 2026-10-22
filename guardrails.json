@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updated_at": "2026-10-22 19:41:34",
+  "updated_at": "2026-10-22 19:51:59",
   "rules": [
     {
       "id": "anti_topology_swapping",
@@ -81,6 +81,21 @@
       "id": "VISUAL_ANCHOR_MANDATE_1792668611",
       "title": "VISUAL ANCHOR MANDATE",
       "rule": "MUST retain icon containers (circles/hexagons) inside or attached to each step card as visual anchors."
+    },
+    {
+      "id": "ZERO_METADATA_LEAKAGE_1792669919",
+      "title": "ZERO METADATA LEAKAGE",
+      "rule": "NEVER output prompt instructions or visual guidelines (e.g., \"嚴格五色階梯\", \"海軍藍基底\") as slide body text. Content must strict adhere to business topics."
+    },
+    {
+      "id": "GEOMETRIC_STRUCTURAL_INTEGRITY_1792669919",
+      "title": "GEOMETRIC STRUCTURAL INTEGRITY",
+      "rule": "If the layout is a sequential process/staircase (e.g., 6 steps), strictly generate a STAIRCASE/TIMELINE diagram with EXACTLY 6 nodes. Do NOT convert to puzzle pieces or change the node count. For connected diagrams: Preserve explicit visual connectors (pointer lines/arrows) between header cards and central concentric circles. Do NOT break into disconnected left/right split columns."
+    },
+    {
+      "id": "FALLBACK_RENDER_PROTECTION_1792669919",
+      "title": "FALLBACK & RENDER PROTECTION",
+      "rule": "Ensure complete DOM/Canvas rendering on every page. Empty white frames are strictly forbidden; apply standard 2-column fallback layouts if complex 3D graphic rendering fails."
     }
   ]
 }
