@@ -53,39 +53,14 @@ def main():
                 if count > 0:
                     print(f"🚀 正在啟動 Auto-Pilot，本次將完整分析您收集的全部 {count} 頁簡報...\n", flush=True)
                     res = subprocess.run([sys.executable, "-u", "nblm_pilot.py", "--limit", str(count)], cwd=str(SCRIPT_DIR))
-                    print("\n" + "=" * 68, flush=True)
-                    if res.returncode == 0:
-                        print("✨ Auto-Pilot 閉環優化全流程已順利完成！", flush=True)
-                        print("📊 評估報告已儲存於: autopilot/output/04_evaluations/evaluation_report.md", flush=True)
-                        print("📦 最新約束規則已自動合併至 guardrails.json 並推播至 GitHub！", flush=True)
-                    else:
-                        print(f"❌ Auto-Pilot 執行過程發生異常 (Exit Code: {res.returncode})", flush=True)
-                        print("⚠️ 請查看上方執行紀錄以排查問題。", flush=True)
-                    print("=" * 68, flush=True)
-                    while True:
-                        print("\n📌 視窗已為您保持開啟，供您檢視上方 AI 質檢與對比評分！")
-                        print("   [1] 開啟「本次完整 AI 視覺評估與評分報告」(Markdown 檔案)")
-                        print("   [2] 開啟「NotebookLM 生成投影片截圖」資料夾")
-                        print("   [3] 開啟「原始輸入投影片抽樣」資料夾")
-                        print("   [Q] 關閉此視窗")
+                    if res.returncode != 0:
+                        print(f"\n❌ Auto-Pilot 執行過程發生異常 (Exit Code: {res.returncode})", flush=True)
+                        print("⚠️ 請查看上方執行紀錄以排查問題。\n", flush=True)
                         try:
-                            choice = input("👉 請輸入選項 [1/2/3/Q，按 Enter 保持視窗開啟]: ").strip().lower()
-                            if choice == "1":
-                                rep_file = SCRIPT_DIR / "output/04_evaluations/evaluation_report.md"
-                                if rep_file.exists():
-                                    os.startfile(str(rep_file))
-                            elif choice == "2":
-                                out_dir = SCRIPT_DIR / "output/03_nblm_slides"
-                                if out_dir.exists():
-                                    os.startfile(str(out_dir))
-                            elif choice == "3":
-                                ext_dir = SCRIPT_DIR / "output/01_extracted"
-                                if ext_dir.exists():
-                                    os.startfile(str(ext_dir))
-                            elif choice in ("q", "quit", "exit"):
-                                break
+                            input("👉 請按 [Enter] 鍵關閉視窗...")
                         except Exception:
-                            break
+                            pass
+                    break
                 else:
                     print("⚠️ 未收集到任何圖片，請按 Win+Shift+S 截圖後再按 Enter。", flush=True)
                 break

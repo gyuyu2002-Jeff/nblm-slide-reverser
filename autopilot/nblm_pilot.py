@@ -142,6 +142,7 @@ def load_config() -> dict:
     parser.add_argument("--all", "-a", action="store_true", help="辨識整份簡報全部頁面 (不設頁數上限)")
     args, _ = parser.parse_known_args()
 
+    default_config["_cli_limit_specified"] = (args.all or args.limit is not None)
     if args.all:
         default_config["slide_page_limit"] = 0
     elif args.limit is not None:
@@ -1143,6 +1144,27 @@ def main():
 
     config = load_config()
     page_limit = config.get("slide_page_limit", 6)
+
+    # 若未在命令列特別指定 --limit 或 --all，提供終端機互動輸入選項
+    if not config.get("_cli_limit_specified", False):
+        print("=" * 68, flush=True)
+        print("   [頁數設定說明]")
+        print("    - 直接按 [Enter]：採用預設值 (目前預設 6 頁)")
+        print("    - 輸入數字 (例如 10、12、16、20)：辨識指定的投影片頁數")
+        print("    - 輸入 0 或 all：辨識整份簡報【全部頁面】(不設上限)")
+        print("=" * 68, flush=True)
+        try:
+            user_in = input("👉 請輸入要辨識的頁數 [直接按 Enter 採用預設]: ").strip().lower()
+            if user_in in ("0", "-1", "all", "none", "全", "全部"):
+                page_limit = 0
+                config["slide_page_limit"] = 0
+            elif user_in.isdigit():
+                page_limit = max(1, int(user_in))
+                config["slide_page_limit"] = page_limit
+        except (KeyboardInterrupt, EOFError):
+            pass
+        print("-" * 68, flush=True)
+
     limit_desc = "整份簡報全部頁面（不設上限）" if (page_limit is None or page_limit <= 0) else f"前 {page_limit} 頁"
     print(f"📑 辨識頁數設定: {limit_desc}\n", flush=True)
 
@@ -1155,13 +1177,42 @@ def main():
         auto_harden_and_sync_website(eval_result, config)
         print_final_score_summary(eval_result)
 
-    print("\n" + "=" * 60, flush=True)
+    print("\n" + "=" * 68, flush=True)
     print("全流程閉環自動化執行完畢。", flush=True)
     print(f"📁 原始影像抽取區: {DIR_EXTRACTED}", flush=True)
     print(f"📁 逆向提示詞目錄: {DIR_PROMPTS}", flush=True)
     print(f"📁 NotebookLM 截圖區: {DIR_NBLM_SLIDES}", flush=True)
     print(f"📁 評估與優化報告: {DIR_EVALUATIONS}", flush=True)
-    print("=" * 60 + "\n", flush=True)
+    print("=" * 68, flush=True)
+
+    # 保持視窗開啟與互動操作選單（防止視窗閃退或關閉）
+    while True:
+        print("\n" + "=" * 68, flush=True)
+        print("📌 視窗已為您保持開啟，供您檢視上方 AI 質檢與對比評分！", flush=True)
+        print("   [1] 開啟「本次完整 AI 視覺評估與評分報告」(Markdown 檔案)", flush=True)
+        print("   [2] 開啟「NotebookLM 生成投影片截圖」資料夾", flush=True)
+        print("   [3] 開啟「原始輸入投影片抽樣」資料夾", flush=True)
+        print("   [Q] 關閉此視窗", flush=True)
+        print("=" * 68, flush=True)
+        try:
+            choice = input("👉 請輸入選項 [1/2/3/Q，按 Enter 保持視窗開啟]: ").strip().lower()
+            if choice == "1":
+                rep_file = DIR_EVALUATIONS / "evaluation_report.md"
+                if rep_file.exists():
+                    os.startfile(str(rep_file))
+                else:
+                    print("⚠️ 評估報告檔案尚不存在。")
+            elif choice == "2":
+                if DIR_NBLM_SLIDES.exists():
+                    os.startfile(str(DIR_NBLM_SLIDES))
+            elif choice == "3":
+                if DIR_EXTRACTED.exists():
+                    os.startfile(str(DIR_EXTRACTED))
+            elif choice in ("q", "quit", "exit"):
+                print("已結束。")
+                break
+        except (KeyboardInterrupt, EOFError):
+            break
 
 
 if __name__ == "__main__":
