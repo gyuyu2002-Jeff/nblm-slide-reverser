@@ -62,10 +62,30 @@ def main():
                         print(f"❌ Auto-Pilot 執行過程發生異常 (Exit Code: {res.returncode})", flush=True)
                         print("⚠️ 請查看上方執行紀錄以排查問題。", flush=True)
                     print("=" * 68, flush=True)
-                    try:
-                        input("\n👉 請按 [Enter] 鍵結束並關閉視窗...")
-                    except Exception:
-                        pass
+                    while True:
+                        print("\n📌 視窗已為您保持開啟，供您檢視上方 AI 質檢與對比評分！")
+                        print("   [1] 開啟「本次完整 AI 視覺評估與評分報告」(Markdown 檔案)")
+                        print("   [2] 開啟「NotebookLM 生成投影片截圖」資料夾")
+                        print("   [3] 開啟「原始輸入投影片抽樣」資料夾")
+                        print("   [Q] 關閉此視窗")
+                        try:
+                            choice = input("👉 請輸入選項 [1/2/3/Q，按 Enter 保持視窗開啟]: ").strip().lower()
+                            if choice == "1":
+                                rep_file = SCRIPT_DIR / "output/04_evaluations/evaluation_report.md"
+                                if rep_file.exists():
+                                    os.startfile(str(rep_file))
+                            elif choice == "2":
+                                out_dir = SCRIPT_DIR / "output/03_nblm_slides"
+                                if out_dir.exists():
+                                    os.startfile(str(out_dir))
+                            elif choice == "3":
+                                ext_dir = SCRIPT_DIR / "output/01_extracted"
+                                if ext_dir.exists():
+                                    os.startfile(str(ext_dir))
+                            elif choice in ("q", "quit", "exit"):
+                                break
+                        except Exception:
+                            break
                 else:
                     print("⚠️ 未收集到任何圖片，請按 Win+Shift+S 截圖後再按 Enter。", flush=True)
                 break

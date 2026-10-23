@@ -1091,6 +1091,45 @@ def auto_harden_and_sync_website(eval_result: dict, config: dict) -> None:
         print(f"⚠️ 自動 Git 推播略過: {g_err}（本機規則庫已成功更新）", flush=True)
 
 
+def print_final_score_summary(eval_result: dict) -> None:
+    """在終端機結尾顯眼位置印出評估總分與指標對比卡片"""
+    report_markdown = eval_result.get("report_markdown", "")
+    if not report_markdown:
+        return
+
+    print("\n" + "=" * 68, flush=True)
+    print("   📊 【本次閉環 AI 視覺質檢評分與對比摘要】", flush=True)
+    print("=" * 68, flush=True)
+
+    scores = []
+    lines = report_markdown.splitlines()
+    in_sec1 = False
+    for l in lines:
+        s = l.strip()
+        if "## 1. 核心評分指標" in s:
+            in_sec1 = True
+            continue
+        elif in_sec1 and s.startswith("## "):
+            break
+
+        if in_sec1 and any(k in s for k in ["還原度", "總分", "Fidelity", "Match", "Rhythm", "Score"]):
+            cleaned = re.sub(r"[\*#`]", "", s).strip("- ").strip()
+            if cleaned:
+                scores.append(cleaned)
+
+    if scores:
+        for sc in scores[:8]:
+            print(f"  🎯 {sc}", flush=True)
+    else:
+        for l in lines[4:15]:
+            if l.strip():
+                print(f"  {l.strip()}", flush=True)
+
+    print("-" * 68, flush=True)
+    print(f"📄 完整詳細逐頁比對報告: {eval_result.get('report_path', 'output/04_evaluations/evaluation_report.md')}", flush=True)
+    print("=" * 68, flush=True)
+
+
 # =============================================================================
 # 7. 主流程串接 (Master Loop)
 # =============================================================================
@@ -1114,6 +1153,7 @@ def main():
     if config.get("auto_evaluate", True):
         eval_result = evaluate_and_optimize(extracted_slides, captured_slides, config)
         auto_harden_and_sync_website(eval_result, config)
+        print_final_score_summary(eval_result)
 
     print("\n" + "=" * 60, flush=True)
     print("全流程閉環自動化執行完畢。", flush=True)
