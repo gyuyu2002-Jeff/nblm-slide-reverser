@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updated_at": "2026-10-23 10:00:27",
+  "updated_at": "2026-10-23 10:40:29",
   "rules": [
     {
       "id": "anti_topology_swapping",
@@ -136,6 +136,26 @@
       "id": "rule_1792720827",
       "title": "【色彩系統與配比嚴格遵守】",
       "rule": "嚴格遵守原始簡報的色彩系統，包括淺薰衣草藍的背景色、黃色、紅色、紫色等主色與強調色，並確保色彩配比符合 60-30-10 原則，避免引入新的色調或降低色彩飽和度。所有人物與物件的配色必須與原始簡報保持一致。"
+    },
+    {
+      "id": "rule_1792723229",
+      "title": "【版面邊界與完整性】",
+      "rule": "Strictly ensure all visual elements, including diagrams, text blocks, and icons, are fully contained within the slide's visible area. Do not crop any content from the top, bottom, or sides. The slide must be presented as a complete, uncropped image.` `禁止任何內容超出投影片可視範圍，確保圖形、文字、圖示等所有元素完整呈現，不得有任何裁切。"
+    },
+    {
+      "id": "rule_1792723229",
+      "title": "【幾何結構與元素關係】",
+      "rule": "Replicate the exact geometric layout and arrangement of elements as shown in the original. For multi-part diagrams (e.g., circular flow, petal diagram, diamond matrix, horizontal cards), precisely describe each component's shape, position, and its relationship to other elements. Icons must be embedded within their designated shapes (e.g., circle, oval, square) and not float above text.` `精確還原原始簡報的幾何結構與元素排列。圖示必須內嵌於其指定形狀（如圓形、橢圓形、方形）中，而非獨立於文字上方。"
+    },
+    {
+      "id": "rule_1792723229",
+      "title": "【色彩系統與對比】",
+      "rule": "Adhere strictly to the original color palette, including background color (specify hex code if known, e.g., #F8F8F8 for light grey). Apply accent colors (e.g., blue, green, orange) only to the specific elements as seen in the original, maintaining their relative proportions and ensuring sufficient contrast for all text and graphical elements.` `嚴格遵循原始簡報的色彩系統，包括背景色。強調色僅用於原始設計中的特定元素，並確保所有文字與圖形元素具有足夠的對比度。"
+    },
+    {
+      "id": "rule_1792723229",
+      "title": "【文字排版與視覺節奏】",
+      "rule": "Maintain the original typography hierarchy: main title (large, bold), subtitle (smaller, descriptive), card titles (bold, concise, max 2 words), and descriptions (max 2 lines of text). Avoid long paragraphs; prioritize brevity and scannability as per the original design.` `保持原始的文字層次結構：主標題、副標題、卡片標題（簡潔，最多兩字）、內文（最多兩行）。避免冗長段落，確保文字簡潔易讀。"
     }
   ]
 }
