@@ -135,6 +135,25 @@ def load_config() -> dict:
     raw_profile = default_config.get("chrome_profile_dir", "")
     default_config["chrome_profile_dir"] = os.path.expandvars(raw_profile)
 
+    # 支援命令列指定辨識頁數上限與模式 (--limit / -l / --pages / --all)
+    import argparse
+    parser = argparse.ArgumentParser(description="NBLM Auto-Pilot 投影片全自動閉環優化器")
+    parser.add_argument("--limit", "-l", "--pages", default=None, help="辨識頁數上限 (數字，或 0/all 代表整份簡報全部頁面)")
+    parser.add_argument("--all", "-a", action="store_true", help="辨識整份簡報全部頁面 (不設頁數上限)")
+    args, _ = parser.parse_known_args()
+
+    if args.all:
+        default_config["slide_page_limit"] = 0
+    elif args.limit is not None:
+        val_str = str(args.limit).strip().lower()
+        if val_str in ("0", "-1", "all", "none", "全", "全部"):
+            default_config["slide_page_limit"] = 0
+        else:
+            try:
+                default_config["slide_page_limit"] = max(1, int(val_str))
+            except ValueError:
+                pass
+
     # 檢查環境變數中的 GEMINI_API_KEY
     env_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if env_key and not default_config["gemini_api_key"]:
@@ -243,8 +262,10 @@ def extract_input_slides(limit: int = 6, config: Optional[dict] = None) -> List[
         print(f"⚠️ 在 {DIR_INPUT} 中未找到任何簡報檔案 (PDF/PPTX/圖片)。", flush=True)
         print(f"💡 自動使用系統內建的 demo 簡報圖片作為測試樣本！", flush=True)
         demo_images = sorted(list(DEMO_DIR.glob("slide_*.jpg")))
+        is_unlimited = (limit is None or limit <= 0)
         if demo_images:
-            for idx, img_path in enumerate(demo_images[:limit], start=1):
+            target_demo = demo_images if is_unlimited else demo_images[:limit]
+            for idx, img_path in enumerate(target_demo, start=1):
                 target_path = DIR_EXTRACTED / f"page_{idx:02d}.png"
                 img = Image.open(img_path).convert("RGB")
                 img.save(target_path, "PNG")
@@ -258,14 +279,16 @@ def extract_input_slides(limit: int = 6, config: Optional[dict] = None) -> List[
     pdf_files = [f for f in input_files if f.suffix.lower() == ".pdf"]
     pptx_files = [f for f in input_files if f.suffix.lower() == ".pptx"]
     img_files = [f for f in input_files if f.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]]
+    is_unlimited = (limit is None or limit <= 0)
 
     if pdf_files:
         target_pdf = pdf_files[0]
         print(f"📄 正在解析 PDF: {target_pdf.name} ...", flush=True)
         doc = fitz.open(str(target_pdf))
         total_pages = len(doc)
-        pages_to_extract = min(total_pages, limit)
-        print(f"   總頁數: {total_pages} 頁，本次提取前 {pages_to_extract} 頁（150 DPI 高清算繪）", flush=True)
+        pages_to_extract = total_pages if is_unlimited else min(total_pages, limit)
+        desc = f"全部 {total_pages} 頁（無頁數上限）" if is_unlimited else f"前 {pages_to_extract} 頁"
+        print(f"   總頁數: {total_pages} 頁，本次提取 {desc}（150 DPI 高清算繪）", flush=True)
         
         for i in range(pages_to_extract):
             page = doc[i]
@@ -281,20 +304,26 @@ def extract_input_slides(limit: int = 6, config: Optional[dict] = None) -> List[
         try:
             sys.path.append(str(PROJECT_ROOT))
             import pptx_handler
-            temp_images = pptx_handler.extract_pptx_slides(str(target_pptx), limit=limit)
-            for idx, (img_bytes, mime) in enumerate(temp_images, start=1):
+            with open(target_pptx, "rb") as pf:
+                content_bytes = pf.read()
+            pdata = pptx_handler.process_pptx_presentation(content_bytes, max_preview=999 if is_unlimited else limit)
+            for idx, pinfo in enumerate(pdata.get("preview_pages", []), start=1):
+                if not is_unlimited and idx > limit:
+                    break
                 out_path = DIR_EXTRACTED / f"page_{idx:02d}.png"
                 with open(out_path, "wb") as f:
-                    f.write(img_bytes)
+                    f.write(pinfo["bytes"])
                 extracted_images.append(out_path)
         except Exception as p_err:
             print(f"⚠️ PPTX 轉圖失敗: {p_err}，建議將簡報先匯出為 PDF 放入 input/。", flush=True)
             sys.exit(1)
 
     elif img_files:
-        print(f"🖼️ 檢測到 {len(img_files)} 張獨立圖片，正在排序整合...", flush=True)
         img_files.sort(key=lambda x: x.name)
-        for idx, img_path in enumerate(img_files[:limit], start=1):
+        target_imgs = img_files if is_unlimited else img_files[:limit]
+        desc = f"全部 {len(target_imgs)} 張（無頁數上限）" if is_unlimited else f"前 {len(target_imgs)} 張（頁數上限 {limit} 頁）"
+        print(f"🖼️ 檢測到 {len(img_files)} 張獨立圖片，本次將提取 {desc} 進行分析...", flush=True)
+        for idx, img_path in enumerate(target_imgs, start=1):
             out_path = DIR_EXTRACTED / f"page_{idx:02d}.png"
             img = Image.open(img_path).convert("RGB")
             img.save(out_path, "PNG")
@@ -768,7 +797,9 @@ def drive_notebooklm_and_capture(prompt_text: str, config: dict) -> List[Path]:
         slide_count = slide_imgs.count()
         print(f"📑 檢測到投影片頁數: {slide_count} 頁，開始逐頁截圖...", flush=True)
 
-        slide_limit = min(slide_count, config.get("slide_page_limit", 6))
+        limit = config.get("slide_page_limit", 6)
+        is_unlimited = (limit is None or limit <= 0)
+        slide_limit = slide_count if is_unlimited else min(slide_count, limit)
         if slide_count > 0:
             for idx in range(slide_limit):
                 img_el = slide_imgs.nth(idx)
@@ -817,7 +848,10 @@ def evaluate_and_optimize(original_images: List[Path], generated_images: List[Pa
     client = genai.Client(api_key=config["gemini_api_key"])
 
     parts = []
-    compare_count = min(len(original_images), len(generated_images), 3)
+    limit = config.get("slide_page_limit", 6)
+    is_unlimited = (limit is None or limit <= 0)
+    max_eval = config.get("eval_max_pairs", len(original_images) if is_unlimited else max(limit, 3))
+    compare_count = min(len(original_images), len(generated_images), max_eval)
     for i in range(compare_count):
         with open(original_images[i], "rb") as f:
             parts.append(types.Part.from_bytes(data=f.read(), mime_type="image/png"))
@@ -1069,7 +1103,11 @@ def main():
     """, flush=True)
 
     config = load_config()
-    extracted_slides = extract_input_slides(limit=config.get("slide_page_limit", 6), config=config)
+    page_limit = config.get("slide_page_limit", 6)
+    limit_desc = "整份簡報全部頁面（不設上限）" if (page_limit is None or page_limit <= 0) else f"前 {page_limit} 頁"
+    print(f"📑 辨識頁數設定: {limit_desc}\n", flush=True)
+
+    extracted_slides = extract_input_slides(limit=page_limit, config=config)
     prompt_text, global_p, slide_p = reverse_engineer_prompt(extracted_slides, config)
     captured_slides = drive_notebooklm_and_capture(prompt_text, config)
 

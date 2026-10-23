@@ -15,9 +15,9 @@ def main():
     print("=" * 68)
     print("   📸 NBLM 投影片連續截圖自動收集器 (Continuous Screenshot Collector)")
     print("=" * 68)
-    print("👉 請直接在螢幕上按 [Win + Shift + S] 依序截取簡報頁面 (建議 4~6 張)")
+    print("👉 請直接在螢幕上按 [Win + Shift + S] 依序截取簡報頁面 (可自由截取任意頁數，如 6 頁、10 頁、15 頁或整份簡報)")
     print("   每截一張，系統會自動儲存為 input/slide_01.png, slide_02.png...")
-    print("👉 收集完成後，隨時回到此視窗按 [Enter] 即可直接啟動 Auto-Pilot！")
+    print("👉 收集完成後，隨時回到此視窗按 [Enter]，系統將自動完整分析所有收集到的頁面！")
     print("👉 按 [Q] 可取消並結束程式。")
     print("=" * 68)
     print("👀 正在監聽 Windows 剪貼簿截圖事件...\n", flush=True)
@@ -51,8 +51,8 @@ def main():
             if ch in (b'\r', b'\n'):
                 print(f"\n🎉 截圖收集結束！共收集 {count} 張投影片圖片。", flush=True)
                 if count > 0:
-                    print("🚀 正在啟動 Auto-Pilot 全自動閉環優化器...\n", flush=True)
-                    res = subprocess.run([sys.executable, "-u", "nblm_pilot.py"], cwd=str(SCRIPT_DIR))
+                    print(f"🚀 正在啟動 Auto-Pilot，本次將完整分析您收集的全部 {count} 頁簡報...\n", flush=True)
+                    res = subprocess.run([sys.executable, "-u", "nblm_pilot.py", "--limit", str(count)], cwd=str(SCRIPT_DIR))
                     print("\n" + "=" * 68, flush=True)
                     if res.returncode == 0:
                         print("✨ Auto-Pilot 閉環優化全流程已順利完成！", flush=True)

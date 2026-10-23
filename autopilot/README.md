@@ -66,5 +66,6 @@ nblm-slide-reverser/autopilot/
 
 * `gemini_api_key`: Google Gemini API 金鑰（首次執行若未輸入，終端機亦會提示您貼上並自動儲存）。
 * `gemini_model`: 預設使用 `gemini-2.5-flash`，具備秒級多模態分析效能。
-* `slide_page_limit`: 每次提取分析的頁數上限（預設 6 頁）。
+* `slide_page_limit`: 每次提取分析的頁數上限（預設 6 頁，可自由調整為 10、15、20 等；設為 `0` 則代表辨識整份簡報全部頁數，不設上限）。
+* `eval_max_pairs`: 步驟四成對品質質檢的最大比對組數（預設 10 組）。
 * `prompt_mode`: `global` (模式 1：通篇風格統一) 或 `slide` (模式 2：逐頁 1:1 精確骨架)。

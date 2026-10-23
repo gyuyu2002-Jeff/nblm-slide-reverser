@@ -69,7 +69,7 @@ def crawl_url_to_images(
                 if resp.status_code == 200 and ("application/pdf" in resp.headers.get("content-type", "") or resp.content[:4] == b"%PDF"):
                     logger.info("成功自 Google Slides 匯出 PDF，正在算繪頁面影像...")
                     doc = fitz.open(stream=resp.content, filetype="pdf")
-                    pages_to_take = min(len(doc), limit)
+                    pages_to_take = len(doc) if (limit is None or limit <= 0) else min(len(doc), limit)
                     for i in range(pages_to_take):
                         pix = doc[i].get_pixmap(dpi=150)
                         img_bytes = pix.tobytes("png")
@@ -96,7 +96,7 @@ def crawl_url_to_images(
                     ctype = head_or_get.headers.get("content-type", "").lower()
                     if "application/pdf" in ctype or head_or_get.content[:4] == b"%PDF":
                         doc = fitz.open(stream=head_or_get.content, filetype="pdf")
-                        pages_to_take = min(len(doc), limit)
+                        pages_to_take = len(doc) if (limit is None or limit <= 0) else min(len(doc), limit)
                         for i in range(pages_to_take):
                             pix = doc[i].get_pixmap(dpi=150)
                             results.append((pix.tobytes("png"), "image/png"))
@@ -152,7 +152,8 @@ def crawl_url_to_images(
 
         if is_presentation:
             logger.info("偵測到線上簡報翻頁控制項，正在逐頁截取...")
-            for idx in range(limit):
+            crawl_limit = 50 if (limit is None or limit <= 0) else limit
+            for idx in range(crawl_limit):
                 time.sleep(1)
                 shot = page.screenshot(type="png")
                 results.append((shot, "image/png"))
