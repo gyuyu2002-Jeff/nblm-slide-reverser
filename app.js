@@ -3546,21 +3546,21 @@ function showToastWithUndo(message, onUndo = null, type = "info") {
   }
 
   if (type === "success") {
-    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-emerald-500/40 text-xs shadow-2xl text-white max-w-md";
+    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-200 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#14171E] border border-emerald-500/30 text-xs text-white max-w-md";
     if (icon) {
       icon.className = "w-4 h-4 text-emerald-400 shrink-0";
       icon.setAttribute("data-lucide", "check-circle");
     }
   } else if (type === "warning" || type === "error") {
-    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-rose-950 border border-rose-500/40 text-xs shadow-2xl text-white max-w-md";
+    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-200 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#14171E] border border-rose-500/40 text-xs text-white max-w-md";
     if (icon) {
       icon.className = "w-4 h-4 text-rose-300 shrink-0";
       icon.setAttribute("data-lucide", "alert-circle");
     }
   } else {
-    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-white/[0.12] text-xs shadow-2xl text-zinc-100 max-w-md";
+    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-200 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#14171E] border border-white/[0.12] text-xs text-zinc-100 max-w-md";
     if (icon) {
-      icon.className = "w-4 h-4 text-sky-400 shrink-0";
+      icon.className = "w-4 h-4 text-zinc-300 shrink-0";
       icon.setAttribute("data-lucide", "info");
     }
   }

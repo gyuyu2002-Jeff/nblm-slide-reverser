@@ -1,105 +1,87 @@
-/* 數位設計師工作台風 (Studio Workspace System) */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* 數位設計師工作台風 (Studio Workspace System) - Anti-slop Professional Workstation */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --ground: #0A0B0E;
+  --surface: #121418;
+  --surface-raised: #181A20;
+  --surface-sub: #0E1013;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(255, 255, 255, 0.22);
+  --text-main: #F4F4F5;
+  --text-muted: #A1A1AA;
+}
 
 body {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   letter-spacing: -0.015em;
+  background-color: var(--ground);
+  color: var(--text-main);
 }
 
 code, pre, .font-mono {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
 }
 
-/* 工作檯點陣畫布底紋 (Designer Studio Mat Grid) */
+/* 工作檯純色底 (Clean Studio Flat Ground - No Dot Grid / Gradients) */
 .studio-canvas-bg {
-  background-color: #090A0D;
-  background-image: 
-    radial-gradient(circle, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
-    radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.04) 0%, transparent 65%);
-  background-size: 24px 24px, 100% 100%;
-  background-position: 0 0, 0 0;
-  background-attachment: fixed;
+  background-color: #0A0B0E;
 }
 
-/* 工作檯面板：銑削微漸層與光澤邊緣 (Studio Panel Elevation) */
+/* 工作檯面板：無陰影純平表面，由 1px 微線分割 (Flat Surface Elevation) */
 .studio-panel {
-  background: #111317;
+  background: #121418;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.6),
-    0 8px 24px -4px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  border-radius: 12px;
 }
 
-/* 工作檯裁切墊 / 燈箱投放區 (Studio Lightbox Dropzone) */
+/* 工作檯上傳投放區 (Clean Studio Dropzone) */
 .studio-dropzone {
   position: relative;
-  background: rgba(255, 255, 255, 0.015);
-  border: 1px dashed rgba(255, 255, 255, 0.16);
-  border-radius: 12px;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  background: #0E1014;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .studio-dropzone:hover {
-  background: rgba(255, 255, 255, 0.035);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.02);
+  background: #14171E;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* 四角精密切割定位標記 (Crop Mark Crosshairs) */
-.crop-mark {
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  pointer-events: none;
-  border-color: rgba(255, 255, 255, 0.28);
-}
-.crop-tl { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; border-top-left-radius: 3px; }
-.crop-tr { top: -1px; right: -1px; border-top: 2px solid; border-right: 2px solid; border-top-right-radius: 3px; }
-.crop-bl { bottom: -1px; left: -1px; border-bottom: 2px solid; border-left: 2px solid; border-bottom-left-radius: 3px; }
-.crop-br { bottom: -1px; right: -1px; border-bottom: 2px solid; border-right: 2px solid; border-bottom-right-radius: 3px; }
-
-/* 投影片展台懸浮投影 (Presentation Stage Frame) */
+/* 投影片展台視窗 (Presentation Stage Frame) */
 .studio-stage-frame {
   position: relative;
   background: #000000;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
-  box-shadow: 
-    0 24px 50px -12px rgba(0, 0, 0, 0.85),
-    0 8px 20px -6px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
 }
 
-/* Pantone 色票色卡 (Designer Pantone Swatch Card) */
+/* 色票色卡 (Pantone Swatch Card) */
 .studio-swatch-card {
-  background: #0D0F13;
+  background: #0E1014;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
+  transition: border-color 0.15s ease;
 }
 
 .studio-swatch-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.24);
 }
 
-/* 分段控制器 (Precision Segmented Pill Control) */
+/* 分段控制器 (Segmented Control) */
 .studio-segmented-track {
   background: #0C0E12;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 3px;
 }
 
 .studio-segmented-btn.active {
-  background: #1C1F26;
+  background: #1C2028;
   color: #FFFFFF;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 /* 精密微滾動條 */
@@ -113,29 +95,29 @@ code, pre, .font-mono {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #252932;
+  background: #232730;
   border-radius: 9999px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #3B4250;
+  background: #343A46;
 }
 
 @keyframes scaleUp {
-  0% { transform: scale(0.985); opacity: 0; }
+  0% { transform: scale(0.99); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
 
 .animate-scale-up {
-  animation: scaleUp 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: scaleUp 0.12s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Markdown 排印 (雜誌級排版與設計手冊質感) */
+/* Markdown 排印 (Crisp Prose Styling) */
 .prose h1, .prose h2, .prose h3 {
   color: #F4F4F5 !important;
   font-weight: 600;
   letter-spacing: -0.02em;
-  margin-top: 1.4em;
+  margin-top: 1.2em;
   margin-bottom: 0.5em;
 }
 
@@ -146,7 +128,7 @@ code, pre, .font-mono {
 
 .prose p, .prose li {
   color: #A1A1AA !important;
-  line-height: 1.7;
+  line-height: 1.65;
 }
 
 .prose strong {
@@ -155,17 +137,17 @@ code, pre, .font-mono {
 }
 
 .prose blockquote {
-  border-left-color: #38BDF8 !important;
+  border-left-color: rgba(255, 255, 255, 0.25) !important;
   background-color: #111318;
   padding: 0.75rem 1.25rem;
-  border-radius: 0.75rem;
+  border-radius: 0.5rem;
   color: #D4D4D8 !important;
   border-left-width: 3px;
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .prose code {
-  color: #38BDF8 !important;
+  color: #E4E4E7 !important;
   background-color: #0E1014 !important;
   padding: 0.15rem 0.4rem;
   border-radius: 0.35rem;
@@ -177,8 +159,7 @@ code, pre, .font-mono {
 .prose pre {
   background-color: #0B0C0F !important;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border-radius: 0.5rem;
 }
 
 .prose pre code {
@@ -199,28 +180,26 @@ code, pre, .font-mono {
   grid-auto-rows: max-content !important;
 }
 
-/* 投影片卡片：保證立體質感與充足高度，絕不坍塌 */
+/* 投影片卡片：平坦立體、清晰邊框 */
 .large-slide-card {
   position: relative;
-  border-radius: 1rem;
-  border-width: 2px;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background-color: #13161F;
+  background-color: #11141A;
   user-select: none;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.15s ease;
   min-width: 0;
 }
 
 .large-slide-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
-/* 16:9 投影片畫布預覽框：徹底免疫 WebKit / Safari 壓扁崩塌 */
+/* 16:9 投影片畫布預覽框 */
 .large-slide-preview-box {
   position: relative;
   width: 100%;
@@ -246,7 +225,6 @@ code, pre, .font-mono {
   }
 }
 
-/* 投影片預覽圖片：完整等比居中，絕不被裁切、絕不被遮擋 */
 .large-slide-preview-img {
   width: 100%;
   height: 100%;
