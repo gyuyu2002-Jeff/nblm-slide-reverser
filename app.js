@@ -1557,15 +1557,6 @@ function setupEventListeners() {
   });
 
   // 開始分析按鈕
-  
-  on("btn-demo-specimen-1", "click", () => {
-    loadDemoPresentation();
-  });
-
-  on("btn-demo-specimen-2", "click", () => {
-    loadMckinseyDemoPresentation();
-  });
-
   on("btn-start-analyze", "click", handleStartAnalyze);
 
   // 複製按鈕（動態對應當前所選模式）
@@ -2254,68 +2245,6 @@ async function pasteClipboardToInput(inputId) {
 }
 
 // === 示範資料：手繪筆記塗鴉風 (Sketchnote) 完整逆向成果 ===
-
-// === 示範資料 2：麥肯錫顧問 2D 矩陣拓撲 (McKinsey System) ===
-const MCKINSEY_DEMO_DATA = {
-  status: "success",
-  auto_reason: "免金鑰實例示範 · 麥肯錫顧問 2D 矩陣拓撲",
-  model_used: "Gemini 2.5 Flash (高階諮詢拓撲分析實例)",
-  structured_meta: {
-    style_name: "麥肯錫諮詢 2D 矩陣拓撲體系 (McKinsey Executive System)",
-    tags: [
-      "麥肯錫矩陣",
-      "深邃海軍藍",
-      "啞光古銅駝金",
-      "高階2D線框",
-      "同心圓中樞",
-      "4階段階梯鏈",
-      "70%極致留白"
-    ],
-    white_space_ratio: "70% 高管決策級留白",
-    palette: [
-      { role: "深邃墨夜海軍藍 (Primary Navy)", hex: "#0E2A47", name: "Deep Navy" },
-      { role: "沉穩低飽和駝金 (Ochre Gold)", hex: "#C59B27", name: "Ochre Gold" },
-      { role: "溫潤暖象牙米灰 (Canvas Gray)", hex: "#F4F3EE", name: "Warm Ivory" },
-      { role: "高對比墨黑主文 (Charcoal)", hex: "#111827", name: "Charcoal" },
-      { role: "斑馬條塊分界色 (Border Tint)", hex: "#E5E7EB", name: "Slate Divider" },
-      { role: "洞察冷杉綠標籤 (Insight)", hex: "#0D9488", name: "Teal Insight" }
-    ]
-  },
-  markdown_report: `## 1. 視覺語言與排版拓撲風格總結
-- **核心設計風格**：麥肯錫顧問 2D 幾何拓撲（McKinsey Executive System），以極致精簡的 2D 線框、同心圓導軌與階梯插槽構成，拒絕任何漸層發光與擬物陰影，確保資訊密度與決策可讀性達到最高峰值。
-- **畫布比例與幾何骨架**：16:9 寬螢幕，採用溫潤暖象牙米灰 (#F4F3EE) 內頁底色，封面搭配深邃墨夜海軍藍 (#0E2A47)。
-- **留白比率**：約 70% 極致留白，邊距寬闊，單頁限定 1 個核心洞察與 3 點支撐證據。
-
----
-
-## 2. 色彩系統與調色盤規範
-1. **封面與重磅頁背景**：`#0E2A47`（深邃墨夜海軍藍，象徵沉穩權威）
-2. **內頁畫布底色**：`#F4F3EE`（溫潤暖象牙米灰，護眼且具備高管印刷品手感）
-3. **核心決策強調色**：`#C59B27`（沉穩低飽和啞光駝金，嚴禁使用高飽和鮮黃）
-4. **文字與幾何線框**：`#111827`（墨黑線條，1px hairline 精確勾勒）
-
----
-
-## 3. NotebookLM 專用結構指令 (Prompt)
-
-### 模式 1：學風格 · 做新簡報（麥肯錫 2D 矩陣拓撲）
-```markdown
-你是一位具備 15 年麥肯錫與 BCG 戰略諮詢經驗的頂級商業簡報架構師。
-請依據我提供的來源資料（Sources），將內容轉譯為彈性 3~20 頁具備頂級諮詢質感的高管簡報大綱。
-
-【視覺風格與排版約束】：
-1. 視覺語彙：麥肯錫 2D 矩陣拓撲（純 2D 扁平，1px 俐落微線框，無漸層無陰影）。
-2. 配色系統：海軍藍 (#0E2A47) + 沉穩駝金 (#C59B27) + 象牙米灰底 (#F4F3EE)。
-3. 拓撲版型庫：
-   - 【封面頁】：沉穩深藍滿版 + 居中大標題 + 駝金細微導航線。
-   - 【三欄卡片】：並列 3 欄 1px 俐落邊框卡片，每卡頂部標註關鍵數字指標。
-   - 【垂直階梯】：4 階段垂直推進階梯，以純線條箭頭串接。
-   - 【同心圓中樞】：中樞戰略核心圓 + 外部 4 象限環繞插槽。
-4. 🚫 頁面呈現零重複最高約束：每頁投影片呈現形態嚴格禁止重複！整份簡報中，必須從拓撲版型庫輪替選用不同版型，相鄰頁面與全篇各頁絕不重複套用同一版型！
-```
-`
-};
-
 const DEMO_ANALYSIS_DATA = {
   status: "success",
   auto_reason: "免金鑰實例示範 · 5 頁手繪筆記塗鴉風",
@@ -2508,29 +2437,6 @@ const DEMO_ANALYSIS_DATA = {
 };
 
 // 載入示範投影片
-
-function loadMckinseyDemoPresentation() {
-  uploadedSlidePages = [
-    { page: 1, image: "demo/slide_1.jpg", name: "01_封面_麥肯錫戰略轉型.jpg" },
-    { page: 2, image: "demo/slide_2.jpg", name: "02_三欄卡片_市場機遇分析.jpg" },
-    { page: 3, image: "demo/slide_3.jpg", name: "03_四階段階梯_價值鏈重塑.jpg" },
-    { page: 4, image: "demo/slide_4.jpg", name: "04_同心圓中樞_組織生態圖譜.jpg" }
-  ];
-  selectedFiles = [];
-  currentComparisonPage = 0;
-
-  renderThumbnails();
-  closeOnboardingModal(true);
-  renderAnalysisResult(MCKINSEY_DEMO_DATA);
-
-  const resultSec = document.getElementById("panel-result");
-  if (resultSec) {
-    resultSec.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  showToast("已載入「麥肯錫顧問 2D 矩陣拓撲」實例！可切換對照並複製 NotebookLM 提示詞。", "success");
-}
-
 function loadDemoPresentation() {
   uploadedSlidePages = [
     { page: 1, image: "demo/slide_1.jpg", name: "01_封面_企業AI導入90天.jpg" },
