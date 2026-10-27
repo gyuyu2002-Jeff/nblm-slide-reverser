@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.33.7";
+const APP_VERSION = "v6.34.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -1244,15 +1244,15 @@ function setupEventListeners() {
 
   if (tabSourceFile && tabSourceUrl && dropZoneEl && urlZoneEl) {
     tabSourceFile.addEventListener("click", () => {
-      tabSourceFile.className = "flex-1 py-1 px-2.5 rounded-md font-medium text-white bg-white/[0.1] shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer";
-      tabSourceUrl.className = "flex-1 py-1 px-2.5 rounded-md font-medium text-zinc-400 hover:text-zinc-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer";
+      tabSourceFile.className = "py-2 px-3 rounded-lg font-semibold text-[#322E2B] bg-white shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer";
+      tabSourceUrl.className = "py-2 px-3 rounded-lg font-medium text-[#68615B] hover:text-[#322E2B] flex items-center justify-center gap-1.5 transition-all cursor-pointer";
       dropZoneEl.classList.remove("hidden");
       urlZoneEl.classList.add("hidden");
     });
 
     tabSourceUrl.addEventListener("click", () => {
-      tabSourceUrl.className = "flex-1 py-1 px-2.5 rounded-md font-medium text-white bg-white/[0.1] shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer";
-      tabSourceFile.className = "flex-1 py-1 px-2.5 rounded-md font-medium text-zinc-400 hover:text-zinc-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer";
+      tabSourceUrl.className = "py-2 px-3 rounded-lg font-semibold text-[#322E2B] bg-white shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer";
+      tabSourceFile.className = "py-2 px-3 rounded-lg font-medium text-[#68615B] hover:text-[#322E2B] flex items-center justify-center gap-1.5 transition-all cursor-pointer";
       dropZoneEl.classList.add("hidden");
       urlZoneEl.classList.remove("hidden");
       if (window.lucide) window.lucide.createIcons();
@@ -1646,9 +1646,9 @@ function switchTutTab(tutName) {
   document.querySelectorAll(".tut-tab-btn").forEach(b => {
     const isTarget = b.getAttribute("data-tut") === tutName;
     if (isTarget) {
-      b.className = "tut-tab-btn py-1.5 border-b-2 border-zinc-200 text-zinc-100 font-medium cursor-pointer";
+      b.className = "tut-tab-btn py-1.5 border-b-2 border-[#768A7A] text-[#322E2B] font-semibold cursor-pointer";
     } else {
-      b.className = "tut-tab-btn py-1.5 border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 cursor-pointer";
+      b.className = "tut-tab-btn py-1.5 border-b-2 border-transparent text-[#68615B] hover:text-[#322E2B] cursor-pointer";
     }
   });
 
@@ -1676,9 +1676,9 @@ function openApiKeyModal(provider) {
   document.querySelectorAll("#modal-provider-selector .modal-provider-btn").forEach(btn => {
     const p = btn.getAttribute("data-modal-provider");
     if (p === provider) {
-      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-medium border transition-all text-center bg-zinc-100 text-zinc-950 border-zinc-100 cursor-pointer";
+      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition-all text-center bg-[#768A7A] text-white border-[#768A7A] cursor-pointer";
     } else {
-      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-medium border transition-all text-center bg-white/[0.04] text-zinc-300 border-white/[0.08] hover:bg-white/[0.08] cursor-pointer";
+      btn.className = "modal-provider-btn px-2 py-1.5 rounded-lg text-xs font-medium border transition-all text-center bg-[#F3EFEA] text-[#68615B] border-[#322E2B]/10 hover:bg-[#EAE3DC] cursor-pointer";
     }
   });
 
@@ -1840,18 +1840,18 @@ function updatePageSelectionModeUI() {
 
   if (pageSelectionMode === "custom") {
     if (btnCustom) {
-      btnCustom.className = "page-scope-btn active p-2 rounded-lg text-left transition-all cursor-pointer bg-white/10 text-white border border-white/20";
+      btnCustom.className = "page-scope-btn active p-2.5 rounded-xl text-left transition-all cursor-pointer bg-[#E9EFEA] text-[#322E2B] border border-[#768A7A]";
     }
     if (btnAll) {
-      btnAll.className = "page-scope-btn p-2 rounded-lg text-left transition-all cursor-pointer bg-white/[0.03] text-zinc-400 border border-transparent hover:bg-white/[0.06]";
+      btnAll.className = "page-scope-btn p-2.5 rounded-xl text-left transition-all cursor-pointer bg-[#F3EFEA] text-[#68615B] border border-transparent hover:border-[#D9CEC2]";
     }
     if (customControls) customControls.classList.remove("hidden");
   } else {
     if (btnCustom) {
-      btnCustom.className = "page-scope-btn p-2 rounded-lg text-left transition-all cursor-pointer bg-white/[0.03] text-zinc-400 border border-transparent hover:bg-white/[0.06]";
+      btnCustom.className = "page-scope-btn p-2.5 rounded-xl text-left transition-all cursor-pointer bg-[#F3EFEA] text-[#68615B] border border-transparent hover:border-[#D9CEC2]";
     }
     if (btnAll) {
-      btnAll.className = "page-scope-btn active p-2 rounded-lg text-left transition-all cursor-pointer bg-white/10 text-white border border-white/20";
+      btnAll.className = "page-scope-btn active p-2.5 rounded-xl text-left transition-all cursor-pointer bg-[#E9EFEA] text-[#322E2B] border border-[#768A7A]";
     }
     if (customControls) customControls.classList.add("hidden");
   }
@@ -1891,7 +1891,7 @@ function renderThumbnails() {
     card.className = `relative group rounded-xl border p-1 flex flex-col items-center shadow-sm transition-all cursor-pointer select-none ${
       isSelected
         ? "border-emerald-500/50 bg-emerald-500/[0.04] ring-1 ring-emerald-500/20"
-        : "border-white/[0.06] bg-[#0E1013] opacity-40 hover:opacity-80"
+        : "border-white/[0.06] bg-[#F3EFEA] opacity-40 hover:opacity-80"
     }`;
 
     card.innerHTML = `
@@ -2016,7 +2016,7 @@ function renderLargeSlidesGrid() {
     const isSelected = selectedPageIndices.has(pageNum);
 
     const card = document.createElement("div");
-    card.className = `large-slide-card relative group rounded-2xl border-2 transition-all cursor-pointer overflow-hidden flex flex-col bg-[#13161F] select-none ${
+    card.className = `large-slide-card relative group rounded-2xl border-2 transition-all cursor-pointer overflow-hidden flex flex-col bg-[#FAF8F5] select-none ${
       isSelected
         ? "border-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500/40"
         : "border-white/[0.08] opacity-75 hover:opacity-100 hover:border-white/30"
@@ -2877,20 +2877,20 @@ function updatePipelineUi(percent, activeStep, taskDescription, elapsedSec = 0) 
 
     if (i < activeStep || percent === 100) {
       // 已完成
-      card.className = "p-3 rounded-lg bg-[#0E1013] border border-emerald-500/25 flex items-start gap-3 transition-colors opacity-100";
+      card.className = "p-3 rounded-lg bg-[#F3EFEA] border border-emerald-500/25 flex items-start gap-3 transition-colors opacity-100";
       icon.className = "w-6 h-6 rounded-md bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5";
       icon.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i>';
       badge.className = "text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
       badge.textContent = "已就緒";
     } else if (i === activeStep) {
       // 進行中
-      card.className = "p-3 rounded-lg bg-[#0E1013] border border-white/20 flex items-start gap-3 transition-colors opacity-100 shadow-sm";
+      card.className = "p-3 rounded-lg bg-[#F3EFEA] border border-white/20 flex items-start gap-3 transition-colors opacity-100 shadow-sm";
       icon.className = "w-6 h-6 rounded-md bg-white/10 text-white flex items-center justify-center shrink-0 mt-0.5 animate-pulse";
       badge.className = "text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/10 text-white border border-white/20";
       badge.textContent = "處理中";
     } else {
       // 等待中
-      card.className = "p-3 rounded-lg bg-[#0E1013] border border-white/[0.05] flex items-start gap-3 transition-colors opacity-50";
+      card.className = "p-3 rounded-lg bg-[#F3EFEA] border border-white/[0.05] flex items-start gap-3 transition-colors opacity-50";
       icon.className = "w-6 h-6 rounded-md bg-white/[0.04] text-zinc-500 flex items-center justify-center shrink-0 mt-0.5";
       badge.className = "text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/[0.03] text-zinc-500 border border-white/[0.05]";
       badge.textContent = "等待中";
@@ -3201,9 +3201,9 @@ function switchResultTab(tabName) {
   document.querySelectorAll(".result-tab-btn").forEach(btn => {
     const t = btn.getAttribute("data-result-tab");
     if (t === tabName) {
-      btn.className = "result-tab-btn active px-3.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors bg-white/10 text-white border border-white/10 cursor-pointer";
+      btn.className = "result-tab-btn active px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors bg-white text-[#322E2B] border border-[#322E2B]/10 shadow-sm cursor-pointer";
     } else {
-      btn.className = "result-tab-btn px-3.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors text-zinc-400 hover:text-white hover:bg-white/[0.04] cursor-pointer";
+      btn.className = "result-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors text-[#68615B] hover:text-[#322E2B] hover:bg-white/50 cursor-pointer";
     }
   });
 
@@ -3225,7 +3225,7 @@ function renderCustomStoryboardUI() {
 
   customStoryboardSlides.forEach((slide, idx) => {
     const row = document.createElement("div");
-    row.className = "custom-slide-item flex items-center gap-2 p-2 rounded-lg bg-[#0C0E12] border border-white/[0.06] hover:border-white/15 transition-all";
+    row.className = "custom-slide-item flex items-center gap-2 p-2 rounded-lg bg-[#F3EFEA] border border-white/[0.06] hover:border-white/15 transition-all";
     row.setAttribute("data-slide-idx", idx);
 
     const optionsHtml = DEFAULT_LAYOUT_OPTIONS.map(opt => 
@@ -3328,6 +3328,15 @@ function syncCustomPromptAndPreview() {
 function switchPromptMode(mode) {
   currentPromptMode = mode;
 
+  document.querySelectorAll("#prompt-mode-selector .prompt-mode-btn").forEach(btn => {
+    const m = btn.getAttribute("data-prompt-mode");
+    if (m === mode) {
+      btn.className = "prompt-mode-btn active p-3 rounded-xl text-left transition-all cursor-pointer bg-[#E9EFEA] text-[#322E2B] border border-[#768A7A]";
+    } else {
+      btn.className = "prompt-mode-btn p-3 rounded-xl text-left transition-all cursor-pointer bg-[#F3EFEA] text-[#68615B] border border-transparent hover:border-[#D9CEC2]";
+    }
+  });
+
   // 更新右側結果頁三子頁籤樣式
   const btnGlobal = document.getElementById("btn-subtab-global");
   const btnSlide = document.getElementById("btn-subtab-slide");
@@ -3338,8 +3347,8 @@ function switchPromptMode(mode) {
   const customBuilder = document.getElementById("custom-slides-builder");
   const codeEl = document.getElementById("nblm-prompt-code");
 
-  const inactiveBtn = "subtab-mode-btn flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent cursor-pointer";
-  const activeBtn = "subtab-mode-btn flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 bg-white/10 text-white shadow-sm border border-white/10 cursor-pointer";
+  const inactiveBtn = "subtab-mode-btn flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 text-[#68615B] hover:text-[#322E2B] hover:bg-white/60 border border-transparent cursor-pointer";
+  const activeBtn = "subtab-mode-btn flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 bg-white text-[#322E2B] shadow-sm border border-[#322E2B]/10 cursor-pointer";
 
   if (btnGlobal) btnGlobal.className = inactiveBtn;
   if (btnSlide) btnSlide.className = inactiveBtn;
@@ -3482,8 +3491,8 @@ function renderColorPalette(palette) {
         <span class="absolute top-1 right-1 bg-black/75 backdrop-blur-sm text-[8px] font-mono text-zinc-300 px-1 py-0.2 rounded border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">COPY</span>
       </div>
       <div>
-        <div class="text-[10px] font-medium text-zinc-400 truncate leading-tight">${color.role || color.name}</div>
-        <div class="text-[11px] font-mono font-medium text-zinc-200 flex items-center justify-between mt-0.5">
+        <div class="text-[10px] font-medium text-[#68615B] truncate leading-tight">${color.role || color.name}</div>
+        <div class="text-[11px] font-mono font-semibold text-[#322E2B] flex items-center justify-between mt-0.5">
           <span>${color.hex}</span>
           <i data-lucide="copy" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400"></i>
         </div>
