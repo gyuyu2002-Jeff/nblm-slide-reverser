@@ -1,49 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
-  <defs>
-    <!-- 圓角容器微光漸層背景 -->
-    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1A1C23" />
-      <stop offset="50%" stop-color="#101115" />
-      <stop offset="100%" stop-color="#090A0D" />
-    </linearGradient>
+  <!-- 圓角基底：莫蘭迪粉霧暖白 (#FAF8F5) + 暖駝細邊 (#D9CEC2) -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="#FAF8F5" stroke="#D9CEC2" stroke-width="3.5" />
 
-    <!-- 暖金色至微光白銀線條漸層 -->
-    <linearGradient id="glow-line" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FDE68A" />
-      <stop offset="30%" stop-color="#F59E0B" />
-      <stop offset="70%" stop-color="#FCD34D" />
-      <stop offset="100%" stop-color="#FFFFFF" />
-    </linearGradient>
-
-    <!-- 柔和微光濾鏡 -->
-    <filter id="soft-glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="1.8" result="blur" />
-      <feMerge>
-        <feMergeNode in="blur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
-  </defs>
-
-  <!-- Squircle 圓角基底 -->
-  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bg-grad)" stroke="#2B2F3B" stroke-width="2" />
-
-  <!-- 16:9 外輪廓框架 (微光發光) -->
-  <g filter="url(#soft-glow)">
-    <!-- 雙層精密切割外框 -->
-    <rect x="22" y="36" width="84" height="56" rx="4" fill="none" stroke="url(#glow-line)" stroke-width="2.6" />
-    <rect x="25.5" y="39.5" width="77" height="49" rx="2" fill="none" stroke="#FDE68A" stroke-width="0.8" opacity="0.4" />
-
-    <!-- 內部黃金比例版型拓撲分割 (4大模組版位) -->
-    <!-- 左側主版位 (Hero 欄位) -->
-    <rect x="29" y="43" width="22" height="42" rx="1.5" fill="#FDE68A" fill-opacity="0.08" stroke="url(#glow-line)" stroke-width="1.8" />
-    
-    <!-- 中間雙層垂直版位 -->
-    <rect x="54" y="43" width="16" height="19.5" rx="1.5" fill="#FDE68A" fill-opacity="0.08" stroke="url(#glow-line)" stroke-width="1.8" />
-    <rect x="54" y="65.5" width="16" height="19.5" rx="1.5" fill="#FDE68A" fill-opacity="0.08" stroke="url(#glow-line)" stroke-width="1.8" />
-
-    <!-- 右側對稱版位 (上下分割) -->
-    <rect x="73" y="43" width="26" height="19.5" rx="1.5" fill="#FDE68A" fill-opacity="0.08" stroke="url(#glow-line)" stroke-width="1.8" />
-    <rect x="73" y="65.5" width="26" height="19.5" rx="1.5" fill="#FDE68A" fill-opacity="0.08" stroke="url(#glow-line)" stroke-width="1.8" />
+  <!-- 後層：乾燥灰粉色票卡 (#C8A7A3，微傾 -7 度) -->
+  <g transform="rotate(-7 54 58)">
+    <rect x="20" y="26" width="68" height="48" rx="9.5" fill="#C8A7A3" />
+    <circle cx="31.5" cy="37.5" r="3.5" fill="#FAF8F5" opacity="0.88" />
   </g>
+
+  <!-- 中層：燕麥暖駝過渡色票卡 (#B5A392) -->
+  <rect x="28" y="33" width="70" height="49" rx="9.5" fill="#B5A392" opacity="0.92" />
+
+  <!-- 前層：鼠尾草綠 16:9 簡報構圖網格卡 (#768A7A) -->
+  <rect x="33" y="41" width="74" height="54" rx="10.5" fill="#768A7A" stroke="#FAF8F5" stroke-width="3" />
+
+  <!-- 內部黃金分割版型區塊 (左主欄 + 右雙層卡片) -->
+  <rect x="41.5" y="49.5" width="23" height="37" rx="3.5" fill="#FAF8F5" fill-opacity="0.95" />
+  <rect x="69.5" y="49.5" width="29" height="16" rx="3" fill="#FAF8F5" fill-opacity="0.52" />
+  <rect x="69.5" y="70.5" width="29" height="16" rx="3" fill="#FAF8F5" fill-opacity="0.32" />
 </svg>
