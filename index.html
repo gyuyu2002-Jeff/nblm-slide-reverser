@@ -81,7 +81,7 @@
           </span>
           <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-[#E9EFEA] text-[#4E6152] font-mono border border-[#C4D1C6] font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap shrink-0" title="系統當前版本號">
             <span class="w-1.5 h-1.5 rounded-full bg-[#768A7A]"></span>
-            <span id="system-version-badge">v6.34.0</span>
+            <span id="system-version-badge">v6.34.1</span>
           </span>
         </div>
       </div>
@@ -125,8 +125,8 @@
     <section class="space-y-4">
       <div class="flex flex-col md:flex-row md:items-end justify-between gap-2">
         <div>
-          <h2 class="font-serif-tc text-xl sm:text-2xl font-bold text-[#322E2B] tracking-tight">將喜愛簡報的構圖與色票，化為專屬設計語言</h2>
-          <p class="text-xs sm:text-[13px] text-[#68615B] mt-1">溫潤莫蘭迪工作檯 · 自動拆解版型拓撲、Pantone 色票與 NotebookLM 結構化提示詞</p>
+          <h2 class="font-serif-tc text-xl sm:text-2xl font-bold text-[#322E2B] tracking-tight">將喜愛簡報的構圖與色票，拆解版型＆色票</h2>
+          <p class="text-xs sm:text-[13px] text-[#68615B] mt-1">轉成 NotebookLM 結構化提示詞</p>
         </div>
       </div>
 
@@ -409,9 +409,9 @@
               </button>
               <button type="button" data-prompt-mode="slide" class="prompt-mode-btn p-3 rounded-xl text-left transition-all cursor-pointer bg-[#F3EFEA] text-[#68615B] border border-transparent hover:border-[#D9CEC2]">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="text-xs font-bold text-[#322E2B]">照原稿 · 逐頁複刻</span>
+                  <span class="text-xs font-bold text-[#322E2B]">參考原稿 · 逐頁排版</span>
                 </div>
-                <p class="text-[11px] text-[#68615B] leading-snug">完整保留每一頁排版結構，適合照原格式填空</p>
+                <p class="text-[11px] text-[#68615B] leading-snug">擷取每一頁的版面結構作為提示詞，引導生成相近配置</p>
               </button>
             </div>
             <div class="flex items-center gap-1.5 text-[10px] text-[#968E86] font-mono px-0.5 pt-0.5">
@@ -761,7 +761,7 @@
                 </button>
                 <button type="button" id="btn-subtab-slide" class="subtab-mode-btn flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 text-[#68615B] hover:text-[#322E2B] hover:bg-white/[0.04] border border-transparent cursor-pointer">
                   <i data-lucide="copy-check" class="w-3.5 h-3.5"></i>
-                  <span>模式 2：照原稿 · 一頁頁複刻</span>
+                  <span>模式 2：參考原稿 · 逐頁排版</span>
                 </button>
                 <button type="button" id="btn-subtab-custom" class="subtab-mode-btn flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 text-[#68615B] hover:text-[#322E2B] hover:bg-white/[0.04] border border-transparent cursor-pointer">
                   <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-[#8F6561]"></i>
@@ -784,9 +784,9 @@
                   <div id="desc-mode-slide" class="hidden flex items-center gap-1.5">
                     <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
                     <h3 class="text-xs font-semibold text-[#322E2B]">
-                      模式 2：照原稿 · 一頁頁複刻
+                      模式 2：參考原稿 · 逐頁排版
                     </h3>
-                    <span class="text-[10px] text-[#68615B] ml-1">完全保留原投影片每一頁的排版結構，適合想照原版格式填空的人。</span>
+                    <span class="text-[10px] text-[#68615B] ml-1">擷取每一頁的版面結構作為提示詞，引導生成相近配置。</span>
                   </div>
                 </div>
                 <div class="flex items-center gap-1.5">
@@ -884,7 +884,7 @@
       <div class="flex items-center gap-2 flex-wrap">
         <span>© 2026 簡報風格逆向解析 (NBLM Slide Reverser)</span>
         <span class="px-2 py-0.5 rounded-full font-mono text-[10px] bg-[#E9EFEA] text-[#4E6152] border border-[#C4D1C6] font-semibold">
-          v6.34.0
+          v6.34.1
         </span>
         <span class="text-zinc-700 hidden sm:inline">·</span>
         <span class="text-[#68615B]">非 Google 或 NotebookLM 官方專案</span>
@@ -1440,7 +1440,7 @@
           </div>
           <div>
             <h3 class="text-sm font-semibold text-[#322E2B]">NotebookLM 實戰生成整套流程</h3>
-            <p class="text-[11px] text-[#68615B]">從逆向提示詞到 1:1 精確簡報生成的 5 步閉環 SOP</p>
+            <p class="text-[11px] text-[#68615B]">從結構化提示詞到高品質簡報生成的 5 步閉環 SOP</p>
           </div>
         </div>
         <button id="btn-close-nblm-tutorial" class="text-[#68615B] hover:text-white cursor-pointer transition-colors p-1 rounded-md hover:bg-white/[0.05]">
@@ -1460,7 +1460,7 @@
             <span class="text-[10px] text-[#4E6152] bg-[#E9EFEA] border border-[#C4D1C6] px-1.5 py-0.5 rounded font-mono">本站操作</span>
           </div>
           <p class="text-[#68615B] pl-7 text-[11px]">
-            在成果頁選擇 <strong class="text-[#322E2B]">「模式 1：學風格 · 做新簡報」</strong>（推薦，含每頁絕不重複約束）或 <strong class="text-[#322E2B]">「模式 2：照原稿 · 一頁頁複刻」</strong>，點擊「複製指令」按鈕。
+            在成果頁選擇 <strong class="text-[#322E2B]">「模式 1：學風格 · 做新簡報」</strong>（推薦，含每頁絕不重複約束）或 <strong class="text-[#322E2B]">「模式 2：參考原稿 · 逐頁排版」</strong>，點擊「複製指令」按鈕。
           </p>
         </div>
 
