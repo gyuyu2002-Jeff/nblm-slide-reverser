@@ -1,161 +1,46 @@
 {
-  "version": "1.0.0",
-  "updated_at": "2026-10-23 10:40:29",
+  "version": "2.0.0",
+  "updated_at": "2026-10-30 18:10:00",
   "rules": [
     {
-      "id": "anti_topology_swapping",
-      "title": "幾何拓撲防錯位規範 (Anti-Topology Swapping)",
-      "rule": "若該頁原圖為「橫向 4 欄流程卡片」，提示詞必須強制約束『🚫 嚴禁退化為 2x2 矩陣』；若原圖為「2x2 四象限矩陣」，『🚫 嚴禁退化為水平時間軸』；若原圖為「連續 Chevron 流程箭頭」，『🚫 嚴禁退化為普通方塊』！每一頁的視覺拓撲必須剛性鎖定！"
+      "id": "container_fill_and_border_polarity_lock",
+      "title": "容器填色極性與無框結構精準鎖定 (Container Fill & Border Polarity Lock)",
+      "rule": "必須精準區分三種容器型態並於提示詞中明文鎖定：(1)【空心手繪描邊容器 (Hollow Outline / No-Fill)】：如黑板粉筆對話框、手繪雲朵框、空心粗箭頭，必須強制標註『內部無填色（直接透出畫布底色），僅以雙線/單線彩色描邊，🚫 嚴禁填滿實心色塊導致文字對比度下降』；(2)【無外框純筆刷底條欄位 (Borderless Columns with Highlighter Strips)】：若原圖多欄結構僅在小標題下方墊有螢光筆刷色帶、欄位外圍無框線且欄位間無分隔線，必須強制標註『欄位外圍完全無邊框、欄位間無垂直/十字格線，🚫 嚴禁自行加上黑色矩形外框或表格十字分隔線』；(3)【實心色塊容器 (Solid Fill Container)】：僅在原圖確實為實心色塊（如黑色實心藥丸標籤 STAGE 01）時才指定實心填色。"
     },
     {
-      "id": "solid_color_fill",
-      "title": "幾何組件實心飽滿填色 (Solid Color Fill, No Wireframes)",
-      "rule": "所有箭頭、卡片與圖示徽章必須使用飽滿的實心色彩填充（Solid Color Fill），『🚫 絕對嚴禁生成黑色單線條無填色外框（Hollow Wireframe / Empty Outlines）』，確保畫面具備足夠的視覺量感與衝擊力！"
+      "id": "canvas_texture_and_ruled_line_fidelity",
+      "title": "畫布材質與背景格線保真規範 (Canvas Texture & Ruled-Line Fidelity)",
+      "rule": "必須精確描述畫布底紙的幾何紋理並加上負向禁令：(1) 若原圖為「橫格線筆記本紙張（Ruled Notebook Paper）」，必須強制規定『全篇背景清晰呈現等距水平淺灰橫格線 (#E5E3DC) 與左側單條垂直邊界線，🚫 嚴禁替換為無橫線之皺摺牛皮紙、髒舊羊皮紙，🚫 嚴禁在畫面四周噴濺無關的黑色墨點，🚫 嚴禁在標題或文字四角添加無關的 L 型直角框線（┌ ┘）』；(2) 若原圖為「深色黑板材質（Chalkboard）」，必須維持深炭黑板底色 (#191A1D) 與細微粉筆擦拭肌理。"
     },
     {
-      "id": "step_count_integrity",
-      "title": "步驟數量 1:1 剛性守恆 (Step-Count Integrity)",
-      "rule": "原圖有幾個步驟（例如 4 步或 5 步），生成內容必須剛性產出相同數量的欄位或節點，『🚫 絕對嚴禁擅自合併或縮減步驟數量』！"
+      "id": "multi_color_cycling_and_highlight_placement",
+      "title": "多色輪替序列與高光部位鎖定 (Multi-Color Cycling & Highlight Placement Lock)",
+      "rule": "當原圖包含多色強調色（如馬卡龍粉彩/螢光筆刷：柔粉紅、薄荷青綠、柔和黃、蜜桃橘、晴空藍）時，必須強制規範：(1)【跨欄多色輪替鐵律】：同一頁面的並列欄位、卡片或對話泡泡，必須依序輪替不同色相（例如：欄1粉紅 ➔ 欄2薄荷綠 ➔ 欄3柔黃 ➔ 欄4粉藍），『🚫 絕對嚴禁整頁所有欄位偷懶重複使用同一種顏色』；(2)【高光部位精準鎖定】：若原圖螢光筆刷僅墊於「區塊小標題（Sub-heading）」下方，必須明文規定『螢光筆刷僅限作為小標題底色，🚫 嚴禁在下方內文段落中隨意塗抹黃色螢光筆』；若原圖為「行內關鍵詞變色（Inline Chalk Keyword Highlight）」，則明文指定『僅將句子中的 2~3 個關鍵字詞改為粉彩字色，不加底色塊』。"
     },
     {
-      "id": "chart_palette_purity",
-      "title": "圖表色彩純度防雜色污染 (Chart Palette Purity & Anti-Color Contamination)",
-      "rule": "圓餅圖、長條圖與區域圖之數據組件，必須嚴格限定使用該風格指定之純色扁平填色；『🚫 嚴禁自動衍生非預期的泥褐色、濁黃色、中灰色等雜色扇形或長條』，維持色彩系統之純度！"
+      "id": "connector_and_timeline_geometry_lock",
+      "title": "連接線、箭頭與時間軸幾何型態鎖定 (Connector & Timeline Geometry Lock)",
+      "rule": "必須精確拆解線條與箭頭的幾何構造：(1)【時間軸折線型態】：若原圖為「直角階梯狀上下折線箭頭（Orthogonal Stepped Arrow Line ┌─┐）」，必須明確寫出『採用單條 90 度直角水平與垂直轉折之階梯折線箭頭串聯各階段，🚫 絕對嚴禁畫成雙股麻花交叉波浪線（Figure-8 / Sine Wave）或圓弧曲線』；(2)【箭頭填色屬性】：若原圖為「空心粗黑框箭頭（Hollow Outlined Block Arrow）」，必須標註『箭頭內部留白無填色，🚫 嚴禁塗滿實心黑色』。"
     },
     {
-      "id": "vector_stroke_fidelity",
-      "title": "插畫線條與形狀保真 (Vector Stroke & Graphic Fidelity)",
-      "rule": "原圖若為向量線條插畫（如階梯、引線、軸線），必須維持簡潔之扁平向量線條；『🚫 嚴禁畸變為笨重之 3D 塊狀物或實心色塊堆疊』！"
+      "id": "doodle_and_stick_figure_anatomy_lock",
+      "title": "手繪插畫與塗鴉小人解剖保真 (Stick Figure & Doodle Anatomy Lock)",
+      "rule": "針對手繪與塗鴉風格簡報：(1)【塗鴉小人構造】：若原圖為極簡空心線條小人，必須明確規定『採用純黑單線條空心描邊之極簡半身/全身塗鴉小人（圓頭、兩點眼睛、簡單弧線微笑，軀幹內部完全留白透明），🚫 嚴禁將小人身體內部塗黑或填滿雜亂黑線，🚫 嚴禁替換為美式卡通或日系動漫人物』；(2)【周圍塗鴉符號庫】：精確列出原圖出現的塗鴉種類（如：雙線空心愛心、螺旋彈簧線、四芒星、手繪燈泡、手繪大括號 { }、放射短光芒），禁止生成原圖未出現的裝飾。"
     },
     {
-      "id": "Color_Lock_Constraint_1792656727",
-      "title": "Color Lock Constraint",
-      "rule": "Strictly limit palette to exact 3 colors: Crimson Red (#FF0033), Pure Black (#000000), and Off-White background (#F5F5F0). NO brown, NO yellow, NO grey, NO gradients. Force 100% flat vector flat colors."
+      "id": "zero_gibberish_and_exact_title_lock",
+      "title": "封面與全篇文字零亂碼鐵律 (Zero-Gibberish & Exact Text Lock)",
+      "rule": "在產出的 NotebookLM 提示詞中，必須強制加入文字潔淨禁令：『【🔤 絕對文字潔淨與零亂碼鐵律】：投影片畫面中的所有中英文文字，必須 100% 嚴格取自提示詞指定之標題與要點文案！🚫 絕對嚴禁在主標題下方或插畫旁自行捏造無意義的偽漢字、湊字數亂碼（如無意義的五字/六字假詞彙）或塗鴉假字！封面主標題嚴格限制為單一清晰主標與指定副標，未指定演講者/日期時嚴禁自行編造署名框。』"
     },
     {
-      "id": "Visual_Element_Guardrail_1792656727",
-      "title": "Visual Element Guardrail",
-      "rule": "Do NOT render 3D blocks or mud-colored shapes. If stairs/graphs are requested, render them using clean stroke lines or solid red/black flat vector shapes only."
+      "id": "anti_topology_swapping_and_step_count",
+      "title": "幾何拓撲防錯位與步驟數量 1:1 守恆 (Anti-Topology Swapping & Step-Count Integrity)",
+      "rule": "每一頁的視覺拓撲與節點數量必須剛性鎖定：原圖為「橫向 4 欄圖示列」則嚴禁退化為 2x2 矩陣；原圖為「中央人物 + 左右各 3 箭頭放射心智圖（共 6 節點）」則必須維持左 3 右 3 共 6 節點；原圖為「3 環交疊文氏圖（左文右圖）」則必須維持左文右 3 環交集；原圖為「大括號分支樹狀圖」則必須畫出手繪大括號 `{ }` 包夾結構，嚴禁退化為普通圓點清單！"
     },
     {
-      "id": "Chart_Color_Consistency_1792656727",
-      "title": "Chart Color Consistency",
-      "rule": "All pie slices and bar charts MUST strictly use solid Crimson Red or Pure Black. Prohibit automatically generating tertiary color fills (like beige, grey, brown) in chart elements."
-    },
-    {
-      "id": "Layout_Consistency_1792656727",
-      "title": "Layout Consistency",
-      "rule": "Maintain top-right red dot matrix grid (5x5) and exact vertical thick red accent border on the slide edges (left edge for slide 1, right edge for slide 3)."
-    },
-    {
-      "id": "rule_1792663985",
-      "title": "幾何架構鎖定",
-      "rule": "Strict Grid Enforcement: Maintain exact layout topology; do not replace a 2x3 grid with radial/arc timelines or vice versa."
-    },
-    {
-      "id": "rule_1792663985",
-      "title": "渲染防空保底",
-      "rule": "Anti-Blank Canvas: Ensure all nodes, text fields, and visual anchors are fully populated; no empty slides or omitted containers."
-    },
-    {
-      "id": "rule_1792663985",
-      "title": "色彩數量強約束",
-      "rule": "Color Cardinality: Exactly match the N-step dynamic color mapping per node; prohibit collapsing multi-color sequences into a single accent color."
-    },
-    {
-      "id": "FORBIDDEN_DIAGRAM_CONVERSION_1792668611",
-      "title": "FORBIDDEN DIAGRAM CONVERSION",
-      "rule": "DO NOT convert horizontal timelines into circular or donut charts. DO NOT alter the node count (e.g., if input has 5 or 6 steps, keep EXACTLY 5 or 6 steps, do not decrease or merge)."
-    },
-    {
-      "id": "GEOMETRY_STRUCTURE_LOCK_1792668611",
-      "title": "GEOMETRY & STRUCTURE LOCK",
-      "rule": "Slide 1 MUST BE: A strict 5-column horizontal process flow along a single horizontal baseline. Slide 2 MUST BE: A split layout with a 5-segment graphic on the LEFT and vertical text blocks on the RIGHT. Slide 3 MUST BE: A 6-step serpentine/alternating wave layout (3 steps top, 3 steps bottom)."
-    },
-    {
-      "id": "CONTENT_DEDUPLICATION_RULE_1792668611",
-      "title": "CONTENT DEDUPLICATION RULE",
-      "rule": "STRICTLY PROHIBITED: Repeating text, titles, or descriptions across different nodes. Every node must contain unique, non-repetitive text."
-    },
-    {
-      "id": "VISUAL_ANCHOR_MANDATE_1792668611",
-      "title": "VISUAL ANCHOR MANDATE",
-      "rule": "MUST retain icon containers (circles/hexagons) inside or attached to each step card as visual anchors."
-    },
-    {
-      "id": "ZERO_METADATA_LEAKAGE_1792669919",
-      "title": "ZERO METADATA LEAKAGE",
-      "rule": "NEVER output prompt instructions or visual guidelines (e.g., \"嚴格五色階梯\", \"海軍藍基底\") as slide body text. Content must strict adhere to business topics."
-    },
-    {
-      "id": "GEOMETRIC_STRUCTURAL_INTEGRITY_1792669919",
-      "title": "GEOMETRIC STRUCTURAL INTEGRITY",
-      "rule": "If the layout is a sequential process/staircase (e.g., 6 steps), strictly generate a STAIRCASE/TIMELINE diagram with EXACTLY 6 nodes. Do NOT convert to puzzle pieces or change the node count. For connected diagrams: Preserve explicit visual connectors (pointer lines/arrows) between header cards and central concentric circles. Do NOT break into disconnected left/right split columns."
-    },
-    {
-      "id": "FALLBACK_RENDER_PROTECTION_1792669919",
-      "title": "FALLBACK & RENDER PROTECTION",
-      "rule": "Ensure complete DOM/Canvas rendering on every page. Empty white frames are strictly forbidden; apply standard 2-column fallback layouts if complex 3D graphic rendering fails."
-    },
-    {
-      "id": "rule_1792683326",
-      "title": "禁止省略或簡化任何視覺化元素",
-      "rule": "嚴格要求 NotebookLM 不得省略、簡化或替換原始簡報中的任何圖表類型（如折線圖、甜甜圈圖）、進度條、圖示及數據標籤。所有視覺元素必須完整且精確地呈現，不得僅以文字描述取代。"
-    },
-    {
-      "id": "rule_1792683326",
-      "title": "禁止替換或修改數據與文字內容",
-      "rule": "必須忠實還原原始簡報中的所有數值數據、百分比、狀態描述（如 \"on target\", \"Pending\"）及表格內容。嚴禁使用佔位符號（如 \"--\"）或自行生成不符的內容，確保資訊的精確性與完整性。"
-    },
-    {
-      "id": "rule_1792683326",
-      "title": "嚴格維持版型幾何結構與空間佈局",
-      "rule": "必須精確複製原始簡報的卡片佈局、元素相對位置、間距與視覺層次感。禁止任何導致元素擠壓、錯位或破壞整體空間節奏感的變動，確保幾何結構與視覺空間感完全一致。"
-    },
-    {
-      "id": "rule_1792683326",
-      "title": "禁止更改投影片標題與副標題",
-      "rule": "投影片的主標題與副標題必須精確翻譯或直接引用原始簡報內容，嚴禁自行修改、縮減或生成任何不符的標題，以確保內容的一致性。"
-    },
-    {
-      "id": "rule_1792720827",
-      "title": "【風格鎖定與負面提示】",
-      "rule": "嚴禁使用非原始簡報中出現的卡通人物風格，特別是避免生成與「Magic Sketchbook」系列相似的插畫風格。所有插畫元素（人物、塗鴉、物件）必須嚴格遵循原始簡報的手繪、圓潤、高飽和度線條風格。"
-    },
-    {
-      "id": "rule_1792720827",
-      "title": "【版型結構與內容完整性】",
-      "rule": "確保所有投影片的標題、內文及關鍵文字元素完整呈現，不得有文字截斷、遺失或排版錯亂的情況。嚴格遵循原始簡報的版型結構，如標題頁的整體構圖、人物與物件的互動位置、索引列表的編號與文字對應關係，不得退化為單純的背景圖案或零散元素。"
-    },
-    {
-      "id": "rule_1792720827",
-      "title": "【字體與視覺元素精準復刻】",
-      "rule": "使用粗體、圓潤、手繪風格的無襯線字體，以模擬原始簡報的標題與內文質感。維持原始簡報活潑、塗鴉風格的視覺元素，如星星、水滴、彩虹等，並確保其在畫面中的比例、分佈與色彩與原始簡報完全一致。"
-    },
-    {
-      "id": "rule_1792720827",
-      "title": "【色彩系統與配比嚴格遵守】",
-      "rule": "嚴格遵守原始簡報的色彩系統，包括淺薰衣草藍的背景色、黃色、紅色、紫色等主色與強調色，並確保色彩配比符合 60-30-10 原則，避免引入新的色調或降低色彩飽和度。所有人物與物件的配色必須與原始簡報保持一致。"
-    },
-    {
-      "id": "rule_1792723229",
-      "title": "【版面邊界與完整性】",
-      "rule": "Strictly ensure all visual elements, including diagrams, text blocks, and icons, are fully contained within the slide's visible area. Do not crop any content from the top, bottom, or sides. The slide must be presented as a complete, uncropped image.` `禁止任何內容超出投影片可視範圍，確保圖形、文字、圖示等所有元素完整呈現，不得有任何裁切。"
-    },
-    {
-      "id": "rule_1792723229",
-      "title": "【幾何結構與元素關係】",
-      "rule": "Replicate the exact geometric layout and arrangement of elements as shown in the original. For multi-part diagrams (e.g., circular flow, petal diagram, diamond matrix, horizontal cards), precisely describe each component's shape, position, and its relationship to other elements. Icons must be embedded within their designated shapes (e.g., circle, oval, square) and not float above text.` `精確還原原始簡報的幾何結構與元素排列。圖示必須內嵌於其指定形狀（如圓形、橢圓形、方形）中，而非獨立於文字上方。"
-    },
-    {
-      "id": "rule_1792723229",
-      "title": "【色彩系統與對比】",
-      "rule": "Adhere strictly to the original color palette, including background color (specify hex code if known, e.g., #F8F8F8 for light grey). Apply accent colors (e.g., blue, green, orange) only to the specific elements as seen in the original, maintaining their relative proportions and ensuring sufficient contrast for all text and graphical elements.` `嚴格遵循原始簡報的色彩系統，包括背景色。強調色僅用於原始設計中的特定元素，並確保所有文字與圖形元素具有足夠的對比度。"
-    },
-    {
-      "id": "rule_1792723229",
-      "title": "【文字排版與視覺節奏】",
-      "rule": "Maintain the original typography hierarchy: main title (large, bold), subtitle (smaller, descriptive), card titles (bold, concise, max 2 words), and descriptions (max 2 lines of text). Avoid long paragraphs; prioritize brevity and scannability as per the original design.` `保持原始的文字層次結構：主標題、副標題、卡片標題（簡潔，最多兩字）、內文（最多兩行）。避免冗長段落，確保文字簡潔易讀。"
+      "id": "zero_metadata_leakage",
+      "title": "提示詞指令零外洩原則 (Zero Metadata Leakage)",
+      "rule": "嚴禁將提示詞中的視覺指導語（如「採用版型 A」、「薄荷綠高光」、「字數限制 <15 字」、「#F5F4EF」等系統標籤）直接印在投影片畫面上；投影片畫面僅能呈現最終簡報標題與業務內容文案。"
     }
   ]
 }
