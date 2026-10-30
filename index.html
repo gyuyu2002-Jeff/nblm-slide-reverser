@@ -81,7 +81,7 @@
           </span>
           <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-[#E9EFEA] text-[#4E6152] font-mono border border-[#C4D1C6] font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap shrink-0" title="系統當前版本號">
             <span class="w-1.5 h-1.5 rounded-full bg-[#768A7A]"></span>
-            <span id="system-version-badge">v6.35.2</span>
+            <span id="system-version-badge">v6.35.3</span>
           </span>
         </div>
       </div>
@@ -414,6 +414,32 @@
                 <p class="text-[11px] text-[#68615B] leading-snug">擷取每一頁的版面結構作為提示詞，引導生成相近配置</p>
               </button>
             </div>
+
+            <!-- 【任務宣告】頁數要求填寫欄 (左側面板同步設定) -->
+            <div class="p-2.5 rounded-xl bg-[#F3EFEA] border border-[#322E2B]/[0.09] space-y-1.5">
+              <div class="flex items-center justify-between gap-2">
+                <label for="input-target-pages-left" class="text-[11px] font-semibold text-[#322E2B] flex items-center gap-1.5">
+                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-[#768A7A] shrink-0"></i>
+                  <span>【任務宣告】生成頁數要求：</span>
+                </label>
+                <div class="flex items-center gap-1">
+                  <input type="text" id="input-target-pages-left" placeholder="留空＝3~20頁" class="target-pages-input w-24 bg-[#FAF8F5] border border-[#D9CEC2] focus:border-[#768A7A] rounded-md px-2 py-1 text-xs font-mono font-bold text-[#322E2B] text-center placeholder:font-normal placeholder:text-[10px] placeholder:text-[#968E86] focus:outline-none">
+                  <span class="text-xs font-semibold text-[#322E2B]">頁</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between gap-1 pt-0.5 flex-wrap">
+                <span class="text-[10px] text-[#968E86] font-mono">快速點選：</span>
+                <div class="flex items-center gap-1 flex-wrap">
+                  <button type="button" data-quick-pages="5" class="quick-pages-btn px-1.5 py-0.5 rounded bg-[#FAF8F5] hover:bg-[#E9EFEA] text-[10px] font-mono text-[#68615B] hover:text-[#322E2B] border border-[#322E2B]/10 cursor-pointer">5頁</button>
+                  <button type="button" data-quick-pages="8" class="quick-pages-btn px-1.5 py-0.5 rounded bg-[#FAF8F5] hover:bg-[#E9EFEA] text-[10px] font-mono text-[#68615B] hover:text-[#322E2B] border border-[#322E2B]/10 cursor-pointer">8頁</button>
+                  <button type="button" data-quick-pages="10" class="quick-pages-btn px-1.5 py-0.5 rounded bg-[#FAF8F5] hover:bg-[#E9EFEA] text-[10px] font-mono text-[#68615B] hover:text-[#322E2B] border border-[#322E2B]/10 cursor-pointer">10頁</button>
+                  <button type="button" data-quick-pages="15" class="quick-pages-btn px-1.5 py-0.5 rounded bg-[#FAF8F5] hover:bg-[#E9EFEA] text-[10px] font-mono text-[#68615B] hover:text-[#322E2B] border border-[#322E2B]/10 cursor-pointer">15頁</button>
+                  <button type="button" data-quick-pages="20" class="quick-pages-btn px-1.5 py-0.5 rounded bg-[#FAF8F5] hover:bg-[#E9EFEA] text-[10px] font-mono text-[#68615B] hover:text-[#322E2B] border border-[#322E2B]/10 cursor-pointer">20頁</button>
+                  <button type="button" data-quick-pages="" class="quick-pages-btn px-1.5 py-0.5 rounded bg-[#FAF8F5] hover:bg-[#F4EAE8] text-[10px] font-mono text-[#8F6561] border border-[#DFC9C6] cursor-pointer">自動</button>
+                </div>
+              </div>
+            </div>
+
             <div class="flex items-center gap-1.5 text-[10px] text-[#968E86] font-mono px-0.5 pt-0.5">
               <i data-lucide="info" class="w-3 h-3 text-[#768A7A] shrink-0"></i>
               <span>備註：NotebookLM 單次生成簡報上限為 20 頁</span>
@@ -894,8 +920,32 @@
                 <span class="text-[10px] text-[#68615B] ml-1">指定哪一頁用哪種視覺版型、塞入哪些筆記主題，強制 NotebookLM 精確對號入座！</span>
               </div>
 
+              <!-- 【任務宣告】頁數要求即時填寫列 (輸入即同步改寫下方提示詞內的【任務宣告】) -->
+              <div class="p-2.5 rounded-xl bg-[#E9EFEA]/75 border border-[#C4D1C6] flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="px-2 py-0.5 rounded bg-[#768A7A] text-white text-[10px] font-mono font-bold">【任務宣告】頁數要求</span>
+                  <label for="input-target-pages-result" class="text-xs font-semibold text-[#322E2B]">指定 NotebookLM 生成：</label>
+                  <div class="flex items-center gap-1">
+                    <input type="text" id="input-target-pages-result" placeholder="填寫頁數 (如 10 或 8~12)" class="target-pages-input w-40 bg-[#FAF8F5] border border-[#768A7A] rounded-md px-2.5 py-1 text-xs font-mono font-bold text-[#322E2B] placeholder:font-normal placeholder:text-[11px] placeholder:text-[#968E86] focus:outline-none focus:ring-2 focus:ring-[#768A7A]/30">
+                    <span class="text-xs font-bold text-[#322E2B]">頁</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1 flex-wrap">
+                  <span class="text-[10px] font-mono text-[#4E6152]">快捷填入：</span>
+                  <button type="button" data-quick-pages="5" class="quick-pages-btn px-2 py-0.5 rounded bg-[#FAF8F5] hover:bg-white text-[11px] font-mono font-semibold text-[#322E2B] border border-[#322E2B]/15 cursor-pointer">5頁</button>
+                  <button type="button" data-quick-pages="8" class="quick-pages-btn px-2 py-0.5 rounded bg-[#FAF8F5] hover:bg-white text-[11px] font-mono font-semibold text-[#322E2B] border border-[#322E2B]/15 cursor-pointer">8頁</button>
+                  <button type="button" data-quick-pages="10" class="quick-pages-btn px-2 py-0.5 rounded bg-[#FAF8F5] hover:bg-white text-[11px] font-mono font-semibold text-[#322E2B] border border-[#322E2B]/15 cursor-pointer">10頁</button>
+                  <button type="button" data-quick-pages="15" class="quick-pages-btn px-2 py-0.5 rounded bg-[#FAF8F5] hover:bg-white text-[11px] font-mono font-semibold text-[#322E2B] border border-[#322E2B]/15 cursor-pointer">15頁</button>
+                  <button type="button" data-quick-pages="20" class="quick-pages-btn px-2 py-0.5 rounded bg-[#FAF8F5] hover:bg-white text-[11px] font-mono font-semibold text-[#322E2B] border border-[#322E2B]/15 cursor-pointer">20頁</button>
+                  <button type="button" data-quick-pages="" class="quick-pages-btn px-2 py-0.5 rounded bg-[#F4EAE8] hover:bg-[#EBDAD7] text-[11px] font-mono font-semibold text-[#8F6561] border border-[#DFC9C6] cursor-pointer">預設(3~20頁)</button>
+                </div>
+              </div>
+
               <div class="relative">
-                <pre id="nblm-prompt-code" class="bg-[#F3EFEA] border border-[#322E2B]/[0.09] rounded-lg p-3.5 text-xs text-[#68615B] font-mono overflow-x-auto max-h-80 custom-scrollbar leading-relaxed whitespace-pre-wrap"></pre>
+                <div class="flex items-center justify-between px-1 pb-1 text-[10px] font-mono text-[#968E86]">
+                  <span>提示詞內容預覽（上方填寫頁數會自動同步寫入【任務宣告】，亦可直接點擊下方文字編輯）：</span>
+                </div>
+                <pre id="nblm-prompt-code" contenteditable="true" spellcheck="false" class="bg-[#F3EFEA] border border-[#322E2B]/[0.12] focus:border-[#768A7A] focus:bg-[#FAF8F5] focus:outline-none rounded-lg p-3.5 text-xs text-[#322E2B] font-mono overflow-x-auto max-h-80 custom-scrollbar leading-relaxed whitespace-pre-wrap"></pre>
               </div>
             </div>
 
@@ -937,7 +987,7 @@
       <div class="flex items-center gap-2 flex-wrap">
         <span>© 2026 簡報風格逆向解析 (NBLM Slide Reverser)</span>
         <span class="px-2 py-0.5 rounded-full font-mono text-[10px] bg-[#E9EFEA] text-[#4E6152] border border-[#C4D1C6] font-semibold">
-          v6.35.2
+          v6.35.3
         </span>
         <span class="text-zinc-700 hidden sm:inline">·</span>
         <span class="text-[#68615B]">非 Google 或 NotebookLM 官方專案</span>
@@ -1728,7 +1778,7 @@
     </button>
   </div>
 
-  <script src="app.js?v=6.35.2"></script>
+  <script src="app.js?v=6.35.3"></script>
   <script>
     lucide.createIcons();
   </script>

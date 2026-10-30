@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.35.2";
+const APP_VERSION = "v6.35.3";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -1567,12 +1567,19 @@ function setupEventListeners() {
   // 開始分析按鈕
   on("btn-start-analyze", "click", handleStartAnalyze);
 
-  // 複製按鈕（動態對應當前所選模式）
+  // 複製按鈕（動態對應當前所選模式與使用者自訂頁數/手動微調內容）
   on("btn-copy-nblm", "click", () => {
+    const codeEl = document.getElementById("nblm-prompt-code");
+    const liveText = (codeEl?.innerText || codeEl?.textContent || "").trim();
     let promptToCopy = "";
-    if (currentPromptMode === "global") promptToCopy = generatedPromptGlobal || generatedNblmPrompt;
-    else if (currentPromptMode === "slide") promptToCopy = generatedPromptSlide || generatedNblmPrompt;
-    else if (currentPromptMode === "custom") promptToCopy = generatedPromptCustom || generateCustomStoryboardPrompt();
+    if (liveText && !liveText.startsWith("等待分析產生") && !liveText.startsWith("未擷取到")) {
+      promptToCopy = liveText;
+    } else {
+      if (currentPromptMode === "global") promptToCopy = generatedPromptGlobal || generatedNblmPrompt;
+      else if (currentPromptMode === "slide") promptToCopy = generatedPromptSlide || generatedNblmPrompt;
+      else if (currentPromptMode === "custom") promptToCopy = generatedPromptCustom || generateCustomStoryboardPrompt();
+      promptToCopy = applyTargetPageCountToPrompt(promptToCopy, userTargetPageCount);
+    }
     if (!promptToCopy) return;
     navigator.clipboard.writeText(promptToCopy).then(() => {
       const label = document.getElementById("copy-btn-label");
@@ -1581,17 +1588,24 @@ function setupEventListeners() {
         label.textContent = "已複製！";
         setTimeout(() => label.textContent = originalText, 2000);
       }
-      const modeName = currentPromptMode === "global" ? "【模式 1：學風格 · 做新簡報】" : "【模式 2：照原稿 · 一頁頁複刻】";
+      const modeName = currentPromptMode === "global" ? "【模式 1：學風格 · 做新簡報】" : "【模式 2：參考原稿 · 逐頁排版】";
       showToast(`已成功複製 ${modeName} 提示詞！請前往 NotebookLM 右側工作室「簡報」貼上`, "success");
     });
   });
 
   // 直達工作流按鈕：複製並開啟 NotebookLM
   on("btn-copy-and-open-nblm", "click", () => {
+    const codeEl = document.getElementById("nblm-prompt-code");
+    const liveText = (codeEl?.innerText || codeEl?.textContent || "").trim();
     let promptToCopy = "";
-    if (currentPromptMode === "global") promptToCopy = generatedPromptGlobal || generatedNblmPrompt;
-    else if (currentPromptMode === "slide") promptToCopy = generatedPromptSlide || generatedNblmPrompt;
-    else if (currentPromptMode === "custom") promptToCopy = generatedPromptCustom || generateCustomStoryboardPrompt();
+    if (liveText && !liveText.startsWith("等待分析產生") && !liveText.startsWith("未擷取到")) {
+      promptToCopy = liveText;
+    } else {
+      if (currentPromptMode === "global") promptToCopy = generatedPromptGlobal || generatedNblmPrompt;
+      else if (currentPromptMode === "slide") promptToCopy = generatedPromptSlide || generatedNblmPrompt;
+      else if (currentPromptMode === "custom") promptToCopy = generatedPromptCustom || generateCustomStoryboardPrompt();
+      promptToCopy = applyTargetPageCountToPrompt(promptToCopy, userTargetPageCount);
+    }
     if (!promptToCopy) {
       showToast("尚未產生提示詞，請先上傳簡報進行分析", "warning");
       return;
@@ -3353,11 +3367,88 @@ function generateCustomStoryboardPrompt() {
   return markdown;
 }
 
+// 使用者於【任務宣告】自訂的頁數要求（空白代表由 AI 自行裁量）
+let userTargetPageCount = "";
+
+/**
+ * 將使用者填寫的頁數要求動態注入或替換至提示詞【任務宣告】區塊中
+ */
+function applyTargetPageCountToPrompt(rawPrompt, pageVal = userTargetPageCount) {
+  if (!rawPrompt || typeof rawPrompt !== "string") return rawPrompt || "";
+  const cleaned = (pageVal || "").trim();
+  const defaultAutoLine = "（總頁數由您根據筆記內容深度自行裁量，建議 3~20 頁均可，每頁皆須嚴格遵循下列風格規範）";
+
+  // 若為空白或「自動」，還原預設自動裁量說明
+  if (!cleaned || cleaned === "自動" || cleaned.toLowerCase() === "auto") {
+    return rawPrompt.replace(/[（(][★\s]*總頁數[^\n）)]*[）)]/g, defaultAutoLine);
+  }
+
+  // 若只填寫數字或區間（例如 "10" 或 "8~12"），自動補上「頁」
+  const formattedPages = /頁/.test(cleaned) ? cleaned : `${cleaned} 頁`;
+  const customPageLine = `（★總頁數要求：請嚴格規劃並生成共 【 ${formattedPages} 】 投影片，每頁皆須嚴格遵循下列風格規範）`;
+
+  // 1. 若提示詞內已有（總頁數...）或（★總頁數要求...），直接替換該行
+  if (/[（(][★\s]*總頁數[^\n）)]*[）)]/.test(rawPrompt)) {
+    return rawPrompt.replace(/[（(][★\s]*總頁數[^\n）)]*[）)]/g, customPageLine);
+  }
+
+  // 2. 若提示詞內有【任務宣告】但尚未包含總頁數括號行（如模式 2 或自訂模式），於【任務宣告】第一段下方插入
+  if (rawPrompt.includes("【任務宣告】")) {
+    return rawPrompt.replace(/(【任務宣告】[：:]?\s*\n[^\n]+)/, `$1\n${customPageLine}`);
+  }
+
+  return rawPrompt;
+}
+
+/**
+ * 同步更新左右兩側頁數輸入框、快捷按鈕狀態，並即時刷新顯示中的提示詞
+ */
+function setTargetPageCount(val, sourceInput = null) {
+  const normalized = (val || "").trim();
+  userTargetPageCount = (normalized === "自動" || normalized.toLowerCase() === "auto") ? "" : normalized;
+
+  // 同步兩個輸入框的值
+  document.querySelectorAll(".target-pages-input").forEach(inp => {
+    if (inp !== sourceInput && inp.value !== userTargetPageCount) {
+      inp.value = userTargetPageCount;
+    }
+  });
+
+  // 更新快捷按鈕高亮狀態
+  document.querySelectorAll(".quick-pages-btn").forEach(btn => {
+    const btnVal = (btn.getAttribute("data-pages") || "").trim();
+    const isMatched = (userTargetPageCount === "" && btnVal === "") ||
+      (userTargetPageCount !== "" && (btnVal === userTargetPageCount || btnVal === `${userTargetPageCount}頁` || btnVal.replace(/\s+/g, "") === userTargetPageCount.replace(/\s+/g, "")));
+    if (isMatched) {
+      btn.className = "quick-pages-btn px-2 py-0.5 rounded bg-[#768A7A] text-white text-[10px] font-mono font-semibold border border-[#586B5C] transition-colors cursor-pointer shadow-sm";
+    } else {
+      btn.className = "quick-pages-btn px-2 py-0.5 rounded bg-[#FAF8F5] hover:bg-[#E9EFEA] text-[#68615B] hover:text-[#4E6152] text-[10px] font-mono border border-[#322E2B]/10 transition-colors cursor-pointer";
+    }
+  });
+
+  // 即時更新右側提示詞預覽區塊
+  const codeEl = document.getElementById("nblm-prompt-code");
+  if (!codeEl) return;
+
+  const currentLive = (codeEl.innerText || codeEl.textContent || "").trim();
+  if (currentLive && currentLive.includes("【任務宣告】")) {
+    codeEl.textContent = applyTargetPageCountToPrompt(currentLive, userTargetPageCount);
+  } else {
+    let basePrompt = "";
+    if (currentPromptMode === "global") basePrompt = generatedPromptGlobal || generatedNblmPrompt;
+    else if (currentPromptMode === "slide") basePrompt = generatedPromptSlide || generatedNblmPrompt;
+    else if (currentPromptMode === "custom") basePrompt = generatedPromptCustom || generateCustomStoryboardPrompt();
+    if (basePrompt) {
+      codeEl.textContent = applyTargetPageCountToPrompt(basePrompt, userTargetPageCount);
+    }
+  }
+}
+
 function syncCustomPromptAndPreview() {
   generatedPromptCustom = generateCustomStoryboardPrompt();
   if (currentPromptMode === "custom") {
     const codeEl = document.getElementById("nblm-prompt-code");
-    if (codeEl) codeEl.textContent = generatedPromptCustom;
+    if (codeEl) codeEl.textContent = applyTargetPageCountToPrompt(generatedPromptCustom, userTargetPageCount);
   }
 }
 
@@ -3398,11 +3489,13 @@ function switchPromptMode(mode) {
   if (mode === "global") {
     if (btnGlobal) btnGlobal.className = activeBtn;
     if (descGlobal) descGlobal.classList.remove("hidden");
-    if (codeEl) codeEl.textContent = generatedPromptGlobal || generatedNblmPrompt || "未擷取到全域風格提示詞，請查看完整報告。";
+    const raw = generatedPromptGlobal || generatedNblmPrompt || "未擷取到全域風格提示詞，請查看完整報告。";
+    if (codeEl) codeEl.textContent = applyTargetPageCountToPrompt(raw, userTargetPageCount);
   } else if (mode === "slide") {
     if (btnSlide) btnSlide.className = activeBtn;
     if (descSlide) descSlide.classList.remove("hidden");
-    if (codeEl) codeEl.textContent = generatedPromptSlide || generatedNblmPrompt || "未擷取到逐頁 1:1 提示詞，請查看完整報告。";
+    const raw = generatedPromptSlide || generatedNblmPrompt || "未擷取到逐頁 1:1 提示詞，請查看完整報告。";
+    if (codeEl) codeEl.textContent = applyTargetPageCountToPrompt(raw, userTargetPageCount);
   } else if (mode === "custom") {
     if (btnCustom) btnCustom.className = activeBtn;
     if (descCustom) descCustom.classList.remove("hidden");
@@ -4058,7 +4151,8 @@ function renderSavedStylesList() {
     if (copyBtn) {
       copyBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        const promptToCopy = (currentPromptMode === "slide" ? item.slidePrompt : item.globalPrompt) || item.globalPrompt || item.markdownReport || "";
+        const rawPrompt = (currentPromptMode === "slide" ? item.slidePrompt : item.globalPrompt) || item.globalPrompt || item.markdownReport || "";
+        const promptToCopy = applyTargetPageCountToPrompt(rawPrompt, userTargetPageCount);
         if (!promptToCopy) {
           showToast("此紀錄無有效提示詞內容", "warning");
           return;
@@ -4341,5 +4435,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
+
+  // 綁定【任務宣告】頁數要求填寫框與快捷按鈕
+  document.querySelectorAll(".target-pages-input").forEach(inp => {
+    inp.addEventListener("input", (e) => {
+      setTargetPageCount(e.target.value, e.target);
+    });
+  });
+
+  document.querySelectorAll(".quick-pages-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const val = btn.getAttribute("data-pages") || "";
+      setTargetPageCount(val);
+      if (val) {
+        showToast(`已設定【任務宣告】頁數要求：${val}`, "info");
+      } else {
+        showToast("已恢復【任務宣告】頁數：由 AI 依內容深度自動裁量", "info");
+      }
+    });
+  });
 });
 
