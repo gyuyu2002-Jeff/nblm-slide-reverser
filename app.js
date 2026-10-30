@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.35.1";
+const APP_VERSION = "v6.35.2";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -3562,27 +3562,51 @@ function fallbackExtractMeta(markdown) {
 
 let toastTimeoutId = null;
 
-function showToast(message, type = "info") {
-  showToastWithUndo(message, null, type);
+function dismissToast() {
+  const toast = document.getElementById("toast");
+  if (toastTimeoutId) {
+    clearTimeout(toastTimeoutId);
+    toastTimeoutId = null;
+  }
+  if (toast) {
+    toast.classList.remove("translate-y-0", "opacity-100", "pointer-events-auto");
+    toast.classList.add("translate-y-20", "opacity-0", "pointer-events-none");
+  }
 }
 
-function showToastWithUndo(message, onUndo = null, type = "info") {
+function showToast(message, type = "info", extra = null) {
+  if (extra && typeof extra === "object" && typeof extra.onAction === "function") {
+    showToastWithUndo(message, extra.onAction, type, extra.actionLabel);
+  } else {
+    showToastWithUndo(message, null, type);
+  }
+}
+
+function showToastWithUndo(message, onUndo = null, type = "info", actionLabel = "復原") {
   const toast = document.getElementById("toast");
   const icon = document.getElementById("toast-icon");
   const text = document.getElementById("toast-text");
   const actionBtn = document.getElementById("toast-action-btn");
+  const closeBtn = document.getElementById("toast-close-btn");
 
   if (!toast || !text) return;
   text.textContent = message;
 
+  if (closeBtn) {
+    closeBtn.onclick = (e) => {
+      e.stopPropagation();
+      dismissToast();
+    };
+  }
+
   if (actionBtn) {
     if (typeof onUndo === "function") {
+      actionBtn.textContent = actionLabel || "復原";
       actionBtn.classList.remove("hidden");
       actionBtn.onclick = (e) => {
         e.stopPropagation();
         onUndo();
-        toast.classList.remove("translate-y-0", "opacity-100");
-        toast.classList.add("translate-y-20", "opacity-0");
+        dismissToast();
       };
     } else {
       actionBtn.classList.add("hidden");
@@ -3590,33 +3614,41 @@ function showToastWithUndo(message, onUndo = null, type = "info") {
     }
   }
 
+  const isPersistent = (type === "error" || type === "warning");
+
   if (type === "success") {
-    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-emerald-500/40 text-xs shadow-2xl text-white max-w-md";
+    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 pointer-events-auto transition-all duration-300 flex items-start gap-2.5 px-4 py-3.5 rounded-xl bg-[#322E2B] border border-[#768A7A] text-xs shadow-2xl text-[#FAF8F5] max-w-lg select-text";
     if (icon) {
-      icon.className = "w-4 h-4 text-emerald-400 shrink-0";
+      icon.className = "w-4 h-4 text-[#95B89C] shrink-0 mt-0.5";
       icon.setAttribute("data-lucide", "check-circle");
     }
-  } else if (type === "warning" || type === "error") {
-    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-rose-950 border border-rose-500/40 text-xs shadow-2xl text-white max-w-md";
+  } else if (isPersistent) {
+    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 pointer-events-auto transition-all duration-300 flex items-start gap-2.5 px-4 py-3.5 rounded-xl bg-[#4A2523] border-2 border-[#C8A7A3] text-xs shadow-2xl text-[#FAF8F5] max-w-lg select-text";
     if (icon) {
-      icon.className = "w-4 h-4 text-rose-300 shrink-0";
+      icon.className = "w-4 h-4 text-[#F4EAE8] shrink-0 mt-0.5";
       icon.setAttribute("data-lucide", "alert-circle");
     }
   } else {
-    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-white/[0.12] text-xs shadow-2xl text-zinc-100 max-w-md";
+    toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 pointer-events-auto transition-all duration-300 flex items-start gap-2.5 px-4 py-3.5 rounded-xl bg-[#322E2B] border border-[#D9CEC2]/40 text-xs shadow-2xl text-[#FAF8F5] max-w-lg select-text";
     if (icon) {
-      icon.className = "w-4 h-4 text-sky-400 shrink-0";
+      icon.className = "w-4 h-4 text-[#D9CEC2] shrink-0 mt-0.5";
       icon.setAttribute("data-lucide", "info");
     }
   }
 
   if (window.lucide) window.lucide.createIcons();
 
-  if (toastTimeoutId) clearTimeout(toastTimeoutId);
-  toastTimeoutId = setTimeout(() => {
-    toast.classList.remove("translate-y-0", "opacity-100");
-    toast.classList.add("translate-y-20", "opacity-0");
-  }, 4500);
+  if (toastTimeoutId) {
+    clearTimeout(toastTimeoutId);
+    toastTimeoutId = null;
+  }
+
+  // 錯誤與警告訊息常駐保留，直到使用者手動點擊「關閉」；一般成功/資訊提示 4.5 秒後自動收起
+  if (!isPersistent) {
+    toastTimeoutId = setTimeout(() => {
+      dismissToast();
+    }, 4500);
+  }
 }
 
 function updateUiState() {
@@ -3627,8 +3659,8 @@ function updateUiState() {
 (function initSecurityGuard() {
   // 1. 停用右鍵檢視原始碼
   document.addEventListener("contextmenu", (e) => {
-    // 允許在輸入框或提示詞區域點擊右鍵以方便選取與複製
-    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.closest("#nblm-prompt-code")) {
+    // 允許在輸入框、提示詞區域或錯誤提示視窗點擊右鍵以方便選取與複製
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.closest("#nblm-prompt-code") || e.target.closest("#toast") || e.target.closest("#api-key-test-result")) {
       return;
     }
     e.preventDefault();

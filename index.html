@@ -81,7 +81,7 @@
           </span>
           <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-[#E9EFEA] text-[#4E6152] font-mono border border-[#C4D1C6] font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap shrink-0" title="系統當前版本號">
             <span class="w-1.5 h-1.5 rounded-full bg-[#768A7A]"></span>
-            <span id="system-version-badge">v6.35.1</span>
+            <span id="system-version-badge">v6.35.2</span>
           </span>
         </div>
       </div>
@@ -937,7 +937,7 @@
       <div class="flex items-center gap-2 flex-wrap">
         <span>© 2026 簡報風格逆向解析 (NBLM Slide Reverser)</span>
         <span class="px-2 py-0.5 rounded-full font-mono text-[10px] bg-[#E9EFEA] text-[#4E6152] border border-[#C4D1C6] font-semibold">
-          v6.35.1
+          v6.35.2
         </span>
         <span class="text-zinc-700 hidden sm:inline">·</span>
         <span class="text-[#68615B]">非 Google 或 NotebookLM 官方專案</span>
@@ -1715,16 +1715,20 @@
     </div>
   </div>
 
-  <!-- 全局 Toast 提示（支援誤刪一鍵復原） -->
-  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-200 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#322E2B] border border-[#D9CEC2]/30 text-xs shadow-2xl text-[#FAF8F5] max-w-md">
-    <i data-lucide="info" id="toast-icon" class="w-4 h-4 text-[#68615B] shrink-0"></i>
-    <span id="toast-text" class="flex-1">通知內容</span>
-    <button id="toast-action-btn" type="button" class="hidden px-2 py-0.5 rounded bg-[#F1ECE6] hover:bg-amber-500/30 text-[#6E5E4F] border border-[#D9CEC2] text-[11px] font-medium cursor-pointer transition-colors ml-2 shrink-0">
+  <!-- 全局 Toast 提示（錯誤訊息常駐保留直到手動關閉、支援誤刪復原） -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-200 flex items-start gap-2.5 px-4 py-3.5 rounded-xl bg-[#322E2B] border border-[#D9CEC2]/40 text-xs shadow-2xl text-[#FAF8F5] max-w-lg select-text">
+    <i data-lucide="info" id="toast-icon" class="w-4 h-4 text-[#68615B] shrink-0 mt-0.5"></i>
+    <div id="toast-text" class="flex-1 leading-relaxed break-words">通知內容</div>
+    <button id="toast-action-btn" type="button" class="hidden px-2.5 py-1 rounded-md bg-[#F1ECE6] hover:bg-[#EAE3DC] text-[#322E2B] border border-[#D9CEC2] text-[11px] font-semibold cursor-pointer transition-colors shrink-0">
       復原
+    </button>
+    <button id="toast-close-btn" type="button" class="px-2 py-0.5 rounded-md bg-white/10 hover:bg-white/20 text-[#FAF8F5] border border-white/15 text-[11px] font-medium cursor-pointer transition-colors shrink-0 flex items-center gap-1" title="關閉提示訊息">
+      <span>關閉</span>
+      <i data-lucide="x" class="w-3 h-3"></i>
     </button>
   </div>
 
-  <script src="app.js?v=6.35.0"></script>
+  <script src="app.js?v=6.35.2"></script>
   <script>
     lucide.createIcons();
   </script>
