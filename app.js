@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.34.3";
+const APP_VERSION = "v6.35.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -3022,7 +3022,7 @@ async function handleStartAnalyze() {
 }
 
 // === 5. 結果渲染邏輯 (雙欄並排與多頁籤) ===
-function renderAnalysisResult(data) {
+function renderAnalysisResult(data, options = {}) {
   generatedReportMarkdown = data.markdown_report || "";
   
   document.getElementById("panel-idle").classList.add("hidden");
@@ -3031,8 +3031,8 @@ function renderAnalysisResult(data) {
 
   // 萃取各項產出 (模式 1 與 模式 2)
   const extracted = extractNblmPromptModes(generatedReportMarkdown);
-  generatedPromptGlobal = extracted.globalPrompt;
-  generatedPromptSlide = extracted.slidePrompt;
+  generatedPromptGlobal = data.global_prompt || extracted.globalPrompt;
+  generatedPromptSlide = data.slide_prompt || extracted.slidePrompt;
   generatedNblmPrompt = currentPromptMode === "global" ? generatedPromptGlobal : generatedPromptSlide;
   generatedSlideHtml = extractSlideHtml(generatedReportMarkdown);
 
@@ -3042,7 +3042,10 @@ function renderAnalysisResult(data) {
   // 顯示解析範圍摘要徽章
   const scopeBadge = document.getElementById("result-scope-badge");
   if (scopeBadge) {
-    if (pageSelectionMode === "custom" && selectedPageIndices.size > 0 && selectedPageIndices.size < uploadedSlidePages.length) {
+    if (options.fromSavedId) {
+      scopeBadge.textContent = `已從收藏庫載入 (${uploadedSlidePages.length} 頁原始簡報樣式)`;
+      scopeBadge.classList.remove("hidden");
+    } else if (pageSelectionMode === "custom" && selectedPageIndices.size > 0 && selectedPageIndices.size < uploadedSlidePages.length) {
       const sortedNums = Array.from(selectedPageIndices).sort((a, b) => a - b);
       scopeBadge.textContent = `🎯 已鎖定解析所選 ${selectedPageIndices.size} 頁 (P.${sortedNums.join(', P.')}) · 原稿共 ${uploadedSlidePages.length} 頁`;
       scopeBadge.classList.remove("hidden");
@@ -3081,24 +3084,30 @@ function renderAnalysisResult(data) {
   tagsContainer.innerHTML = "";
   (meta.tags || ["麥肯錫架構", "純2D扁平", "三欄線框卡片", "同心圓模型"]).forEach(tag => {
     const span = document.createElement("span");
-    span.className = "px-2 py-0.5 text-[11px] rounded bg-white/[0.04] text-zinc-300 border border-white/[0.08] font-mono";
+    span.className = "px-2 py-0.5 text-[11px] rounded bg-[#F3EFEA] text-[#68615B] border border-[#322E2B]/10 font-mono";
     span.textContent = `# ${tag}`;
     tagsContainer.appendChild(span);
   });
 
   if (meta.white_space_ratio) {
-    document.getElementById("white-space-metric").textContent = `留白指標: ${meta.white_space_ratio}`;
+    document.getElementById("white-space-metric").textContent = `留白比例: ${meta.white_space_ratio}`;
   }
 
-  renderColorPalette(meta.palette || [
-    {"role": "畫布背景", "hex": "#FFFFFF", "name": "Pure White"},
-    {"role": "主標題與邊框", "hex": "#0E3B5D", "name": "Navy Blue"},
-    {"role": "核心強調金", "hex": "#C59B27", "name": "Ochre Gold"},
-    {"role": "斑馬條塊色", "hex": "#F3F4F6", "name": "Light Gray"}
-  ]);
+  const finalPalette = meta.palette || [
+    {"role": "畫布背景", "hex": "#F3EFEA", "name": "Oatmeal Linen"},
+    {"role": "主標題與邊框", "hex": "#322E2B", "name": "Warm Charcoal"},
+    {"role": "核心強調色", "hex": "#768A7A", "name": "Sage Green"},
+    {"role": "次要輔助色", "hex": "#C8A7A3", "name": "Dusty Rose"}
+  ];
+  renderColorPalette(finalPalette);
 
   const markdownContainer = document.getElementById("full-report-markdown");
   markdownContainer.innerHTML = marked.parse(generatedReportMarkdown);
+
+  // 自動保存每次分析完的提示詞與原始圖片樣式至本機收藏庫
+  if (typeof handlePostAnalysisSave === "function") {
+    handlePostAnalysisSave(data, meta, finalPalette, options);
+  }
 
   lucide.createIcons();
 }
@@ -3631,3 +3640,647 @@ function updateUiState() {
     }
   }, 1500);
 })();
+
+// =========================================================================
+// === 6. 已保存風格與提示詞收藏庫 (Saved Styles & Original Slides DB) ===
+// =========================================================================
+
+const SAVED_STYLES_DB_NAME = "nblm_saved_styles_db_v1";
+const SAVED_STYLES_STORE = "styles";
+const SAVED_STYLES_LS_KEY = "nblm_saved_styles_fallback_v1";
+
+let savedStylesCache = [];
+let currentSavedFilter = "all"; // "all" | "fav"
+let currentActiveStyleId = null;
+let editingStyleId = null;
+let lastDeletedStyleRecord = null;
+
+function openSavedStylesDB() {
+  return new Promise((resolve) => {
+    if (!window.indexedDB) {
+      resolve(null);
+      return;
+    }
+    try {
+      const req = indexedDB.open(SAVED_STYLES_DB_NAME, 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(SAVED_STYLES_STORE)) {
+          db.createObjectStore(SAVED_STYLES_STORE, { keyPath: "id" });
+        }
+      };
+      req.onsuccess = (e) => resolve(e.target.result);
+      req.onerror = () => resolve(null);
+    } catch (err) {
+      resolve(null);
+    }
+  });
+}
+
+async function loadAllSavedStylesFromStorage() {
+  const db = await openSavedStylesDB();
+  if (db) {
+    try {
+      const items = await new Promise((resolve) => {
+        const tx = db.transaction(SAVED_STYLES_STORE, "readonly");
+        const store = tx.objectStore(SAVED_STYLES_STORE);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      });
+      if (items && items.length > 0) {
+        savedStylesCache = items.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+        return savedStylesCache;
+      }
+    } catch (e) {
+      console.warn("IndexedDB 讀取失敗，改用 LocalStorage 備援:", e);
+    }
+  }
+
+  try {
+    const raw = localStorage.getItem(SAVED_STYLES_LS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        savedStylesCache = parsed.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+        return savedStylesCache;
+      }
+    }
+  } catch (e) {
+    console.warn("LocalStorage 讀取失敗:", e);
+  }
+
+  savedStylesCache = [];
+  return savedStylesCache;
+}
+
+async function saveStyleRecordToStorage(record) {
+  const idx = savedStylesCache.findIndex(item => item.id === record.id);
+  if (idx >= 0) {
+    savedStylesCache[idx] = record;
+  } else {
+    savedStylesCache.unshift(record);
+  }
+  savedStylesCache.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+
+  const db = await openSavedStylesDB();
+  if (db) {
+    try {
+      await new Promise((resolve) => {
+        const tx = db.transaction(SAVED_STYLES_STORE, "readwrite");
+        const store = tx.objectStore(SAVED_STYLES_STORE);
+        store.put(record);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+      });
+    } catch (e) {
+      console.warn("IndexedDB 寫入失敗:", e);
+    }
+  }
+
+  try {
+    localStorage.setItem(SAVED_STYLES_LS_KEY, JSON.stringify(savedStylesCache.slice(0, 15)));
+  } catch (e) {
+    // 若 LocalStorage 容量滿則僅保留最近 5 筆輕量備份，完整資料由 IndexedDB 保存
+    try {
+      const compact = savedStylesCache.slice(0, 6).map(it => ({
+        ...it,
+        slides: (it.slides || []).slice(0, 2)
+      }));
+      localStorage.setItem(SAVED_STYLES_LS_KEY, JSON.stringify(compact));
+    } catch (_) {}
+  }
+}
+
+async function deleteStyleRecordFromStorage(id) {
+  savedStylesCache = savedStylesCache.filter(item => item.id !== id);
+  const db = await openSavedStylesDB();
+  if (db) {
+    try {
+      await new Promise((resolve) => {
+        const tx = db.transaction(SAVED_STYLES_STORE, "readwrite");
+        tx.objectStore(SAVED_STYLES_STORE).delete(id);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+      });
+    } catch (e) {}
+  }
+  try {
+    localStorage.setItem(SAVED_STYLES_LS_KEY, JSON.stringify(savedStylesCache.slice(0, 10)));
+  } catch (e) {}
+}
+
+// 壓縮單張投影片圖片為高清晰 16:9 縮圖 (800x450 JPEG 0.78)，兼顧原圖對比細節與儲存空間
+function compressSlideImageForSave(dataUrl, maxW = 800, quality = 0.78) {
+  return new Promise((resolve) => {
+    if (!dataUrl || typeof dataUrl !== "string") {
+      resolve("");
+      return;
+    }
+    const img = new Image();
+    if (dataUrl.startsWith("http://") || dataUrl.startsWith("https://")) {
+      img.crossOrigin = "anonymous";
+    }
+    img.onload = () => {
+      try {
+        const ratio = img.width > maxW ? maxW / img.width : 1;
+        const w = Math.max(1, Math.round(img.width * ratio));
+        const h = Math.max(1, Math.round(img.height * ratio));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#F3EFEA";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      } catch (err) {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+// 每次分析完成後自動保存「原始圖片樣式 + 色票 + 提示詞」
+async function handlePostAnalysisSave(data, meta, finalPalette, options = {}) {
+  if (options.fromSavedId) {
+    currentActiveStyleId = options.fromSavedId;
+    updateSaveToolbarButtonState();
+    renderSavedStylesList();
+    return;
+  }
+
+  const activeSlides = getActiveComparisonSlides();
+  const slidesToSave = activeSlides.slice(0, 12);
+  const compressedSlides = [];
+  for (let i = 0; i < slidesToSave.length; i++) {
+    const s = slidesToSave[i];
+    const compressedImg = await compressSlideImageForSave(s.image, 840, 0.8);
+    compressedSlides.push({
+      page: s.originalPage || (i + 1),
+      image: compressedImg,
+      text: (s.text || "").slice(0, 300)
+    });
+  }
+
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const dateLabel = `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  const styleId = `style_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const record = {
+    id: styleId,
+    title: meta.style_name || `簡報風格 (${dateLabel})`,
+    isFavorite: false,
+    createdAtMs: Date.now(),
+    dateLabel,
+    pageCount: compressedSlides.length || uploadedSlidePages.length || 1,
+    coverImage: compressedSlides[0]?.image || "",
+    slides: compressedSlides,
+    palette: finalPalette,
+    tags: meta.tags || [],
+    whiteSpaceRatio: meta.white_space_ratio || "65%",
+    markdownReport: generatedReportMarkdown,
+    globalPrompt: generatedPromptGlobal,
+    slidePrompt: generatedPromptSlide,
+    modelUsed: data.model_used || "",
+    autoReason: data.auto_reason || ""
+  };
+
+  currentActiveStyleId = styleId;
+  await saveStyleRecordToStorage(record);
+  updateSaveToolbarButtonState();
+  renderSavedStylesList();
+}
+
+function updateSaveToolbarButtonState() {
+  const btn = document.getElementById("btn-save-current-style");
+  const textEl = document.getElementById("btn-save-current-style-text");
+  if (!btn || !textEl) return;
+
+  const currentRecord = savedStylesCache.find(item => item.id === currentActiveStyleId);
+  if (currentRecord && currentRecord.isFavorite) {
+    btn.className = "px-3 py-1.5 text-xs font-semibold bg-[#E9EFEA] hover:bg-[#DCE6DE] text-[#4E6152] rounded-lg border border-[#768A7A] flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm";
+    textEl.textContent = "已收藏 · 修改名稱";
+  } else {
+    btn.className = "px-3 py-1.5 text-xs font-semibold bg-[#F4EAE8] hover:bg-[#EBDAD7] text-[#8F6561] rounded-lg border border-[#DFC9C6] flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm";
+    textEl.textContent = "加入收藏 · 自訂名稱";
+  }
+}
+
+function renderSavedStylesList() {
+  const listEl = document.getElementById("saved-styles-list");
+  const emptyEl = document.getElementById("saved-styles-empty");
+  const countBadge = document.getElementById("saved-styles-count-badge");
+  const clearUnfavBtn = document.getElementById("btn-clear-unfav-styles");
+
+  if (!listEl) return;
+
+  if (countBadge) {
+    countBadge.textContent = `${savedStylesCache.length} 筆`;
+  }
+
+  const unfavCount = savedStylesCache.filter(it => !it.isFavorite).length;
+  if (clearUnfavBtn) {
+    if (unfavCount > 0 && savedStylesCache.length > 1) {
+      clearUnfavBtn.classList.remove("hidden");
+    } else {
+      clearUnfavBtn.classList.add("hidden");
+    }
+  }
+
+  // 排序：已收藏置頂，其次依時間倒序
+  const filtered = savedStylesCache
+    .filter(item => currentSavedFilter === "fav" ? item.isFavorite : true)
+    .sort((a, b) => {
+      if (!!b.isFavorite !== !!a.isFavorite) {
+        return b.isFavorite ? 1 : -1;
+      }
+      return (b.createdAtMs || 0) - (a.createdAtMs || 0);
+    });
+
+  // 移除舊卡片但保留 emptyEl
+  Array.from(listEl.querySelectorAll(".saved-style-card")).forEach(el => el.remove());
+
+  if (filtered.length === 0) {
+    if (emptyEl) {
+      emptyEl.classList.remove("hidden");
+      const titleP = emptyEl.querySelector("p.font-semibold");
+      if (titleP) {
+        titleP.textContent = currentSavedFilter === "fav" ? "尚無標記為「已收藏」的風格" : "尚無保存的簡報風格";
+      }
+    }
+    return;
+  }
+
+  if (emptyEl) emptyEl.classList.add("hidden");
+
+  filtered.forEach(item => {
+    const isActive = item.id === currentActiveStyleId;
+    const card = document.createElement("div");
+    card.className = `saved-style-card rounded-xl p-2.5 border transition-colors ${
+      isActive
+        ? "bg-[#E9EFEA]/70 border-[#768A7A] shadow-sm"
+        : "bg-[#F3EFEA]/90 hover:bg-[#EAE3DC]/80 border-[#322E2B]/[0.09]"
+    }`;
+
+    const paletteDots = (item.palette || []).slice(0, 4).map(c =>
+      `<span class="w-3 h-3 rounded-full border border-[#322E2B]/15 shrink-0" style="background-color: ${c.hex || '#C8A7A3'};" title="${c.role || ''}: ${c.hex || ''}"></span>`
+    ).join("");
+
+    const thumbHtml = item.coverImage
+      ? `<img src="${item.coverImage}" alt="${item.title}" class="w-full h-full object-cover">`
+      : `<div class="w-full h-full flex items-center justify-center text-[10px] font-mono text-[#968E86]">16:9</div>`;
+
+    card.innerHTML = `
+      <div class="flex items-start gap-2.5">
+        <!-- 左側：原始投影片 16:9 縮圖 (點擊直接載入) -->
+        <div class="btn-load-saved-style relative w-24 aspect-video rounded-lg overflow-hidden bg-[#EAE3DC] border border-[#D9CEC2] shrink-0 cursor-pointer group" title="點擊載入原始圖片樣式與提示詞">
+          ${thumbHtml}
+          <span class="absolute bottom-1 right-1 px-1.5 py-0.2 rounded bg-[#322E2B]/80 text-[#FAF8F5] font-mono text-[9px]">
+            ${item.pageCount || 1} 頁
+          </span>
+        </div>
+
+        <!-- 右側：標題、色票與快捷操作 -->
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="flex items-start justify-between gap-1">
+            <button type="button" class="btn-load-saved-style text-left text-xs font-bold text-[#322E2B] hover:text-[#4E6152] truncate cursor-pointer flex-1" title="${item.title}">
+              ${item.title}
+            </button>
+            <button type="button" class="btn-toggle-fav shrink-0 px-1.5 py-0.5 rounded text-[10px] font-mono border cursor-pointer transition-colors ${
+              item.isFavorite
+                ? "bg-[#F4EAE8] text-[#8F6561] border-[#DFC9C6] font-semibold"
+                : "bg-white/60 text-[#968E86] border-[#322E2B]/10 hover:text-[#322E2B]"
+            }" title="切換收藏置頂">
+              ${item.isFavorite ? "已收藏" : "收藏"}
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1">
+              ${paletteDots}
+            </div>
+            <span class="text-[10px] font-mono text-[#968E86] truncate">${item.dateLabel || ""}</span>
+          </div>
+
+          <!-- 底部操作列 -->
+          <div class="flex items-center justify-between pt-1 border-t border-[#322E2B]/[0.06] gap-1">
+            <div class="flex items-center gap-1">
+              <button type="button" class="btn-load-saved-style px-2 py-0.5 rounded bg-[#768A7A] hover:bg-[#586B5C] text-white text-[10px] font-semibold cursor-pointer transition-colors">
+                載入檢視
+              </button>
+              <button type="button" class="btn-quick-copy-saved px-2 py-0.5 rounded bg-[#FAF8F5] hover:bg-white text-[#322E2B] border border-[#322E2B]/10 text-[10px] font-medium cursor-pointer transition-colors" title="直接複製此風格的 NotebookLM 提示詞">
+                複製提示詞
+              </button>
+            </div>
+            <div class="flex items-center gap-1">
+              <button type="button" class="btn-edit-saved-name px-1.5 py-0.5 rounded text-[10px] text-[#68615B] hover:text-[#322E2B] hover:bg-white/60 cursor-pointer" title="修改名稱">
+                改名
+              </button>
+              <button type="button" class="btn-delete-saved px-1.5 py-0.5 rounded text-[10px] text-[#968E86] hover:text-[#A65B56] hover:bg-white/60 cursor-pointer" title="刪除此筆紀錄">
+                刪除
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // 綁定載入事件
+    card.querySelectorAll(".btn-load-saved-style").forEach(btn => {
+      btn.addEventListener("click", () => loadSavedStyleIntoWorkspace(item.id));
+    });
+
+    // 綁定直接複製提示詞
+    const copyBtn = card.querySelector(".btn-quick-copy-saved");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const promptToCopy = (currentPromptMode === "slide" ? item.slidePrompt : item.globalPrompt) || item.globalPrompt || item.markdownReport || "";
+        if (!promptToCopy) {
+          showToast("此紀錄無有效提示詞內容", "warning");
+          return;
+        }
+        navigator.clipboard.writeText(promptToCopy).then(() => {
+          showToast(`已複製「${item.title}」的 NotebookLM 提示詞！`, "success");
+        });
+      });
+    }
+
+    // 綁定切換收藏
+    const favBtn = card.querySelector(".btn-toggle-fav");
+    if (favBtn) {
+      favBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        item.isFavorite = !item.isFavorite;
+        await saveStyleRecordToStorage(item);
+        updateSaveToolbarButtonState();
+        renderSavedStylesList();
+        showToast(item.isFavorite ? `已將「${item.title}」加入收藏置頂` : `已取消「${item.title}」的收藏標記`, "info");
+      });
+    }
+
+    // 綁定改名彈窗
+    const editBtn = card.querySelector(".btn-edit-saved-name");
+    if (editBtn) {
+      editBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openSaveStyleModal(item.id);
+      });
+    }
+
+    // 綁定刪除（含復原按鈕）
+    const delBtn = card.querySelector(".btn-delete-saved");
+    if (delBtn) {
+      delBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        lastDeletedStyleRecord = { ...item };
+        await deleteStyleRecordFromStorage(item.id);
+        if (currentActiveStyleId === item.id) {
+          currentActiveStyleId = null;
+          updateSaveToolbarButtonState();
+        }
+        renderSavedStylesList();
+        showToast(`已刪除「${item.title}」`, "info", {
+          actionLabel: "復原",
+          onAction: async () => {
+            if (lastDeletedStyleRecord) {
+              await saveStyleRecordToStorage(lastDeletedStyleRecord);
+              currentActiveStyleId = lastDeletedStyleRecord.id;
+              lastDeletedStyleRecord = null;
+              updateSaveToolbarButtonState();
+              renderSavedStylesList();
+              showToast("已復原保存的風格紀錄！", "success");
+            }
+          }
+        });
+      });
+    }
+
+    listEl.appendChild(card);
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+// 點擊左側已保存風格卡片 -> 立即在右側還原原始圖片樣式、色票與提示詞（免呼叫 API）
+function loadSavedStyleIntoWorkspace(styleId) {
+  const item = savedStylesCache.find(it => it.id === styleId);
+  if (!item) {
+    showToast("找不到該筆保存紀錄", "warning");
+    return;
+  }
+
+  // 還原原始投影片縮圖至工作台，讓右側 16:9 Stage 與翻頁器完整顯示原始圖片樣式
+  if (item.slides && item.slides.length > 0) {
+    uploadedSlidePages = item.slides.map((s, idx) => ({
+      page: s.page || (idx + 1),
+      image: s.image,
+      text: s.text || ""
+    }));
+    pageSelectionMode = "all";
+    selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
+    renderThumbnails();
+  }
+
+  const mockData = {
+    markdown_report: item.markdownReport || "",
+    global_prompt: item.globalPrompt || "",
+    slide_prompt: item.slidePrompt || "",
+    model_used: item.modelUsed || "已保存紀錄",
+    auto_reason: item.autoReason || `保存於 ${item.dateLabel || ""}`,
+    structured_meta: {
+      style_name: item.title,
+      palette: item.palette,
+      tags: item.tags,
+      white_space_ratio: item.whiteSpaceRatio
+    }
+  };
+
+  renderAnalysisResult(mockData, { fromSavedId: item.id });
+  showToast(`已載入「${item.title}」的原始圖片樣式與提示詞！`, "success");
+}
+
+function openSaveStyleModal(targetId = null) {
+  const idToEdit = targetId || currentActiveStyleId;
+  const item = savedStylesCache.find(it => it.id === idToEdit);
+  if (!item) {
+    showToast("請先完成一次簡報分析或選擇一筆風格紀錄", "warning");
+    return;
+  }
+
+  editingStyleId = item.id;
+  const modal = document.getElementById("modal-save-style");
+  const previewImg = document.getElementById("save-modal-preview-img");
+  const pageInfo = document.getElementById("save-modal-page-info");
+  const swatchesEl = document.getElementById("save-modal-swatches");
+  const nameInput = document.getElementById("input-save-style-name");
+  const favCheck = document.getElementById("check-save-style-fav");
+
+  if (previewImg) {
+    previewImg.src = item.coverImage || "";
+  }
+  if (pageInfo) {
+    pageInfo.textContent = `包含 ${item.pageCount || 1} 頁原始簡報縮圖 · 保存於 ${item.dateLabel || "剛剛"}`;
+  }
+  if (swatchesEl) {
+    swatchesEl.innerHTML = (item.palette || []).map(c =>
+      `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono border border-[#322E2B]/15 flex items-center gap-1 bg-[#FAF8F5]">
+        <span class="w-2.5 h-2.5 rounded-full" style="background-color:${c.hex || '#768A7A'}"></span>
+        <span>${c.hex || ''}</span>
+      </span>`
+    ).join("");
+  }
+  if (nameInput) {
+    nameInput.value = item.title || "";
+  }
+  if (favCheck) {
+    favCheck.checked = item.isFavorite !== false;
+  }
+
+  if (modal) {
+    modal.classList.remove("hidden");
+    setTimeout(() => nameInput && nameInput.focus(), 80);
+  }
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function closeSaveStyleModal() {
+  const modal = document.getElementById("modal-save-style");
+  if (modal) modal.classList.add("hidden");
+  editingStyleId = null;
+}
+
+// 初始化收藏庫事件與載入本機歷史資料
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadAllSavedStylesFromStorage();
+  renderSavedStylesList();
+
+  const btnSaveCurrent = document.getElementById("btn-save-current-style");
+  if (btnSaveCurrent) {
+    btnSaveCurrent.addEventListener("click", () => openSaveStyleModal(currentActiveStyleId));
+  }
+
+  const btnCloseModal = document.getElementById("btn-close-save-style-modal");
+  const btnCancelModal = document.getElementById("btn-cancel-save-style");
+  if (btnCloseModal) btnCloseModal.addEventListener("click", closeSaveStyleModal);
+  if (btnCancelModal) btnCancelModal.addEventListener("click", closeSaveStyleModal);
+
+  const btnConfirmSave = document.getElementById("btn-confirm-save-style");
+  if (btnConfirmSave) {
+    btnConfirmSave.addEventListener("click", async () => {
+      const item = savedStylesCache.find(it => it.id === editingStyleId);
+      if (!item) {
+        closeSaveStyleModal();
+        return;
+      }
+      const nameInput = document.getElementById("input-save-style-name");
+      const favCheck = document.getElementById("check-save-style-fav");
+      const newTitle = (nameInput?.value || "").trim() || item.title;
+
+      item.title = newTitle;
+      item.isFavorite = favCheck ? !!favCheck.checked : true;
+
+      await saveStyleRecordToStorage(item);
+
+      if (currentActiveStyleId === item.id) {
+        const titleEl = document.getElementById("result-style-name");
+        if (titleEl) titleEl.textContent = newTitle;
+      }
+
+      updateSaveToolbarButtonState();
+      renderSavedStylesList();
+      closeSaveStyleModal();
+      showToast(`已保存風格「${newTitle}」（含原始圖片樣式與提示詞）！`, "success");
+    });
+  }
+
+  // 篩選按鈕切換 (全部紀錄 / 已收藏)
+  document.querySelectorAll(".saved-filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentSavedFilter = btn.getAttribute("data-saved-filter") || "all";
+      document.querySelectorAll(".saved-filter-btn").forEach(b => {
+        if (b.getAttribute("data-saved-filter") === currentSavedFilter) {
+          b.className = "saved-filter-btn active px-2.5 py-1 rounded-md font-semibold bg-[#FAF8F5] text-[#322E2B] shadow-sm cursor-pointer transition-colors";
+        } else {
+          b.className = "saved-filter-btn px-2.5 py-1 rounded-md font-medium text-[#68615B] hover:text-[#322E2B] cursor-pointer transition-colors flex items-center gap-1";
+        }
+      });
+      renderSavedStylesList();
+    });
+  });
+
+  // 清理未收藏紀錄
+  const btnClearUnfav = document.getElementById("btn-clear-unfav-styles");
+  if (btnClearUnfav) {
+    btnClearUnfav.addEventListener("click", async () => {
+      const toDelete = savedStylesCache.filter(it => !it.isFavorite);
+      if (toDelete.length === 0) return;
+      for (const item of toDelete) {
+        await deleteStyleRecordFromStorage(item.id);
+      }
+      renderSavedStylesList();
+      showToast(`已清理 ${toDelete.length} 筆未收藏的歷史紀錄`, "info");
+    });
+  }
+
+  // 匯出全部保存的風格與原圖 (.json)
+  const btnExport = document.getElementById("btn-export-saved-styles");
+  if (btnExport) {
+    btnExport.addEventListener("click", () => {
+      if (savedStylesCache.length === 0) {
+        showToast("目前尚無已保存的風格可供匯出", "warning");
+        return;
+      }
+      const payload = JSON.stringify({
+        version: APP_VERSION,
+        exportedAt: new Date().toISOString(),
+        styles: savedStylesCache
+      }, null, 2);
+      const blob = new Blob([payload], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nblm-saved-styles-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`已匯出 ${savedStylesCache.length} 筆簡報風格與原圖備份檔！`, "success");
+    });
+  }
+
+  // 匯入備份檔 (.json)
+  const btnImport = document.getElementById("btn-import-saved-styles");
+  const inputImport = document.getElementById("input-import-saved-styles");
+  if (btnImport && inputImport) {
+    btnImport.addEventListener("click", () => inputImport.click());
+    inputImport.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        const list = Array.isArray(parsed) ? parsed : (parsed.styles || []);
+        if (!Array.isArray(list) || list.length === 0) {
+          throw new Error("備份檔格式無效或無內容");
+        }
+        for (const item of list) {
+          if (item && item.id && item.title) {
+            await saveStyleRecordToStorage(item);
+          }
+        }
+        renderSavedStylesList();
+        showToast(`成功匯入 ${list.length} 筆簡報風格與原始圖片樣式！`, "success");
+      } catch (err) {
+        showToast(`匯入失敗：${err.message}`, "error");
+      } finally {
+        inputImport.value = "";
+      }
+    });
+  }
+});
+
