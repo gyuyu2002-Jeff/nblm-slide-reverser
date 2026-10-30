@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.35.0";
+const APP_VERSION = "v6.35.1";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -601,7 +601,7 @@ async function testApiKeyConnection(provider, apiKey) {
 
   if (provider === "gemini") {
     // 優先以最穩定、高響應的現代 Gemini Flash 模型發起快速輕量 ping
-    const testModels = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.8-flash"];
+    const testModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
     let lastErr = null;
 
     for (const model of testModels) {
@@ -631,6 +631,14 @@ async function testApiKeyConnection(provider, apiKey) {
         const msg = data.error?.message || "請求失敗";
         const msgLower = msg.toLowerCase();
 
+        if (msgLower.includes("spending cap") || msgLower.includes("spend cap") || msgLower.includes("ai.studio/spend")) {
+          return {
+            ok: false,
+            type: "spend_cap",
+            message: "此金鑰所屬的 Google 專案已達「每月消費上限 (Monthly Spend Cap)」！解決方式：① 點擊下方「前往 Google AI Studio」選『Create API key in new project』建立新專案免費金鑰（最快）；或 ② 前往 https://ai.studio/spend 調高該專案的消費上限。"
+          };
+        }
+
         if (resp.status === 400 || msgLower.includes("api_key_invalid") || msgLower.includes("api key not valid")) {
           return {
             ok: false,
@@ -643,7 +651,7 @@ async function testApiKeyConnection(provider, apiKey) {
           return {
             ok: false,
             type: "quota_exhausted",
-            message: "金鑰存在但目前配額已用盡 (429 Rate Limit / Quota)：請至 Google AI Studio 檢查用量或稍候再試！"
+            message: "金鑰存在但目前配額已用盡 (429 Rate Limit / Quota)：請在 AI Studio 建立新專案金鑰或稍候再試！"
           };
         }
 
@@ -1133,15 +1141,15 @@ function setupEventListeners() {
       if (resultBox) {
         resultBox.classList.remove("hidden");
         if (res.ok) {
-          resultBox.className = "p-3 rounded-lg border text-xs font-mono transition-all bg-emerald-500/10 border-emerald-500/30 text-emerald-300";
+          resultBox.className = "p-3 rounded-lg border text-xs font-mono transition-all bg-[#E9EFEA] border-[#768A7A] text-[#322E2B]";
           resultIcon.textContent = "✅";
           resultTitle.textContent = "金鑰連線正常 · 驗證通過！";
           resultDetail.textContent = res.message;
           showToast("🎉 API 金鑰測試通過！連線完全正常", "success");
         } else {
-          resultBox.className = "p-3 rounded-lg border text-xs font-mono transition-all bg-rose-500/10 border-rose-500/30 text-rose-300";
-          resultIcon.textContent = "❌";
-          resultTitle.textContent = "金鑰驗證失敗";
+          resultBox.className = "p-3 rounded-lg border text-xs font-mono transition-all bg-[#F4EAE8] border-[#C8A7A3] text-[#322E2B]";
+          resultIcon.textContent = "⚠️";
+          resultTitle.textContent = "金鑰驗證未通過";
           resultDetail.textContent = res.message;
           showToast(`金鑰驗證失敗：${res.message}`, "error");
         }
@@ -1149,7 +1157,7 @@ function setupEventListeners() {
     } catch (err) {
       if (resultBox) {
         resultBox.classList.remove("hidden");
-        resultBox.className = "p-3 rounded-lg border text-xs font-mono transition-all bg-rose-500/10 border-rose-500/30 text-rose-300";
+        resultBox.className = "p-3 rounded-lg border text-xs font-mono transition-all bg-[#F4EAE8] border-[#C8A7A3] text-[#322E2B]";
         resultIcon.textContent = "❌";
         resultTitle.textContent = "連線異常";
         resultDetail.textContent = err.message || "無法連線至 API 伺服器，請檢查網路連線。";
@@ -2588,8 +2596,8 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
   if (selectedModel && selectedModel !== "auto") {
     candidateModels.push(selectedModel);
   }
-  // 候選優先級：gemini-2.5-flash ➔ gemini-3.5-flash ➔ gemini-3.8-flash ➔ gemini-flash-latest
-  const defaultList = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-latest"];
+  // 候選優先級：gemini-2.5-flash ➔ gemini-2.5-flash-lite ➔ gemini-2.0-flash ➔ gemini-flash-latest
+  const defaultList = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-flash-latest"];
   for (const m of defaultList) {
     if (!candidateModels.includes(m)) {
       candidateModels.push(m);
@@ -2648,6 +2656,25 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
       if (!response.ok) {
         const msg = resJson.error ? resJson.error.message : "Gemini API 請求失敗";
         const msgLower = msg.toLowerCase();
+
+        // 若為 Google Project Monthly Spending Cap (專案每月消費上限已滿)，整個專案皆會被阻擋，立即提示解決方案並彈出金鑰視窗
+        if (msgLower.includes("spending cap") || msgLower.includes("spend cap") || msgLower.includes("ai.studio/spend")) {
+          setTimeout(() => {
+            openApiKeyModal("gemini");
+            const resultBox = document.getElementById("api-key-test-result");
+            const resultIcon = document.getElementById("test-result-icon");
+            const resultTitle = document.getElementById("test-result-title");
+            const resultDetail = document.getElementById("test-result-detail");
+            if (resultBox && resultTitle && resultDetail) {
+              resultBox.classList.remove("hidden");
+              resultBox.className = "p-3 rounded-lg border text-xs font-mono transition-all bg-[#F4EAE8] border-[#C8A7A3] text-[#322E2B]";
+              if (resultIcon) resultIcon.textContent = "⚠️";
+              resultTitle.textContent = "您的 Google 專案已達「每月消費上限 (Spending Cap)」";
+              resultDetail.innerHTML = `1. <strong>最快免費解法</strong>：點上方「前往 Google AI Studio」，按 <code>+ Create API key</code> 並選 <strong>Create API key in new project</strong> 換一組新專案金鑰。<br>2. <strong>或調高原專案上限</strong>：前往 <a href="https://ai.studio/spend" target="_blank" rel="noopener noreferrer" class="underline font-bold text-[#8F6561]">https://ai.studio/spend</a> 調整 Monthly spend cap。`;
+            }
+          }, 200);
+          throw new Error("您目前的 Google 專案已達每月消費上限 (Spending Cap)！已為您開啟金鑰設定視窗，請建立新專案金鑰或前往 ai.studio/spend 調高上限。");
+        }
         
         // 判斷是否為暫時性流量高峰（High Demand）、限流（Rate Limit）或模型不存在
         const isFallbackTrigger = (
