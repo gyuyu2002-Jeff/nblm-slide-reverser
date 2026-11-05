@@ -805,7 +805,7 @@ async function handleUrlCrawl(url) {
         const pages = [];
         for (let i = 1; i <= total; i++) {
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 1.25 });
+          const viewport = getOptimalViewport(page);
           const canvas = document.createElement("canvas");
           const ctx = canvas.getContext("2d");
           canvas.width = viewport.width;
@@ -813,7 +813,7 @@ async function handleUrlCrawl(url) {
           await page.render({ canvasContext: ctx, viewport: viewport }).promise;
           pages.push({
             page: i,
-            image: canvas.toDataURL("image/jpeg", 0.85),
+            image: canvas.toDataURL("image/jpeg", 0.92),
             name: `Google Slides (第 ${i} 頁)`,
             text: ""
           });
@@ -853,7 +853,7 @@ async function handleUrlCrawl(url) {
         const pages = [];
         for (let i = 1; i <= total; i++) {
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 1.25 });
+          const viewport = getOptimalViewport(page);
           const canvas = document.createElement("canvas");
           const ctx = canvas.getContext("2d");
           canvas.width = viewport.width;
@@ -861,7 +861,7 @@ async function handleUrlCrawl(url) {
           await page.render({ canvasContext: ctx, viewport: viewport }).promise;
           pages.push({
             page: i,
-            image: canvas.toDataURL("image/jpeg", 0.85),
+            image: canvas.toDataURL("image/jpeg", 0.92),
             name: `線上 PDF (第 ${i} 頁)`,
             text: ""
           });
@@ -1741,6 +1741,86 @@ function openApiKeyModal(provider) {
 }
 
 // 純前端渲染 PDF 縮圖（支援 GitHub Pages 離線/無伺服器環境）
+
+// === 高清晰度自適應 Viewport 算繪計算 (Hi-DPI Retina Viewport Scaling) ===
+function getOptimalViewport(page) {
+  const unscaled = page.getViewport({ scale: 1.0 });
+  const targetWidth = 1920; // 鎖定 Full HD 1080p~2K 原生清晰度
+  let scale = targetWidth / unscaled.width;
+  if (scale < 1.4) scale = 1.4;
+  if (scale > 2.2) scale = 2.2;
+  return page.getViewport({ scale: scale });
+}
+
+// === 瀏覽器端純數學光學色彩萃取 (Optical Ground-Truth Color Extraction) ===
+function extractDominantColorsFromImage(dataUri, maxSamples = 6) {
+  return new Promise((resolve) => {
+    if (!dataUri || !dataUri.startsWith("data:")) return resolve([]);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        const sampleW = 160;
+        const sampleH = 90;
+        canvas.width = sampleW;
+        canvas.height = sampleH;
+        ctx.drawImage(img, 0, 0, sampleW, sampleH);
+        const imgData = ctx.getImageData(0, 0, sampleW, sampleH).data;
+
+        const colorBuckets = new Map();
+        const step = 4;
+        for (let i = 0; i < imgData.length; i += 4 * step) {
+          const a = imgData[i + 3];
+          if (a < 128) continue;
+          const r = imgData[i];
+          const g = imgData[i + 1];
+          const b = imgData[i + 2];
+
+          const qr = Math.round(r / 12) * 12;
+          const qg = Math.round(g / 12) * 12;
+          const qb = Math.round(b / 12) * 12;
+          const key = `${qr},${qg},${qb}`;
+          colorBuckets.set(key, (colorBuckets.get(key) || 0) + 1);
+        }
+
+        const sorted = Array.from(colorBuckets.entries()).sort((a, b) => b[1] - a[1]);
+        if (sorted.length === 0) return resolve([]);
+
+        function rgbToHex(r, g, b) {
+          return "#" + [r, g, b].map(x => {
+            const hex = Math.min(255, Math.max(0, x)).toString(16);
+            return hex.length === 1 ? "0" + hex : hex;
+          }).join("").toUpperCase();
+        }
+
+        const results = [];
+        for (const [key, count] of sorted) {
+          const [r, g, b] = key.split(",").map(Number);
+          const hex = rgbToHex(r, g, b);
+          const isTooClose = results.some(c => {
+            const dr = c.r - r;
+            const dg = c.g - g;
+            const db = c.b - b;
+            return Math.sqrt(dr * dr + dg * dg + db * db) < 32;
+          });
+          if (!isTooClose) {
+            results.push({ r, g, b, hex, count });
+            if (results.length >= maxSamples) break;
+          }
+        }
+        resolve(results.map(c => c.hex));
+      } catch (err) {
+        console.warn("色彩萃取略過:", err);
+        resolve([]);
+      }
+    };
+    img.onerror = () => resolve([]);
+    img.src = dataUri;
+  });
+}
+
 async function parsePdfClientSide(file) {
   if (typeof pdfjsLib === "undefined") {
     throw new Error("PDF 解析模組載入中，請稍候重試");
@@ -1752,13 +1832,13 @@ async function parsePdfClientSide(file) {
   const maxPages = Math.min(totalPages, 30);
   for (let i = 1; i <= maxPages; i++) {
     const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 1.25 });
+    const viewport = getOptimalViewport(page);
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
     
     let pageText = "";
     try {
@@ -3024,22 +3104,46 @@ async function handleStartAnalyze() {
         throw new Error("未檢測到有效投影片影像，請確認上傳了清晰的 PDF 或投影片圖片。");
       }
 
-      const promptText = "請詳細審視我上傳的簡報投影片，執行深度視覺與幾何拓撲逆向工程。\n" +
+      // 1. 本機光學色彩萃取 (Ground-Truth Optical Color Extraction)
+      let detectedHexList = [];
+      try {
+        const sampleSlides = targetSlidePages.slice(0, 4);
+        const colorBatches = await Promise.all(sampleSlides.map(s => extractDominantColorsFromImage(s.image, 5)));
+        detectedHexList = Array.from(new Set(colorBatches.flat())).slice(0, 8);
+      } catch (err) {
+        console.warn("本機色彩提取略過:", err);
+      }
+
+      let opticalColorPrompt = "";
+      if (detectedHexList.length > 0) {
+        opticalColorPrompt = `\n★【本機 Canvas 像素光學實測真實色票（Ground-Truth Palette）】：\n` +
+          `系統已自原稿影像中測得代表性真實物理色碼：${detectedHexList.join(", ")}。\n` +
+          `請優先以此真實色碼為基準，鎖定畫布底色、墨黑文字、卡片背景與視覺高光，為各色碼賦予明確的設計角色！\n`;
+      }
+
+      const promptText = "請詳細審視我上傳的簡報投影片，執行深度視覺拓撲與風格逆向鑑識工程。\n" +
+        opticalColorPrompt +
         "【核心使命】：\n" +
         "1. 必須逐頁精確拆解真實骨架，★絕對嚴禁將圖解簡化為普通圓點條列！若有同心圓引線對應（Leader Lines）、複合雙模組（靶心+進程軸並存）、時間軸、心智圖等，必須以機械級拓撲完整描述規格與箭頭指向。\n" +
-        "2. ★【六大鑑識級抗失真鐵律（必須明確寫入產出的模式 1 與模式 2 提示詞中）】：\n" +
-        "   - (A) 【容器填充極性精準鎖定】：嚴格區分原稿容器是『空心透明描邊框（如黑板粉筆空心雙線對話框，內部無填色透出底色，嚴禁填滿實心粉彩色塊！）』、『無外框開放式筆刷標記欄（無矩形外框與格線，僅副標下方刷一筆螢光筆底色，嚴禁私自加上粗黑方框或十字格線！）』或『實心色塊卡片』，並在提示詞中寫入對應的正向指令與負向禁令。\n" +
-        "   - (B) 【畫布底紋與橫線防蒸發】：若原稿為橫線筆記本紙（Ruled Notebook Paper），必須強制要求每一頁背景全程清晰渲染『淺灰水平橫線 (#E5E3DC) + 左側垂直裝訂邊界線』，嚴禁退化為空白米色紙、泛黃牛皮紙或亂加墨水噴濺髒污與四角落引號框（┌ ┘）；若為黑板底（#191A1D），保持均勻霧面炭黑與輕微粉筆灰，嚴禁立體光暈。\n" +
-        "   - (C) 【多色螢光筆輪替與塗抹部位鎖定】：若原稿有多種粉彩強調色（粉紅、青綠、亮黃、水藍等），同頁並排的多個欄位標題必須強制依序輪替不同色相（色1➔色2➔色3➔色4），嚴禁同頁全塗同一種顏色！且螢光筆刷僅限襯於『小標題或數字徽章下方』，絕對嚴禁將黃色螢光筆大面積塗抹在正文的完整句子上。\n" +
-        "   - (D) 【連接線、時間軸折線與箭頭空心度】：精準分辨『90度直角階梯折線箭頭（Orthogonal 90-Degree Stepped Line，嚴禁畫成8字形雙波浪交叉曲線！）』與『平滑波浪軸』；精準標明箭頭為『空心粗框手繪箭頭（Hollow Outlined Arrow）』或『單線箭頭』，嚴禁私自填滿死黑實心箭頭。\n" +
-        "   - (E) 【火柴人與插畫解剖約束】：若原稿含極簡火柴人（Stick Figures），必須規定『圓頭 + 空心無填色線條軀幹（Hollow Unfilled Torso） + 單線四肢』，嚴禁將小人身體塗黑或畫成美式卡通實心人物。\n" +
-        "   - (F) 【絕對文字潔淨與零亂碼鐵律】：封面頁與結尾頁僅輸出主標題與明確副標，嚴禁生成任何無意義偽漢字亂碼（如「未成項传惠行」等拼湊假字），插畫氣泡或便利貼內嚴禁塞入模糊微縮亂碼字。\n" +
-        "3. 產出的第 3 節 NotebookLM 提示詞必須同時完整輸出兩種模式代碼區塊：\n" +
-        "   - 【模式 1：學風格 · 做新簡報（推薦）】：提取這份簡報的配色與設計感，套用在你的任何簡報上（頁數 3~20 頁自由決定，備註：NotebookLM 單次生成上限為 20 頁）。\n" +
-        "     ★【最高強制約束：每一個頁面呈現都絕對不能重複（Zero-Repetition Rule）】：在產出的 NotebookLM 提示詞中，必須明文加入不可忽視的最高禁令——『嚴禁連續或重複使用同一種版型！生成的整份簡報中，每一個頁面都必須從版型語法庫中挑選完全不同的視覺拓撲（例如：時間軸 ➔ 心智圖 ➔ 橫向條帶 ➔ 矩陣表格 ➔ 環形流程 ➔ 雙側括號等輪替使用），相鄰頁面與全篇各頁版型呈現皆不得重複！』\n" +
-        "   - 【模式 2：照原稿 · 一頁頁複刻】：完全保留原投影片每一頁的排版結構，適合想照原版格式填空的人，確保每一頁皆展現原稿獨立獨特的拓撲版型。\n" +
-        "4. 產出一份可直接獨立運行的 HTML/Tailwind 1:1 還原投影片結構代碼。\n" +
-        "5. 請嚴格依照 SYSTEM INSTRUCTION 規定的章節與末尾 JSON 格式輸出。";
+        "2. ★【全風格流派自適應鑑識 (Universal Style Archetypes)】：\n" +
+        "   - 先精準辨識原稿所屬流派：\n" +
+        "     * (1) 【科技極簡 / Apple Keynote 流派】：曜石黑/深色底、毛玻璃卡片、超大字級數據、便當盒網格 (Bento Grid)、光暈質感。\n" +
+        "     * (2) 【商業諮詢 / 麥肯錫 BCG 流派】：象牙米白/冷灰底、頂部執行摘要條、嚴格 2~4 欄對照卡片或矩陣表格、深海軍藍搭標籤。\n" +
+        "     * (3) 【瑞士國際主義 / 雜誌排版流派】：粗黑無襯線字體、不對稱網格、點陣底紋、醒目色塊撞色與大量通透留白。\n" +
+        "     * (4) 【日系無印 / 溫柔莫蘭迪流派】：燕麥米紙底色、低飽和灰調粉彩、極細邊框與溫潤圓角。\n" +
+        "     * (5) 【黑板粉筆 / 手繪筆記流派】：粉筆深炭黑/橫格線筆記本紙、空心描邊對話框、螢光筆刷底條、多色輪替、極簡線條塗鴉。\n" +
+        "3. ★【六大鑑識級抗失真鐵律（必須明確寫入產出的提示詞中）】：\n" +
+        "   - (A) 【容器填充極性精準鎖定】：嚴格區分『空心透明描邊框（內部無填色透出底色，嚴禁填滿實心粉彩）』、『無外框純筆刷底條（無外框與格線，僅副標下方刷色帶）』或『實心色塊卡片』。\n" +
+        "   - (B) 【畫布底紋與橫線防蒸發】：橫線筆記本紙必須維持水平淺灰橫格線 (#E5E3DC) 與邊界線；深色黑板維持均勻霧面炭黑 (#191A1D) 與粉筆擦拭肌理。\n" +
+        "   - (C) 【多色輪替與高光部位鎖定】：並列欄位/卡片標題依序輪替不同色相；螢光筆刷僅限小標題下方底色，嚴禁塗滿整段內文句子。\n" +
+        "   - (D) 【連接線幾何型態保真】：精準分辨 90 度直角階梯折線箭頭與平滑波浪軸；空心粗框箭頭內部留白無填色。\n" +
+        "   - (E) 【單頁內容預算鐵律 (Content Budgeting)】：每頁嚴格限制單一核心焦點！主標限 8~12 字，要點僅限 2~3 條且每條 15~30 字精華，嚴禁大段文字堆疊！\n" +
+        "   - (F) 【文字零亂碼鐵律】：嚴禁自行捏造無意義的偽漢字或湊字數假字。\n" +
+        "4. 產出的第 3 節 NotebookLM 提示詞必須同時完整輸出兩種模式代碼區塊：\n" +
+        "   - 【模式 1：學風格 · 做新簡報（推薦，含零重複版型約束與單頁內容預算）】\n" +
+        "   - 【模式 2：照原稿 · 一頁頁複刻（1:1 還原原稿獨立拓撲）】\n" +
+        "5. 產出一份可直接獨立運行的 HTML/Tailwind 1:1 還原投影片結構代碼。\n" +
+        "6. 請嚴格依照 SYSTEM INSTRUCTION 規定的章節與末尾 JSON 格式輸出。";
 
       if (currentProvider === "gemini") {
         data = await callGeminiDirectly(apiKey, model, targetSlidePages, promptText);
