@@ -1,6 +1,6 @@
 {
-  "version": "2.5.0",
-  "updated_at": "2026-11-05 20:00:00",
+  "version": "2.6.0",
+  "updated_at": "2026-11-05 20:10:00",
   "rules": [
     {
       "id": "container_fill_and_border_polarity_lock",
@@ -45,7 +45,7 @@
     {
       "id": "universal_style_archetype_routing",
       "title": "全風格流派精準鑑識與禁忌對齊 (Universal Style Archetype Routing)",
-      "rule": "必須先精確識別原稿所屬之設計流派，並套用該流派的專屬拓撲約束：(1)【Apple Keynote / 科技極簡流派 (Dark Minimalist / Bento Grid)】：曜石黑/深石板灰底色 (#0B0F19 ~ #111827)，毛玻璃半透明卡片 (bg-white/5 + border-white/10)，超大字級關鍵數據 (Text-5xl)，漸層光暈與便當盒不對稱網格，🚫 嚴禁添加任何手繪塗鴉或無關邊框；(2)【麥肯錫 / BCG 商業諮詢結構流派 (Corporate Structured Matrix)】：乾淨象牙米白或冷灰底，頂部清晰的執行摘要條 (Executive Summary Takeaway)，嚴格 2~4 欄對稱數據卡片或矩陣表格，深海軍藍 (#0F2537) 搭低調勃艮第紅或琥珀色膠囊標籤，🚫 嚴禁草率圓點列點；(3)【瑞士國際主義 / 雜誌大字報流派 (Swiss International / Editorial Grid)】：粗黑無襯線超大排版字體、高對比不對稱網格、點陣底紋、醒目色塊 (克萊因藍/安全橙/螢光綠) 幾何撞色，大量通透留白；(4)【日系無印 / 溫柔莫蘭迪流派 (Muji / Soft Morandi)】：米白或燕麥亞麻色底 (#F3EFEA)，低飽和灰調粉彩 (鼠尾草綠 #768A7A、煙灰粉 #C8A7A3)，極細線框與溫潤圓角，極致輕盈透氣留白；(5)【黑板粉筆 / 手繪筆記流派 (Handdrawn / Sketch)】：依據粉筆黑板與橫線紙張規則精準繪製空心描邊容器與線條塗鴉。"
+      "rule": "必須先精確識別原稿所屬之設計流派，並套用該流派的專屬拓撲約束：(1)【Apple Keynote / 科技極簡流派 (Dark Minimalist / Bento Grid)】：曜石黑/深石板灰底色 (#0B0F19 ~ #111827)，毛玻璃半透明卡片 (bg-white/5 + border-white/10)，超大字級關鍵數據 (Text-5xl)，漸層光暈與便當盒不對稱網格，🚫 嚴禁添加任何手繪塗鴉或無關邊框；(2)【麥肯錫 / BCG 商業諮詢結構流派 (Corporate Structured Matrix)】：乾淨象牙米白或冷灰底，頂部清晰的執行摘要條 (Executive Summary Takeaway)，嚴格 2~4 欄對稱數據卡片或矩陣表格，深海軍藍 (#0F2537) 搭低調勃艮第紅或琥珀色膠囊標籤，🚫 嚴禁草率圓點列點；(3)【瑞士國際主義 / 雜誌大字報流派 (Swiss International / Editorial Grid)】：粗黑無襯線超大排版字體、高對比不對稱網格、點陣底紋、醒目色塊 (克萊因藍/安全橙/螢光綠) 幾何撞色，大量通透留白；(4)【日系無印 / 溫柔莫蘭迪流派 (Muji / Soft Morandi)】：米白或燕麥亞麻色底 (#F3EFEA)，低飽和灰調粉彩 (鼠尾草綠 #768A7A、煙灰粉 #C8A7A3)，極細線框與溫潤圓角，極致輕盈透氣留白；(5)【黑板粉筆 / 手繪筆記流派 (Handdrawn / Sketch)】：依據粉筆黑板與橫線紙張規則精準繪製空心描邊容器與線條塗鴉；(6)★【先鋒客製 / 自由流派 (Custom / Avant-Garde / Hybrid Archetype)】：若原稿屬於賽博龐克霓虹、Y2K 酸性粗獷、復古報刊、分鏡條漫、學術壁報等特殊風格，★嚴禁生搬硬套！必須直接以第一性原理自立風格定義，精準捕捉其專屬材質（如掃描線、斜切角、網點半色調、金屬漸層），並提煉其特有的幾何拓撲與負向禁令！"
     },
     {
       "id": "content_budgeting_and_anti_clutter",
