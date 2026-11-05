@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: http:; connect-src 'self' https://generativelanguage.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://image.thum.io; worker-src 'self' blob: https://cdnjs.cloudflare.com; frame-src 'self' blob:; base-uri 'self';">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -43,12 +44,14 @@
       }
     }
   </script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Marked.js for Markdown Rendering -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <!-- PDF.js Client-Side Rendering -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Lucide Icons (Pinned version with SRI) -->
+  <script src="https://unpkg.com/lucide@1.69.0/dist/umd/lucide.min.js" integrity="sha384-6iN78+GkFbQdB1F7IuFcDqTN6chgnZXz63RQyfn/A7h3RSBsbBSdICClgxmW2nAX" crossorigin="anonymous"></script>
+  <!-- Marked.js (Pinned version with SRI) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js" integrity="sha384-H+hy9ULve6xfxRkWIh/YOtvDdpXgV2fmAGQkIDTxIgZwNoaoBal14Di2YTMR6MzR" crossorigin="anonymous"></script>
+  <!-- DOMPurify for XSS Sanitization -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.4/purify.min.js" integrity="sha384-eEu5CTj3qGvu9PdJuS+YlkNi7d2XxQROAFYOr59zgObtlcux1ae1Il3u7jvdCSWu" crossorigin="anonymous"></script>
+  <!-- PDF.js Client-Side Rendering with SRI -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous"></script>
   <script>
     if (window.pdfjsLib) {
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -224,6 +227,13 @@
 
         <!-- 網址爬取區域 -->
         <div id="url-zone" class="hidden p-4 rounded-xl bg-[#F3EFEA] border border-[#322E2B]/[0.09] space-y-3">
+          <!-- 資安隱私提醒 -->
+          <div class="p-2.5 rounded-lg bg-[#FAF0E6] border border-[#E8D0BA] text-[11px] text-[#8F5A3C] flex items-start gap-2 leading-relaxed">
+            <i data-lucide="shield-alert" class="w-4 h-4 shrink-0 mt-0.5 text-[#C06030]"></i>
+            <div>
+              <strong class="font-semibold text-[#8F5A3C]">資安隱私提醒</strong>：純前端網頁抓取線上外部連結時需經由公用 CORS 代理伺服器。<strong>若為機密、商業未公開或包含敏感個資之簡報，請勿使用網址抓取</strong>，請改用上方【本機拖曳上傳】以確保 100% 於個人瀏覽器本機解析零外流！
+            </div>
+          </div>
           <div class="space-y-1.5">
             <div class="flex items-center justify-between text-[11px]">
               <label for="input-source-url" class="font-medium text-[#68615B] flex items-center gap-1.5 font-mono">

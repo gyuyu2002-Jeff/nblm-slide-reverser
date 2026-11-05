@@ -1634,11 +1634,14 @@ function setupEventListeners() {
       showToast("尚未產生投影片代碼", "warning");
       return;
     }
-    const win = window.open("", "_blank");
+    const fullHtml = buildFullSlideHtml(generatedSlideHtml);
+    const blob = new Blob([fullHtml], { type: "text/html;charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
+    const win = window.open(blobUrl, "_blank", "noopener,noreferrer");
     if (win) {
-      win.document.write(buildFullSlideHtml(generatedSlideHtml));
-      win.document.close();
+      try { win.opener = null; } catch (e) {}
     }
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
   });
 
   on("btn-copy-all-report", "click", () => {
@@ -1717,10 +1720,12 @@ function openApiKeyModal(provider) {
     keyInput.dataset.masked = "false";
   }
 
-  // 隱私模式勾選狀態
+  // 隱私模式勾選狀態 (若未儲存過任何模式，預設優先勾選隱私模式以保障安全)
   const checkSession = document.getElementById("check-session-only");
   if (checkSession) {
-    checkSession.checked = !!sessionStorage.getItem(`${provider}_api_key`);
+    const hasLocal = !!localStorage.getItem(`${provider}_api_key`);
+    const hasSession = !!sessionStorage.getItem(`${provider}_api_key`);
+    checkSession.checked = hasSession || !hasLocal;
   }
 
   const portalLink = document.getElementById("modal-portal-link");
@@ -3150,7 +3155,10 @@ function renderAnalysisResult(data, options = {}) {
 
   const markdownContainer = document.getElementById("full-report-markdown");
   const cleanReportMarkdown = stripTrailingMetaJson(generatedReportMarkdown);
-  markdownContainer.innerHTML = marked.parse(cleanReportMarkdown);
+  const parsedMarkdown = marked.parse(cleanReportMarkdown);
+  markdownContainer.innerHTML = (typeof DOMPurify !== "undefined")
+    ? DOMPurify.sanitize(parsedMarkdown, { ADD_ATTR: ['target'] })
+    : parsedMarkdown;
 
   // 自動保存每次分析完的提示詞與原始圖片樣式至本機收藏庫
   if (typeof handlePostAnalysisSave === "function") {
@@ -3588,7 +3596,12 @@ function extractSlideHtml(markdown) {
 }
 
 function buildFullSlideHtml(rawHtml) {
+  const previewCsp = '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\' https://fonts.googleapis.com https://cdn.tailwindcss.com; font-src https://fonts.gstatic.com; img-src data: https: http:; script-src \'none\';">';
   if (rawHtml.includes("<!DOCTYPE html") || rawHtml.includes("<html")) {
+    if (rawHtml.includes("<head>")) {
+      return rawHtml.replace("<head>", `<head>
+  ${previewCsp}`);
+    }
     return rawHtml;
   }
   return `<!DOCTYPE html>
@@ -3596,6 +3609,7 @@ function buildFullSlideHtml(rawHtml) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${previewCsp}
   <title>1:1 投影片視覺還原預覽</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
