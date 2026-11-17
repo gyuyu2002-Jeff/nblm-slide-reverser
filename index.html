@@ -1157,7 +1157,7 @@
           </div>
           <div>
             <h3 class="text-sm font-semibold text-[#322E2B]">設定 API 金鑰</h3>
-            <p class="text-[11px] text-[#68615B]">僅儲存於個人瀏覽器 LocalStorage，不經過任何伺服器</p>
+            <p class="text-[11px] text-[#68615B]">金鑰暫存於目前分頁，重新整理不用重填</p>
           </div>
         </div>
         <button id="btn-close-apikey-modal" class="text-[#68615B] hover:text-white cursor-pointer transition-colors">
@@ -1206,13 +1206,9 @@
           <button id="btn-clear-key" class="text-[#968E86] hover:text-rose-400 font-medium cursor-pointer transition-colors">清除金鑰</button>
         </div>
 
-        <!-- 金鑰隱私與安全儲存模式 -->
-        <div class="pt-2 border-t border-[#322E2B]/[0.08] flex items-center justify-between text-[11px] text-[#68615B]">
-          <label class="flex items-center gap-1.5 cursor-pointer select-none hover:text-[#322E2B]">
-            <input type="checkbox" id="check-session-only" class="rounded bg-white/5 border-white/20 text-sky-500 focus:ring-0">
-            <span>隱私模式：關閉分頁後自動銷毀金鑰 (不留永久紀錄)</span>
-          </label>
-        </div>
+        <p class="pt-2 border-t border-[#322E2B]/[0.08] text-[11px] text-[#68615B]">
+          不再永久儲存金鑰。關閉分頁後通常需重填；瀏覽器還原分頁時可能保留。可按「清除金鑰」主動移除。
+        </p>
       </div>
 
       <!-- 即時金鑰連線診斷結果展示區 (預設隱藏) -->
@@ -1454,9 +1450,9 @@
       <div class="space-y-2 text-xs text-[#68615B] leading-relaxed">
         <p>為保障您的個人資料安全：</p>
         <ul class="list-disc list-inside space-y-1 text-[#68615B]">
-          <li><strong class="text-[#322E2B]">本機安全儲存</strong>：API 金鑰僅保存在您目前的瀏覽器 LocalStorage。</li>
+          <li><strong class="text-[#322E2B]">分頁暫存</strong>：API 金鑰暫存於目前分頁，重新整理不用重填；關閉分頁後通常清除，還原分頁時可能恢復。可按「清除金鑰」主動移除。</li>
           <li><strong class="text-[#322E2B]">零伺服器留存</strong>：靜態版本直連官方 API，無任何中間伺服器攔截或日誌紀錄。</li>
-          <li><strong class="text-[#322E2B]">公開安心分享</strong>：即便將網址分享給他人，他人絕無法存取您的金鑰。</li>
+          <li><strong class="text-[#322E2B]">自備金鑰</strong>：分享網站網址不會附上您輸入的金鑰，訪客需自行設定。</li>
         </ul>
       </div>
 
@@ -1528,7 +1524,7 @@
             <h4>本機金鑰儲存與隱私保證</h4>
           </div>
           <p class="text-[#68615B] pl-6 text-[11px]">
-            本工具採純前端安全通訊架構，使用者輸入之 API Key 僅儲存於使用者本機瀏覽器 LocalStorage 中，無任何中間伺服器進行側錄或保存。所有 API 請求直接由使用者瀏覽器發送至相應之模型供應商官方端點，並遵守各模型供應商之服務與隱私條款。
+            本工具將 API Key 暫存於目前分頁，重新整理不用重填。關閉分頁後通常清除，瀏覽器還原分頁時可能恢復；可按「清除金鑰」主動移除。新版載入時只清理舊版永久儲存的 API 金鑰欄位，保留其他本機資料。靜態版本的 API 請求直接由使用者瀏覽器發送至相應之模型供應商官方端點，並遵守各模型供應商之服務與隱私條款。
           </p>
         </div>
       </div>
@@ -1788,7 +1784,7 @@
     </button>
   </div>
 
-  <script src="app.js?v=6.37.0"></script>
+  <script src="app.js?v=6.37.1"></script>
   <script>
     lucide.createIcons();
   </script>

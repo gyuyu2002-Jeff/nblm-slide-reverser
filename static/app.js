@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.36.0";
+const APP_VERSION = "v6.37.1";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -424,6 +424,10 @@ const PROVIDER_CONFIG = {
 
 // DOM 初始化
 document.addEventListener("DOMContentLoaded", () => {
+  // 只移除舊版永久儲存的 API 金鑰，保留其他本機資料與本分頁金鑰。
+  Object.keys(PROVIDER_CONFIG).forEach(provider => {
+    localStorage.removeItem(`${provider}_api_key`);
+  });
   initProvider();
   initApiKeyStatus();
   setupEventListeners();
@@ -443,20 +447,14 @@ function maskApiKey(key) {
 }
 
 function getApiKey(provider = currentProvider) {
-  return sessionStorage.getItem(`${provider}_api_key`) || localStorage.getItem(`${provider}_api_key`) || "";
+  return sessionStorage.getItem(`${provider}_api_key`) || "";
 }
 
-function setApiKey(provider, key, isSessionOnly = false) {
+function setApiKey(provider, key) {
+  localStorage.removeItem(`${provider}_api_key`);
   if (key && key.trim()) {
-    if (isSessionOnly) {
-      sessionStorage.setItem(`${provider}_api_key`, key.trim());
-      localStorage.removeItem(`${provider}_api_key`);
-    } else {
-      localStorage.setItem(`${provider}_api_key`, key.trim());
-      sessionStorage.removeItem(`${provider}_api_key`);
-    }
+    sessionStorage.setItem(`${provider}_api_key`, key.trim());
   } else {
-    localStorage.removeItem(`${provider}_api_key`);
     sessionStorage.removeItem(`${provider}_api_key`);
   }
   initApiKeyStatus();
@@ -1172,8 +1170,6 @@ function setupEventListeners() {
 
   on("btn-save-key", "click", () => {
     const inputKey = document.getElementById("input-api-key");
-    const checkSession = document.getElementById("check-session-only");
-    const isSession = checkSession ? checkSession.checked : false;
     let key = inputKey ? inputKey.value.trim() : "";
     if (inputKey && inputKey.dataset.masked === "true") {
       key = getApiKey(modalSelectedProvider);
@@ -1182,10 +1178,9 @@ function setupEventListeners() {
       showToast("請輸入有效金鑰，或點擊清除", "warning");
       return;
     }
-    setApiKey(modalSelectedProvider, key, isSession);
+    setApiKey(modalSelectedProvider, key);
     if (modalApiKey) modalApiKey.classList.add("hidden");
-    const modeDesc = isSession ? "（隱私模式：關閉分頁自動銷毀）" : "（已安全保存）";
-    showToast(`${PROVIDER_CONFIG[modalSelectedProvider].name} 金鑰${modeDesc}！`, "success");
+    showToast(`${PROVIDER_CONFIG[modalSelectedProvider].name} 金鑰已暫存於本分頁，重新整理不用重填！`, "success");
     if (modalSelectedProvider !== currentProvider) {
       switchProvider(modalSelectedProvider);
     }
@@ -1715,12 +1710,6 @@ function openApiKeyModal(provider) {
   } else {
     keyInput.value = "";
     keyInput.dataset.masked = "false";
-  }
-
-  // 隱私模式勾選狀態
-  const checkSession = document.getElementById("check-session-only");
-  if (checkSession) {
-    checkSession.checked = !!sessionStorage.getItem(`${provider}_api_key`);
   }
 
   const portalLink = document.getElementById("modal-portal-link");

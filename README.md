@@ -35,7 +35,7 @@
   * **零幻覺保證**：嚴格約束 AI 不得無中生有幻覺巨型 KPI 統計大數字，實事求是還原概念架構。
 * 📋 **NotebookLM 幾何槽位合約提示詞（Slot-Contract）**：徹底剔除「你是頂級架構師」等無效套話！植入「嚴格筆記溯源 + 幾何插槽合約 + 簡報字數防爆預算（標題<14字、條列<20字）」，強制 NotebookLM 將長篇筆記 100% 精準壓縮填入原始簡報骨架中。
 * 🛡️ **資安第一 (BYOK & Zero-Storage)**：
-  * **零伺服器儲存**：使用者的 API Key 僅儲存於本地瀏覽器 LocalStorage。
+  * **分頁暫存金鑰**：API Key 暫存於目前分頁，重新整理不用重填，不再提供永久儲存選項。
   * **公開部署安心無虞**：部署在 GitHub Pages 上公開分享給朋友或大眾使用時，作者金鑰絕不外洩，訪客各自使用自己的免費 Key。
 
 ---
@@ -46,7 +46,7 @@
 flowchart TD
     subgraph 瀏覽器端純前端模式 (GitHub Pages 免伺服器)
         A1[使用者上傳 PDF / 圖片] --> B1[PDF.js 本地即時渲染縮圖]
-        B1 --> C1[自備免費 API Key (LocalStorage)]
+        B1 --> C1[自備免費 API Key (sessionStorage)]
         C1 --> D1[瀏覽器直接調用 Google Gemini API]
     end
 
@@ -108,7 +108,8 @@ python app.py
 
 ## 🛡️ 資安防護保證 (Zero-Storage / BYOK)
 
-* **BYOK 模式（自備金鑰）**：所有 API Key 僅存放於使用者瀏覽器 本地端（LocalStorage），永遠不會上傳或存檔至任何作者的伺服器。
+* **BYOK 模式（自備金鑰）**：API Key 使用分頁暫存（sessionStorage），同一分頁重新整理不用重填。關閉分頁後通常清除，瀏覽器還原分頁時可能恢復；可按「清除金鑰」主動移除。
+* **舊金鑰清理**：新版載入時只刪除舊版 LocalStorage 的 `gemini_api_key`、`openai_api_key`、`anthropic_api_key` 三個欄位，不讀取或搬移舊金鑰，並保留其他本機資料與目前分頁已暫存的金鑰。
 * **純前端靜態運作**：部署在 GitHub Pages 時，所有請求直接由使用者瀏覽器發送至 Google 官方 API，中間無任何第三方轉發伺服器。
 * **代碼 100% 開源**：所有前端與後端代碼完全開源透明，歡迎審閱。
 
