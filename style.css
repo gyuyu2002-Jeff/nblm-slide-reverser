@@ -367,3 +367,34 @@ code, pre, .font-mono {
   object-fit: contain !important;
   display: block;
 }
+
+/* ==========================================================================
+   Step 02 Contrast & Visibility Enhancement
+   ========================================================================== */
+.morandi-step-02 {
+  background: #EAF0EC !important;
+  border: 1.5px solid #8FA693 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.morandi-step-02 .morandi-swatch-chip {
+  background: #607564 !important;
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+  box-shadow: 0 2px 6px rgba(78, 97, 82, 0.25) !important;
+}
+
+.morandi-step-02 h3 {
+  color: #1F2E23 !important;
+  font-weight: 700 !important;
+}
+
+.morandi-step-02 span.font-mono {
+  color: #384F3D !important;
+  font-weight: 600 !important;
+}
+
+.morandi-step-02 p {
+  color: #4A5C4F !important;
+}

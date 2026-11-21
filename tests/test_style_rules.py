@@ -140,6 +140,54 @@ class StyleRulesTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(len(response.json()['preview_pages']), 32)
 
+    def test_pixel_evidence_distinguishes_light_and_dark_pages_in_provider_prompt(self):
+        from PIL import Image
+        uploads = []
+        for name, color in [("light.png", "white"), ("dark.png", "black")]:
+            buffer = io.BytesIO()
+            Image.new("RGB", (160, 90), color).save(buffer, format="PNG")
+            uploads.append((name, buffer.getvalue(), "image/png"))
+        response, calls = self.analyze_uploads(uploads)
+        self.assertEqual(response.status_code, 200, response.text)
+        prompt = calls[0]["messages"][1]["content"][0]["text"]
+        self.assertIn("light.png：近白像素 100.0%", prompt)
+        self.assertIn("dark.png：近白像素 0.0%；近黑像素 100.0%", prompt)
+        self.assertIn("不代表精確品牌色或物件色", prompt)
+
+    def test_provider_busy_is_reported_as_unavailable_not_bad_file(self):
+        from unittest.mock import Mock
+        fake = SimpleNamespace(models=SimpleNamespace(generate_content=Mock(side_effect=RuntimeError("503 UNAVAILABLE: high demand"))))
+        with patch.object(app.genai, "Client", return_value=fake), TestClient(app.app) as client:
+            response = client.post("/api/analyze", headers={"x-api-key": "test-placeholder"},
+                                   data={"provider": "gemini", "model": "auto"},
+                                   files=[("files", ("sample.pdf", self.pdf_bytes(1), "application/pdf"))])
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("忙碌", response.json()["detail"])
+
+    def test_project_spend_cap_is_not_retried_as_a_model_rate_limit(self):
+        from unittest.mock import Mock
+        generate = Mock(side_effect=RuntimeError("429 RESOURCE_EXHAUSTED: monthly spending cap"))
+        fake = SimpleNamespace(models=SimpleNamespace(generate_content=generate))
+        with patch.object(app.genai, "Client", return_value=fake), TestClient(app.app) as client:
+            response = client.post("/api/analyze", headers={"x-api-key": "test-placeholder"},
+                                   data={"provider": "gemini", "model": "auto"},
+                                   files=[("files", ("sample.pdf", self.pdf_bytes(1), "application/pdf"))])
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("每月支出上限", response.json()["detail"])
+        self.assertEqual(generate.call_count, 1)
+
+    def test_frontend_security_policy_and_icons_match_public_entry(self):
+        import re
+        with TestClient(app.app) as client:
+            response = client.get("/")
+            policy = re.search(r'<meta http-equiv="Content-Security-Policy" content="([^"]+)"', response.text).group(1)
+            self.assertEqual(response.headers["content-security-policy"], policy)
+            for name in ["favicon.svg", "favicon.ico", "favicon-16x16.png", "favicon-32x32.png", "apple-touch-icon.png"]:
+                with self.subTest(name=name):
+                    asset = client.get("/" + name)
+                    self.assertEqual(asset.status_code, 200)
+                    self.assertEqual(asset.content, (ROOT / name).read_bytes())
+
     def test_shared_instruction_and_public_routes(self):
         config = json.loads((ROOT / 'guardrails.json').read_text(encoding='utf-8'))
         self.assertEqual(app.get_system_instruction(), config['system_instruction'] + '\n' + '\n'.join(r['rule'] for r in config['rules']))

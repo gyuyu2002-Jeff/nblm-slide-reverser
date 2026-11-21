@@ -30,12 +30,13 @@
 * 📤 **全格式支援**：支援上傳多頁簡報 PDF，或多張投影片截圖（PNG / JPG / WEBP）。
 * 📑 **投影片頁面即時預覽**：上傳 PDF 或圖片後自動生成高畫質縮圖供翻頁比對。
 * 🔍 **設計師維度深度逆向**：
-  * **色彩系統 (Palette)**：精準推導 Hex 色碼（畫布底色、主文字色、核心強調色、邊框分割色），點擊色票即可一鍵複製色碼！
+  * **色彩系統 (Palette)**：依來源頁區分背景、文字與強調色；影像取色標示為近似估計，點擊色票即可一鍵複製色碼！
   * **版面與格線 (Layout & Grid)**：解析留白比例、卡片邊界、水平對齊與幾何圖解形態。
-  * **零幻覺保證**：嚴格約束 AI 不得無中生有幻覺巨型 KPI 統計大數字，實事求是還原概念架構。
-* 📋 **NotebookLM 幾何槽位合約提示詞（Slot-Contract）**：徹底剔除「你是頂級架構師」等無效套話！植入「嚴格筆記溯源 + 幾何插槽合約 + 簡報字數防爆預算（標題<14字、條列<20字）」，強制 NotebookLM 將長篇筆記 100% 精準壓縮填入原始簡報骨架中。
+  * **原稿證據優先**：逐頁盤點背景、字色與圖像材質，再建立有來源頁碼的風格規則；支援混合或未分類風格，避免把封面效果套到所有內頁。
+* 📋 **NotebookLM 風格與逐頁提示詞**：提供可獨立貼用的兩種模式，保留各頁型適用範圍與來源證據；依內容調整容量，允許相近頁型重複，不強制全篇固定字數或留白率。
+* 📑 **代表頁選取**：PDF / PPTX 單檔預覽上限 150 頁，單次分析最多 30 頁；超過時均勻取樣並保留首尾頁，多檔共用分析額度。
 * 🛡️ **資安第一 (BYOK & Zero-Storage)**：
-  * **零伺服器儲存**：使用者的 API Key 僅儲存於本地瀏覽器 LocalStorage。
+  * **分頁暫存金鑰**：API Key 暫存於目前分頁，重新整理不用重填，不再提供永久儲存選項。
   * **公開部署安心無虞**：部署在 GitHub Pages 上公開分享給朋友或大眾使用時，作者金鑰絕不外洩，訪客各自使用自己的免費 Key。
 
 ---
@@ -46,7 +47,7 @@
 flowchart TD
     subgraph 瀏覽器端純前端模式 (GitHub Pages 免伺服器)
         A1[使用者上傳 PDF / 圖片] --> B1[PDF.js 本地即時渲染縮圖]
-        B1 --> C1[自備免費 API Key (LocalStorage)]
+        B1 --> C1[自備免費 API Key (sessionStorage)]
         C1 --> D1[瀏覽器直接調用 Google Gemini API]
     end
 
@@ -56,11 +57,11 @@ flowchart TD
         C2 --> D2[Gemini / OpenAI / Claude API]
     end
 
-    D1 --> E[🎨 1:1 幾何骨架解析報告]
+    D1 --> E[🎨 來源視覺結構與證據報告]
     D2 --> E
     E --> F[📋 NotebookLM 專用結構提示詞]
-    E --> G[🎨 4 色精準色票]
-    E --> H[💻 1:1 HTML 結構碼]
+    E --> G[🎨 依頁型區分的近似色票]
+    E --> H[💻 HTML 視覺重建草稿]
 ```
 
 ---
@@ -72,7 +73,7 @@ flowchart TD
 👉 **[https://gyuyu2002-jeff.github.io/nblm-slide-reverser/](https://gyuyu2002-jeff.github.io/nblm-slide-reverser/)**
 1. 點擊右上角「免費 AI 帳號申請」取得免費 Google Gemini Key。
 2. 拖入您的簡報 PDF 或投影片截圖。
-3. 點擊「開始逆向分析」，3 秒即可獲得 NotebookLM 專屬結構提示詞！
+3. 點擊「開始逆向分析」，等待模型完成後取得 NotebookLM 專屬提示詞！
 
 ---
 
@@ -101,14 +102,15 @@ python app.py
 1. **前往 Google AI Studio**：👉 [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
 2. **登入 Google 帳號**。
 3. 點擊 **「Create API key」** ➔ 選擇 **「Create API key in new project」**。
-4. 複製生成的金鑰（`AIzaSy...` 開頭）。
+4. 複製 Google AI Studio 產生的完整金鑰；不要僅依字首判斷供應商。
 5. 回到本網站，點擊右上角 **「設定 AI 帳號」** 貼上並儲存，即可開始使用！
 
 ---
 
 ## 🛡️ 資安防護保證 (Zero-Storage / BYOK)
 
-* **BYOK 模式（自備金鑰）**：所有 API Key 僅存放於使用者瀏覽器 本地端（LocalStorage），永遠不會上傳或存檔至任何作者的伺服器。
+* **BYOK 模式（自備金鑰）**：API Key 使用分頁暫存（sessionStorage），同一分頁重新整理不用重填。關閉分頁後通常清除，瀏覽器還原分頁時可能恢復；可按「清除金鑰」主動移除。
+* **舊金鑰清理**：新版載入時只刪除舊版 LocalStorage 的 `gemini_api_key`、`openai_api_key`、`anthropic_api_key` 三個欄位，不讀取或搬移舊金鑰，並保留其他本機資料與目前分頁已暫存的金鑰。
 * **純前端靜態運作**：部署在 GitHub Pages 時，所有請求直接由使用者瀏覽器發送至 Google 官方 API，中間無任何第三方轉發伺服器。
 * **代碼 100% 開源**：所有前端與後端代碼完全開源透明，歡迎審閱。
 

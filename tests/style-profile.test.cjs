@@ -66,6 +66,19 @@ test('saved profile survives mode switching without selecting hardcoded fallback
   assert.match(vm.runInContext('generatedPromptCustom', ctx), /#5649EC/);
 });
 
+test('saved slides retain source page labels and discard unrelated uploaded files', () => {
+  const ctx = context();
+  vm.runInContext(`
+    renderThumbnails = () => {};
+    selectedFiles = [{ name: 'previous.pdf' }];
+    savedStylesCache = [{ id: 'saved', title: 'saved', tags: [], palette: [],
+      slides: [{ page: 3, image: '' }, { page: 31, image: '' }] }];
+    loadSavedStyleIntoWorkspace('saved');
+  `, ctx);
+  assert.equal(vm.runInContext('selectedFiles.length', ctx), 0);
+  assert.deepEqual(Array.from(vm.runInContext('getActiveComparisonSlides().map(p => p.originalPage)', ctx)), [3, 31]);
+});
+
 test('representative selection includes the final page, keeps order and does not duplicate pages', () => {
   const ctx = context();
   for (const length of [1, 8, 30, 31, 150]) {
@@ -193,7 +206,7 @@ test('automatic sampling switches visible controls from all pages to the actual 
     _systemInstruction = 'test'; startProgressPipeline = () => {};
     completeProgressPipeline = () => {}; stopProgressPipeline = () => {};
     renderThumbnails = () => {}; renderAnalysisResult = () => {};
-    extractDominantColorsFromImage = async () => []; callOpenAiDirectly = capturePages;
+    extractImageEvidence = async () => ({ colors: [], lightRatio: null, darkRatio: null }); callOpenAiDirectly = capturePages;
   `, ctx);
   assert.equal(ctx.document.getElementById('custom-pages-controls').classList.contains('hidden'), true);
   await vm.runInContext('handleStartAnalyze()', ctx);
@@ -202,4 +215,106 @@ test('automatic sampling switches visible controls from all pages to the actual 
   assert.doesNotMatch(ctx.document.getElementById('btn-mode-all-pages').className, /active/);
   assert.equal(received.length, 30);
   assert.equal(received.at(-1).page, 40);
+});
+
+test('backend rejections are shown once without duplicate browser provider requests', async () => {
+  for (const status of [400, 401, 429, 503]) {
+    const ctx = context();
+    const messages = [];
+    let directCalls = 0;
+    ctx.window.location = { hostname: 'localhost', protocol: 'http:' };
+    ctx.setTimeout = callback => callback();
+    ctx.console.error = () => {};
+    ctx.FormData = class { append() {} };
+    ctx.fetch = async () => ({ ok: false, status, json: async () => ({ detail: 'provider currently busy' }) });
+    ctx.captureToast = message => messages.push(message);
+    ctx.directCall = async () => { directCalls++; return {}; };
+    vm.runInContext(`
+      uploadedSlidePages = [{ page: 1, image: 'data:image/png;base64,AA==' }];
+      selectedFiles = [{ name: 'uploaded.png' }];
+      currentProvider = 'openai'; getApiKey = () => 'test-placeholder';
+      _systemInstruction = 'test'; startProgressPipeline = () => {};
+      completeProgressPipeline = () => {}; stopProgressPipeline = () => {};
+      renderAnalysisResult = () => {}; showToast = captureToast;
+      extractImageEvidence = async () => ({ colors: [], lightRatio: null, darkRatio: null }); callOpenAiDirectly = directCall;
+    `, ctx);
+    await vm.runInContext('handleStartAnalyze()', ctx);
+    assert.equal(directCalls, 0, `HTTP ${status} must not call provider again`);
+    assert.ok(messages.includes('provider currently busy'));
+  }
+});
+
+test('valid model hex values normalize with a hash while CSS injection stays rejected', () => {
+  const ctx = context();
+  ctx.palette = [{ hex: '4c5bf8', role: 'accent' }, { hex: '#ffffff' }, { hex: 'fff' }, { hex: '123456; color:red' }];
+  const result = vm.runInContext('safeSavedPalette(palette)', ctx);
+  assert.equal(result.length, 2);
+  assert.equal(result[0].hex, '#4C5BF8');
+  assert.equal(result[1].hex, '#FFFFFF');
+});
+
+test('legacy static entry ships the same public assets and rules as the root entry', () => {
+  for (const name of ['app.js', 'index.html', 'style.css', 'guardrails.json', 'favicon.svg', 'favicon.ico', 'favicon-16x16.png', 'favicon-32x32.png', 'apple-touch-icon.png']) {
+    assert.deepEqual(fs.readFileSync(path.join(root, 'static', name)), fs.readFileSync(path.join(root, name)), name);
+  }
+});
+
+test('browser pixel evidence measures bright and dark images before prompt generation', async () => {
+  for (const [channel, expectedLight, expectedDark] of [[255, 1, 0], [0, 0, 1]]) {
+    const ctx = context();
+    ctx.Image = class { set src(_value) { this.onload(); } };
+    ctx.document.createElement = () => ({ getContext: () => ({ drawImage() {}, getImageData: () => ({ data: new Uint8ClampedArray([channel, channel, channel, 255]) }) }) });
+    const evidence = await vm.runInContext('extractImageEvidence("data:image/png;base64,test", 5)', ctx);
+    assert.equal(evidence.lightRatio, expectedLight);
+    assert.equal(evidence.darkRatio, expectedDark);
+    assert.equal(evidence.colors.length, 1);
+  }
+});
+
+test('missing local API and network failures retain browser-only analysis', async () => {
+  for (const status of [null, 404, 405, 501]) {
+    const ctx = context();
+    let directCalls = 0;
+    ctx.window.location = { hostname: 'localhost', protocol: 'http:' };
+    ctx.setTimeout = callback => callback();
+    ctx.console.error = error => { throw error; };
+    ctx.FormData = class { append() {} };
+    ctx.fetch = async () => { if (status === null) throw new TypeError('Failed to fetch'); return { ok: false, status }; };
+    ctx.directCall = async () => { directCalls++; return {}; };
+    vm.runInContext(`
+      uploadedSlidePages = [{ page: 1, image: 'data:image/png;base64,AA==' }];
+      selectedFiles = [{ name: 'uploaded.png' }];
+      currentProvider = 'openai'; getApiKey = () => 'test-placeholder';
+      _systemInstruction = 'test'; startProgressPipeline = () => {};
+      completeProgressPipeline = () => {}; stopProgressPipeline = () => {};
+      renderAnalysisResult = () => {}; extractImageEvidence = async () => ({ colors: [], lightRatio: null, darkRatio: null });
+      callOpenAiDirectly = directCall;
+    `, ctx);
+    await vm.runInContext('handleStartAnalyze()', ctx);
+    assert.equal(directCalls, 1, `unavailable local API ${status} should fall back`);
+  }
+});
+
+test('saved images without original files use direct analysis instead of an empty backend request', async () => {
+  const ctx = context();
+  let backendCalls = 0;
+  let directCalls = 0;
+  ctx.window.location = { hostname: 'localhost', protocol: 'http:' };
+  ctx.setTimeout = callback => callback();
+  ctx.console.error = error => { throw error; };
+  ctx.fetch = async () => { backendCalls++; return { ok: false, status: 400, json: async () => ({ detail: 'no files' }) }; };
+  ctx.FormData = class { append() {} };
+  ctx.directCall = async () => { directCalls++; return {}; };
+  vm.runInContext(`
+    uploadedSlidePages = [{ page: 31, image: 'data:image/png;base64,AA==' }];
+    selectedFiles = [];
+    currentProvider = 'openai'; getApiKey = () => 'test-placeholder';
+    _systemInstruction = 'test'; startProgressPipeline = () => {};
+    completeProgressPipeline = () => {}; stopProgressPipeline = () => {};
+    renderAnalysisResult = () => {}; extractImageEvidence = async () => ({ colors: [], lightRatio: null, darkRatio: null });
+    callOpenAiDirectly = directCall;
+  `, ctx);
+  await vm.runInContext('handleStartAnalyze()', ctx);
+  assert.equal(backendCalls, 0);
+  assert.equal(directCalls, 1);
 });

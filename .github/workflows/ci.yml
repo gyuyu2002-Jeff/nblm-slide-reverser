@@ -11,6 +11,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
+    - name: Check frontend syntax and API key storage
+      run: |
+        node --check app.js
+        node --check static/app.js
+        node --test tests/api-key-storage.test.cjs
     
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -26,10 +37,6 @@ jobs:
     - name: Test Python imports and app load
       run: |
         python -c "import app; print('App successfully loaded!')"
-
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '22'
 
     - name: Test source style rules and storyboard regressions
       run: |

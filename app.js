@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.37.0";
+const APP_VERSION = "v6.38.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -406,6 +406,10 @@ const PROVIDER_CONFIG = {
 
 // DOM 初始化
 document.addEventListener("DOMContentLoaded", () => {
+  // 只移除舊版永久儲存的 API 金鑰，保留其他本機資料與本分頁金鑰。
+  Object.keys(PROVIDER_CONFIG).forEach(provider => {
+    localStorage.removeItem(`${provider}_api_key`);
+  });
   initProvider();
   initApiKeyStatus();
   setupEventListeners();
@@ -425,20 +429,14 @@ function maskApiKey(key) {
 }
 
 function getApiKey(provider = currentProvider) {
-  return sessionStorage.getItem(`${provider}_api_key`) || localStorage.getItem(`${provider}_api_key`) || "";
+  return sessionStorage.getItem(`${provider}_api_key`) || "";
 }
 
-function setApiKey(provider, key, isSessionOnly = false) {
+function setApiKey(provider, key) {
+  localStorage.removeItem(`${provider}_api_key`);
   if (key && key.trim()) {
-    if (isSessionOnly) {
-      sessionStorage.setItem(`${provider}_api_key`, key.trim());
-      localStorage.removeItem(`${provider}_api_key`);
-    } else {
-      localStorage.setItem(`${provider}_api_key`, key.trim());
-      sessionStorage.removeItem(`${provider}_api_key`);
-    }
+    sessionStorage.setItem(`${provider}_api_key`, key.trim());
   } else {
-    localStorage.removeItem(`${provider}_api_key`);
     sessionStorage.removeItem(`${provider}_api_key`);
   }
   initApiKeyStatus();
@@ -1154,8 +1152,6 @@ function setupEventListeners() {
 
   on("btn-save-key", "click", () => {
     const inputKey = document.getElementById("input-api-key");
-    const checkSession = document.getElementById("check-session-only");
-    const isSession = checkSession ? checkSession.checked : false;
     let key = inputKey ? inputKey.value.trim() : "";
     if (inputKey && inputKey.dataset.masked === "true") {
       key = getApiKey(modalSelectedProvider);
@@ -1164,10 +1160,9 @@ function setupEventListeners() {
       showToast("請輸入有效金鑰，或點擊清除", "warning");
       return;
     }
-    setApiKey(modalSelectedProvider, key, isSession);
+    setApiKey(modalSelectedProvider, key);
     if (modalApiKey) modalApiKey.classList.add("hidden");
-    const modeDesc = isSession ? "（隱私模式：關閉分頁自動銷毀）" : "（已安全保存）";
-    showToast(`${PROVIDER_CONFIG[modalSelectedProvider].name} 金鑰${modeDesc}！`, "success");
+    showToast(`${PROVIDER_CONFIG[modalSelectedProvider].name} 金鑰已暫存於本分頁，重新整理不用重填！`, "success");
     if (modalSelectedProvider !== currentProvider) {
       switchProvider(modalSelectedProvider);
     }
@@ -1702,14 +1697,6 @@ function openApiKeyModal(provider) {
     keyInput.dataset.masked = "false";
   }
 
-  // 隱私模式勾選狀態 (若未儲存過任何模式，預設優先勾選隱私模式以保障安全)
-  const checkSession = document.getElementById("check-session-only");
-  if (checkSession) {
-    const hasLocal = !!localStorage.getItem(`${provider}_api_key`);
-    const hasSession = !!sessionStorage.getItem(`${provider}_api_key`);
-    checkSession.checked = hasSession || !hasLocal;
-  }
-
   const portalLink = document.getElementById("modal-portal-link");
   portalLink.href = config.portalUrl;
   document.getElementById("modal-portal-text").textContent = config.portalText;
@@ -1735,9 +1722,9 @@ function getOptimalViewport(page) {
 }
 
 // === 瀏覽器端縮圖近似取色（供模型判斷顏色用途） ===
-function extractDominantColorsFromImage(dataUri, maxSamples = 6) {
+function extractImageEvidence(dataUri, maxSamples = 6) {
   return new Promise((resolve) => {
-    if (!dataUri || !dataUri.startsWith("data:")) return resolve([]);
+    if (!dataUri || !dataUri.startsWith("data:")) return resolve({ colors: [], lightRatio: null, darkRatio: null });
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
@@ -1753,12 +1740,16 @@ function extractDominantColorsFromImage(dataUri, maxSamples = 6) {
 
         const colorBuckets = new Map();
         const step = 4;
+        let totalPixels = 0, lightPixels = 0, darkPixels = 0;
         for (let i = 0; i < imgData.length; i += 4 * step) {
           const a = imgData[i + 3];
           if (a < 128) continue;
           const r = imgData[i];
           const g = imgData[i + 1];
           const b = imgData[i + 2];
+          totalPixels++;
+          if (Math.min(r, g, b) >= 230) lightPixels++;
+          if (Math.max(r, g, b) <= 60) darkPixels++;
 
           const qr = Math.round(r / 12) * 12;
           const qg = Math.round(g / 12) * 12;
@@ -1768,7 +1759,7 @@ function extractDominantColorsFromImage(dataUri, maxSamples = 6) {
         }
 
         const sorted = Array.from(colorBuckets.entries()).sort((a, b) => b[1] - a[1]);
-        if (sorted.length === 0) return resolve([]);
+        if (sorted.length === 0) return resolve({ colors: [], lightRatio: null, darkRatio: null });
 
         function rgbToHex(r, g, b) {
           return "#" + [r, g, b].map(x => {
@@ -1792,13 +1783,13 @@ function extractDominantColorsFromImage(dataUri, maxSamples = 6) {
             if (results.length >= maxSamples) break;
           }
         }
-        resolve(results.map(c => c.hex));
+        resolve({ colors: results.map(c => c.hex), lightRatio: lightPixels / totalPixels, darkRatio: darkPixels / totalPixels });
       } catch (err) {
         console.warn("色彩萃取略過:", err);
-        resolve([]);
+        resolve({ colors: [], lightRatio: null, darkRatio: null });
       }
     };
-    img.onerror = () => resolve([]);
+    img.onerror = () => resolve({ colors: [], lightRatio: null, darkRatio: null });
     img.src = dataUri;
   });
 }
@@ -3073,7 +3064,8 @@ async function handleStartAnalyze() {
       throw new Error("無法載入風格規則，請檢查連線並重試。");
     }
     // 1. 若非純靜態 GitHub Pages 且處於本地 localhost，先嘗試呼叫 Python 後端
-    if (!isGitHubPages && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    if (selectedFiles.length > 0 && !isGitHubPages && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      let response = null;
       try {
         const formData = new FormData();
         selectedFiles.forEach(file => formData.append("files", file));
@@ -3083,17 +3075,20 @@ async function handleStartAnalyze() {
           formData.append("selected_pages", selectedPagesParam);
         }
 
-        const response = await fetch("/api/analyze", {
+        response = await fetch("/api/analyze", {
           method: "POST",
           headers: { "x-api-key": apiKey },
           body: formData
         });
 
-        if (response.ok) {
-          data = await response.json();
-        }
       } catch (err) {
         console.warn("本地後端無法連線，切換為瀏覽器前端直連模式:", err);
+      }
+      if (response && response.ok) {
+        data = await response.json();
+      } else if (response && ![404, 405, 501].includes(response.status)) {
+        const failure = await response.json().catch(() => ({}));
+        throw new Error(failure.detail || "本地分析服務暫時無法完成請求，請稍後再試。");
       }
     }
 
@@ -3106,12 +3101,12 @@ async function handleStartAnalyze() {
       // 所選各頁各自取色，不讓封面或照片吞掉後段頁面的品牌色。
       const colorBatches = await Promise.all(targetSlidePages.map(async page => ({
         page: page.name || `P.${page.page}`,
-        colors: await extractDominantColorsFromImage(page.image, 5)
+        ...await extractImageEvidence(page.image, 5)
       })));
       const opticalColorPrompt = colorBatches.filter(batch => batch.colors.length)
-        .map(batch => `${batch.page}：${batch.colors.join(", ")}`).join("\n");
+        .map(batch => `${batch.page}：近白像素 ${(batch.lightRatio * 100).toFixed(1)}%；近黑像素 ${(batch.darkRatio * 100).toFixed(1)}%；量化候選 ${batch.colors.join(", ")}`).join("\n");
       const promptText = "請依系統規則分析所附來源頁，先記錄原稿特徵與證據，再產生兩種完整提示詞及 design_profile。\n" +
-        "以下色票來自縮圖像素量化，僅為近似候選，並非精確物件色碼；請辨別背景、照片與品牌色，不可直接將高頻色視為強調色。\n" + opticalColorPrompt;
+        "以下證據來自縮圖像素取樣，色碼僅為近似候選，並非精確物件色碼；請交叉核對各頁背景、照片與品牌色。近白區域占多數時，不可未經說明就寫成滿版深色；深色頁腳細帶不代表整頁背景。\n" + opticalColorPrompt;
 
       if (currentProvider === "gemini") {
         data = await callGeminiDirectly(apiKey, model, targetSlidePages, promptText);
@@ -3218,7 +3213,7 @@ function renderAnalysisResult(data, options = {}) {
   document.getElementById("white-space-metric").textContent = `留白比例: ${meta.white_space_ratio || "未量測"}`;
   const evidence = document.getElementById("design-profile-evidence");
   if (evidence) evidence.textContent = formatDesignRules() || "此紀錄沒有逐項來源規格；可重新分析原稿取得。";
-  const finalPalette = Array.isArray(meta.palette) ? meta.palette.filter(c => c && /^#[0-9a-f]{6}$/i.test(c.hex)) : [];
+  const finalPalette = safeSavedPalette(meta.palette);
   renderColorPalette(finalPalette);
 
   const markdownContainer = document.getElementById("full-report-markdown");
@@ -3248,7 +3243,7 @@ function getActiveComparisonSlides() {
         list.push({
           ...slide,
           originalIndex: idx,
-          originalPage: pageNum
+          originalPage: Number.isInteger(slide.page) && slide.page > 0 ? slide.page : pageNum
         });
       }
     });
@@ -3259,7 +3254,7 @@ function getActiveComparisonSlides() {
   return uploadedSlidePages.map((slide, idx) => ({
     ...slide,
     originalIndex: idx,
-    originalPage: idx + 1
+    originalPage: Number.isInteger(slide.page) && slide.page > 0 ? slide.page : idx + 1
   }));
 }
 
@@ -4202,7 +4197,8 @@ function updateSaveToolbarButtonState() {
 }
 
 function safeSavedPalette(palette) {
-  return Array.isArray(palette) ? palette.filter(c => c && typeof c.hex === "string" && /^#[0-9a-f]{6}$/i.test(c.hex)) : [];
+  return Array.isArray(palette) ? palette.filter(c => c && typeof c.hex === "string" && /^#?[0-9a-f]{6}$/i.test(c.hex))
+    .map(c => ({ ...c, hex: "#" + c.hex.replace(/^#/, "").toUpperCase() })) : [];
 }
 function safeSavedImage(value) {
   return typeof value === "string" && /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[a-z0-9+/]+={0,2}$/i.test(value) ? value : "";
@@ -4416,6 +4412,7 @@ function loadSavedStyleIntoWorkspace(styleId) {
 
   // 還原原始投影片縮圖至工作台，讓右側 16:9 Stage 與翻頁器完整顯示原始圖片樣式
   if (item.slides && item.slides.length > 0) {
+    selectedFiles = [];
     uploadedSlidePages = item.slides.map((s, idx) => ({
       page: s.page || (idx + 1),
       image: s.image,

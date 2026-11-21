@@ -122,13 +122,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         
-        csp = (
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: "
-            "https://fonts.googleapis.com https://fonts.gstatic.com "
-            "https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
-            "img-src 'self' data: blob: https:; "
-            "connect-src 'self' https: http:;"
-        )
+        csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: http:; connect-src 'self' https://generativelanguage.googleapis.com https://api.openai.com https://corsproxy.io https://api.allorigins.win https://image.thum.io; worker-src 'self' blob: https://cdnjs.cloudflare.com; frame-src 'self' blob:; base-uri 'self';"
         response.headers["Content-Security-Policy"] = csp
         return response
 
@@ -240,6 +234,21 @@ async def file_preview(request: Request, file: UploadFile = File(...)):
     except Exception as e:
         logger.exception("檔案預覽生成失敗")
         raise HTTPException(status_code=500, detail="檔案預覽處理失敗，請確認檔案格式是否正確或未損毀。")
+
+
+def describe_image_pixels(content: bytes) -> str:
+    """提供逐頁影像取樣證據；不將高頻色宣稱為品牌或畫布物件色。"""
+    with Image.open(io.BytesIO(content)) as source:
+        image = source.convert("RGB")
+        image.thumbnail((96, 96))
+        colors = image.getcolors(maxcolors=96 * 96)
+        total = image.width * image.height
+        light = sum(count for count, color in colors if min(color) >= 230) / total
+        dark = sum(count for count, color in colors if max(color) <= 60) / total
+        palette = image.quantize(colors=5).convert("RGB").getcolors(maxcolors=96 * 96)
+        ranked = sorted(palette, reverse=True)[:5]
+        candidates = ", ".join("#%02X%02X%02X 約 %.0f%%" % (*color, count * 100 / total) for count, color in ranked)
+        return f"近白像素 {light:.1%}；近黑像素 {dark:.1%}；量化候選：{candidates}"
 
 
 def parse_selected_pages_str(pages_str: Optional[str]) -> Optional[set]:
@@ -471,6 +480,10 @@ async def analyze_style(
             selected_list_str = ", ".join(f"P.{p}" for p in sorted(list(target_pages_set)))
             user_prompt_text += f"\n\n【本次實際解析範圍】：依上傳來源合併順序選取投影片（{selected_list_str}）進行風格逆向，請聚焦剖析這些頁面的真實幾何骨架與設計規範。"
 
+        pixel_evidence = [f"{label}：{describe_image_pixels(content)}" for content, _, label in standard_images]
+        user_prompt_text += "\n\n【各來源頁的影像像素取樣證據】\n" + "\n".join(pixel_evidence)
+        user_prompt_text += "\n這些比例與色碼是低解析度取樣，不代表精確品牌色或物件色。請與每頁影像交叉核對，勿把深色頁腳細帶當成整頁背景；若近白區域佔大多數，不能未經說明就寫成滿版深色。照片中的明暗也須與畫布分開判讀。"
+
         if pptx_summaries:
             user_prompt_text += "\n\n【從 PPTX 程式碼提取之精確設計元數據】：\n" + "\n\n".join(pptx_summaries)
 
@@ -512,6 +525,8 @@ async def analyze_style(
                 except Exception as g_err:
                     err_str = str(g_err)
                     err_lower = err_str.lower()
+                    if "spending cap" in err_lower or "spend cap" in err_lower or "ai.studio/spend" in err_lower:
+                        raise HTTPException(status_code=429, detail="您的 Google Gemini 專案已達每月支出上限；稍候重試無法解除。請檢查該專案用量，或使用另一個有可用額度的 API Key。") from g_err
                     if "not found" in err_lower or "404" in err_str or "not supported" in err_lower or "high demand" in err_lower or "quota" in err_lower or "exhausted" in err_lower:
                         logger.warning(f"模型 {candidate} 遇到流量尖峰或暫不可用 ({err_str})，正在自動切換至下一個備援模型...")
                         last_err = g_err
@@ -617,6 +632,8 @@ async def analyze_style(
                 status_code=401,
                 detail=f"您的 {provider_name} API Key 無效或尚未啟用。請檢查右上角輸入的金鑰是否正確。"
             )
+        elif "503" in error_msg or "high demand" in error_msg.lower():
+            raise HTTPException(status_code=503, detail=f"{provider_name} 服務目前忙碌，暫時無法完成分析。請稍後再試，或選擇其他可用模型。")
         elif "quota" in error_msg.lower() or "429" in error_msg:
             raise HTTPException(
                 status_code=429,
@@ -643,6 +660,14 @@ def frontend_styles():
 @app.get("/guardrails.json", include_in_schema=False)
 def frontend_rules():
     return FileResponse(os.path.join(os.path.dirname(__file__), "guardrails.json"))
+
+@app.get("/favicon.svg", include_in_schema=False)
+@app.get("/favicon.ico", include_in_schema=False)
+@app.get("/favicon-16x16.png", include_in_schema=False)
+@app.get("/favicon-32x32.png", include_in_schema=False)
+@app.get("/apple-touch-icon.png", include_in_schema=False)
+def frontend_icon(request: Request):
+    return FileResponse(os.path.join(os.path.dirname(__file__), request.url.path.lstrip("/")))
 
 # 掛載前端靜態檔案（使用絕對路徑確保無論從哪裡執行皆正確）
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")

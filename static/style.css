@@ -1,19 +1,224 @@
-/* 簡報風格逆向解析 - 精密石墨冷黑風格 (Precision Graphite System) */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* 莫蘭迪設計工作坊系統 (Morandi Slide Atelier — Rose Clay, Sage Green & Warm Oatmeal) */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* 燕麥米基底 (Oatmeal & Warm Linen) */
+  --bg-oatmeal: #F3EFEA;
+  --bg-linen: #EAE3DC;
+  --surface-cream: #FAF8F5;
+  --surface-white: #FFFFFF;
+
+  /* 莫蘭迪主色票：灰粉 (Rose Clay) + 鼠尾草綠 (Sage) + 燕麥暖駝 (Oat Taupe) */
+  --rose-clay: #C8A7A3;
+  --rose-deep: #8F6561;
+  --rose-tint: #F4EAE8;
+  --rose-border: #DFC9C6;
+
+  --sage-main: #768A7A;
+  --sage-deep: #4E6152;
+  --sage-tint: #E9EFEA;
+  --sage-border: #C4D1C6;
+
+  --oat-taupe: #B5A392;
+  --oat-deep: #6E5E4F;
+  --oat-tint: #F1ECE6;
+  --oat-border: #D9CEC2;
+
+  /* 書寫墨色 (Warm Charcoal Ink) */
+  --ink-primary: #322E2B;
+  --ink-secondary: #68615B;
+  --ink-muted: #968E86;
+  --border-hairline: rgba(50, 46, 43, 0.09);
+}
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  letter-spacing: -0.011em;
+  font-family: 'Plus Jakarta Sans', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.01em;
+  background-color: var(--bg-oatmeal);
+  color: var(--ink-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-serif-tc {
+  font-family: 'Noto Serif TC', 'Cormorant Garamond', Georgia, serif;
 }
 
 code, pre, .font-mono {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
 }
 
-/* 精密微滾動條 */
+/* 燕麥亞麻畫布底紋與柔霧光暈 (Morandi Oatmeal Atelier Ground) */
+.studio-canvas-bg {
+  background-color: var(--bg-oatmeal);
+  background-image:
+    radial-gradient(circle at 10% 8%, rgba(200, 167, 163, 0.18) 0%, transparent 45%),
+    radial-gradient(circle at 90% 14%, rgba(118, 138, 122, 0.15) 0%, transparent 48%),
+    radial-gradient(circle, rgba(50, 46, 43, 0.035) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 24px 24px;
+  background-position: 0 0, 0 0, 0 0;
+  background-attachment: fixed;
+}
+
+/* 工作檯沙龍卡片：粉霧暖白與溫潤微陰影 (Atelier Cream Card) */
+.studio-panel,
+.card-soft-shadow {
+  background: var(--surface-cream);
+  border: 1px solid rgba(50, 46, 43, 0.09);
+  box-shadow:
+    0 12px 32px -8px rgba(104, 97, 91, 0.08),
+    0 2px 6px rgba(50, 46, 43, 0.03),
+    inset 0 1px 0 #FFFFFF;
+  border-radius: 20px;
+}
+
+/* 莫蘭迪三色票頂部流程卡 (Morandi Tri-Color Swatch Strip) */
+.morandi-step-card {
+  border-radius: 16px;
+  padding: 15px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid transparent;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+.morandi-step-card:hover {
+  transform: translateY(-2px);
+}
+
+.morandi-step-01 {
+  background: var(--rose-tint);
+  border-color: var(--rose-border);
+  box-shadow: 0 6px 18px -6px rgba(200, 167, 163, 0.22);
+}
+
+.morandi-step-02 {
+  background: var(--sage-tint);
+  border-color: var(--sage-border);
+  box-shadow: 0 6px 18px -6px rgba(118, 138, 122, 0.2);
+}
+
+.morandi-step-03 {
+  background: var(--oat-tint);
+  border-color: var(--oat-border);
+  box-shadow: 0 6px 18px -6px rgba(181, 163, 146, 0.22);
+}
+
+.morandi-swatch-chip {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(50, 46, 43, 0.08);
+}
+
+.morandi-step-01 .morandi-swatch-chip {
+  background: var(--rose-clay);
+  color: #382826;
+}
+
+.morandi-step-02 .morandi-swatch-chip {
+  background: var(--sage-main);
+  color: #FFFFFF;
+}
+
+.morandi-step-03 .morandi-swatch-chip {
+  background: var(--oat-taupe);
+  color: #362E26;
+}
+
+/* 乾燥灰粉虛線投放畫布 (Morandi Rose Clay Dropzone) */
+.studio-dropzone {
+  position: relative;
+  background: linear-gradient(180deg, rgba(244, 234, 232, 0.6) 0%, rgba(250, 248, 245, 0.95) 100%);
+  border: 1.5px dashed var(--rose-clay);
+  border-radius: 16px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.studio-dropzone:hover {
+  background: linear-gradient(180deg, rgba(244, 234, 232, 0.9) 0%, #FFFFFF 100%);
+  border-color: var(--rose-deep);
+  box-shadow: 0 8px 22px -6px rgba(200, 167, 163, 0.28);
+}
+
+/* 四角精密切割定位標記 (Rose Clay Crosshairs) */
+.crop-mark {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  pointer-events: none;
+  border-color: rgba(143, 101, 97, 0.45);
+}
+.crop-tl { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; border-top-left-radius: 3px; }
+.crop-tr { top: -1px; right: -1px; border-top: 2px solid; border-right: 2px solid; border-top-right-radius: 3px; }
+.crop-bl { bottom: -1px; left: -1px; border-bottom: 2px solid; border-left: 2px solid; border-bottom-left-radius: 3px; }
+.crop-br { bottom: -1px; right: -1px; border-bottom: 2px solid; border-right: 2px solid; border-bottom-right-radius: 3px; }
+
+/* 投影片展台視窗 (Presentation Stage Frame) */
+.studio-stage-frame {
+  position: relative;
+  background: #F5F0EA;
+  border: 1px solid var(--oat-border);
+  border-radius: 14px;
+  box-shadow:
+    0 14px 32px -8px rgba(104, 97, 91, 0.14),
+    inset 0 1px 0 #FFFFFF;
+}
+
+/* Pantone 色票色卡 (Morandi Pantone Swatch Card) */
+.studio-swatch-card {
+  background: var(--surface-white);
+  border: 1px solid rgba(50, 46, 43, 0.09);
+  border-radius: 12px;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(50, 46, 43, 0.04);
+}
+
+.studio-swatch-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--rose-clay);
+  box-shadow: 0 8px 20px -4px rgba(104, 97, 91, 0.12);
+}
+
+/* 分段控制器 (Morandi Linen Segmented Control) */
+.studio-segmented-track {
+  background: var(--bg-linen);
+  border: 1px solid rgba(50, 46, 43, 0.07);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.studio-segmented-btn.active {
+  background: var(--surface-white);
+  color: var(--ink-primary);
+  border: 1px solid rgba(50, 46, 43, 0.09);
+  box-shadow: 0 2px 6px rgba(50, 46, 43, 0.06);
+}
+
+/* 莫蘭迪鼠尾草綠主行動按鈕 */
+.btn-morandi-sage {
+  background-color: var(--sage-main);
+  color: #FFFFFF;
+  box-shadow: 0 8px 20px -4px rgba(118, 138, 122, 0.42);
+  transition: all 0.18s ease;
+}
+
+.btn-morandi-sage:hover:not(:disabled) {
+  background-color: var(--sage-deep);
+  box-shadow: 0 10px 24px -4px rgba(88, 107, 92, 0.5);
+}
+
+/* 精密微滾動條 (Warm Taupe Scrollbar) */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -21,90 +226,175 @@ code, pre, .font-mono {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #272B33;
+  background: #D5C8BA;
   border-radius: 9999px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #3B404D;
+  background: #B8A796;
 }
 
 @keyframes scaleUp {
-  0% {
-    transform: scale(0.985);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+  0% { transform: scale(0.985); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .animate-scale-up {
   animation: scaleUp 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* 沉穩邊框與微陰影 */
-.slide-frame-shadow {
-  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.7), 0 4px 12px -2px rgba(0, 0, 0, 0.4);
-}
-
-.card-soft-shadow {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px -2px rgba(0, 0, 0, 0.3);
-}
-
-/* Markdown 排印微調 (低彩度專業顧問風) */
+/* Markdown 排印 (莫蘭迪設計年鑑排版) */
 .prose h1, .prose h2, .prose h3 {
-  color: #F4F4F5 !important;
-  font-weight: 600;
+  color: var(--ink-primary) !important;
+  font-family: 'Noto Serif TC', serif;
+  font-weight: 700;
   letter-spacing: -0.02em;
   margin-top: 1.4em;
   margin-bottom: 0.5em;
 }
 
 .prose h2 {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border-hairline);
   padding-bottom: 0.35em;
 }
 
 .prose p, .prose li {
-  color: #A1A1AA !important;
-  line-height: 1.7;
+  color: var(--ink-secondary) !important;
+  line-height: 1.75;
 }
 
 .prose strong {
-  color: #E4E4E7 !important;
+  color: var(--ink-primary) !important;
   font-weight: 600;
 }
 
 .prose blockquote {
-  border-left-color: #38BDF8 !important;
-  background-color: #121418;
+  border-left-color: var(--rose-clay) !important;
+  background-color: var(--rose-tint);
   padding: 0.75rem 1.25rem;
   border-radius: 0.75rem;
-  color: #D4D4D8 !important;
+  color: var(--ink-primary) !important;
   border-left-width: 3px;
+  border: 1px solid var(--rose-border);
 }
 
 .prose code {
-  color: #38BDF8 !important;
-  background-color: #121418 !important;
-  padding: 0.15rem 0.35rem;
+  color: var(--sage-deep) !important;
+  background-color: var(--sage-tint) !important;
+  padding: 0.15rem 0.4rem;
   border-radius: 0.35rem;
   font-weight: 500;
   font-size: 0.85em;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--sage-border);
 }
 
 .prose pre {
-  background-color: #0E1013 !important;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--oat-tint) !important;
+  border: 1px solid var(--oat-border);
   border-radius: 0.75rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 1px 2px rgba(50, 46, 43, 0.04);
 }
 
 .prose pre code {
-  color: #E4E4E7 !important;
+  color: var(--ink-primary) !important;
   background-color: transparent !important;
   border: none;
+}
+
+/* =========================================================================
+   大畫面投影片挑選工作台 (Large Slide Picker Grid & Cards)
+   ========================================================================= */
+
+#large-slides-grid {
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  display: grid !important;
+  grid-auto-rows: max-content !important;
+}
+
+/* 投影片卡片：溫潤立體質感與充足高度 */
+.large-slide-card {
+  position: relative;
+  border-radius: 1rem;
+  border-width: 2px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface-cream);
+  user-select: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(104, 97, 91, 0.08);
+  min-width: 0;
+}
+
+.large-slide-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--sage-main);
+  box-shadow: 0 10px 24px rgba(104, 97, 91, 0.14);
+}
+
+/* 16:9 投影片畫布預覽框 */
+.large-slide-preview-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 200px !important;
+  background: var(--bg-oatmeal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+  .large-slide-preview-box {
+    min-height: 220px !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .large-slide-preview-box {
+    min-height: 230px !important;
+  }
+}
+
+.large-slide-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain !important;
+  display: block;
+}
+
+/* ==========================================================================
+   Step 02 Contrast & Visibility Enhancement
+   ========================================================================== */
+.morandi-step-02 {
+  background: #EAF0EC !important;
+  border: 1.5px solid #8FA693 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.morandi-step-02 .morandi-swatch-chip {
+  background: #607564 !important;
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+  box-shadow: 0 2px 6px rgba(78, 97, 82, 0.25) !important;
+}
+
+.morandi-step-02 h3 {
+  color: #1F2E23 !important;
+  font-weight: 700 !important;
+}
+
+.morandi-step-02 span.font-mono {
+  color: #384F3D !important;
+  font-weight: 600 !important;
+}
+
+.morandi-step-02 p {
+  color: #4A5C4F !important;
 }
