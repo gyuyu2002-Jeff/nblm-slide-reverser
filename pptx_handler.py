@@ -128,11 +128,17 @@ def render_slide_wireframe(slide, slide_w: int, slide_h: int, target_w: int = 96
 
     return img
 
-def process_pptx_presentation(content_bytes: bytes, target_pages: Optional[Any] = None, max_preview: int = 30) -> Dict[str, Any]:
-    """
-    完整處理 PPTX：提取文字架構、字型規範、色彩清單、媒體圖片與每頁預覽
-    支援 target_pages 篩選指定頁碼（1-based set），供使用者自選代表頁
-    """
+def select_representative_pages(pages, limit=30):
+    """均勻選取，保留首尾；捨入方式與前端 Math.round 一致。"""
+    if len(pages) <= limit:
+        return pages
+    if limit == 1:
+        return pages[:1]
+    return [pages[int(i * (len(pages) - 1) / (limit - 1) + 0.5)] for i in range(limit)]
+
+
+def load_pptx_presentation(content_bytes: bytes):
+    """驗證檔案並讀取投影片目錄，尚不渲染或收集媒體素材。"""
     if not content_bytes or len(content_bytes) < 100:
         raise ValueError("上傳的 PPTX 檔案為空或內容過小，無法解析")
 
@@ -145,6 +151,18 @@ def process_pptx_presentation(content_bytes: bytes, target_pages: Optional[Any] 
     total_slides = len(prs.slides)
     if total_slides == 0:
         raise ValueError("此 PPTX 檔案中未包含任何可解析的投影片")
+    if total_slides > 150:
+        raise ValueError("PPTX 超過 150 頁，請先拆分檔案。")
+    return prs
+
+
+def process_pptx_presentation(content_bytes: bytes, target_pages: Optional[Any] = None, max_preview: int = 30) -> Dict[str, Any]:
+    """
+    完整處理 PPTX：提取文字架構、字型規範、色彩清單、媒體圖片與每頁預覽
+    支援 target_pages 篩選指定頁碼（1-based set），供使用者自選代表頁
+    """
+    prs = load_pptx_presentation(content_bytes)
+    total_slides = len(prs.slides)
     slide_w = prs.slide_width
     slide_h = prs.slide_height
 
@@ -160,14 +178,10 @@ def process_pptx_presentation(content_bytes: bytes, target_pages: Optional[Any] 
     detected_fonts = set()
     detected_colors = set()
 
-    # 處理指定頁面或前 max_preview 頁預覽
-    for idx in range(total_slides):
-        page_num = idx + 1
-        if target_pages is not None:
-            if page_num not in target_pages:
-                continue
-        elif len(preview_pages) >= max_preview:
-            break
+    candidate_pages = [n for n in range(1, total_slides + 1)
+                       if target_pages is None or n in target_pages]
+    for page_num in select_representative_pages(candidate_pages, max_preview):
+        idx = page_num - 1
 
         slide = prs.slides[idx]
         slide_title = ""

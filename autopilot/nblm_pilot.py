@@ -972,124 +972,21 @@ def extract_rules_from_report(report_markdown: str) -> List[Dict[str, str]]:
     return rules
 
 
-def bump_project_version(project_root: Path) -> str:
-    """自動遞增 patch 版本號並同步寫入 index.html 與 app.js"""
-    app_js = project_root / "app.js"
-    index_html = project_root / "index.html"
-    
-    current_ver = "v6.33.0"
-    new_ver = current_ver
-    if app_js.exists():
-        try:
-            content = app_js.read_text(encoding="utf-8")
-            m = re.search(r'APP_VERSION\s*=\s*"v?(\d+)\.(\d+)\.(\d+)"', content)
-            if m:
-                major, minor, patch = int(m.group(1)), int(m.group(2)), int(m.group(3))
-                new_ver = f"v{major}.{minor}.{patch + 1}"
-                content = re.sub(r'APP_VERSION\s*=\s*"v?(\d+)\.(\d+)\.(\d+)"', f'APP_VERSION = "{new_ver}"', content)
-                app_js.write_text(content, encoding="utf-8")
-                
-                if index_html.exists():
-                    html_content = index_html.read_text(encoding="utf-8")
-                    html_content = re.sub(r'v(\d+)\.(\d+)\.(\d+)', new_ver, html_content)
-                    index_html.write_text(html_content, encoding="utf-8")
-                print(f"🏷️ 系統版本號已自動遞增至: {new_ver}", flush=True)
-                return new_ver
-        except Exception as e:
-            print(f"⚠️ 版本號自動遞增略過: {e}", flush=True)
-    return new_ver
-
-
-# =============================================================================
-# 6. 步驟五：自動閉環反饋與網站同步 (Auto-Sync & Git Push)
-# =============================================================================
 def auto_harden_and_sync_website(eval_result: dict, config: dict) -> None:
-    print("\n" + "=" * 60, flush=True)
-    print("🔄 [步驟 5/5] 自動閉環反饋：將本次質檢診斷同步至網站提示詞引擎...", flush=True)
-    print("=" * 60, flush=True)
-
-    report_markdown = eval_result.get("report_markdown", "")
-    if not report_markdown:
-        print("⚠️ 無質檢報告可供反饋。", flush=True)
+    """保存個案建議，未經驗證不改動全域風格規則或發布網站。"""
+    report = eval_result.get("report_markdown", "")
+    if not report:
         return
-
-    # 1. 自動從質檢報告中提煉約束規則
-    extracted_rules = extract_rules_from_report(report_markdown)
-    
-    # 2. 自動合併至 guardrails.json
-    guardrails_file = PROJECT_ROOT / "guardrails.json"
-    guardrails_data = {"version": "1.0.0", "updated_at": "", "rules": []}
-    
-    if guardrails_file.exists():
-        try:
-            with open(guardrails_file, "r", encoding="utf-8") as f:
-                guardrails_data = json.load(f)
-        except Exception as e:
-            print(f"⚠️ 讀取現有 guardrails.json 失敗: {e}，將建立新檔", flush=True)
-
-    existing_rules = guardrails_data.get("rules", [])
-    existing_texts = {r.get("rule", "").strip().lower() for r in existing_rules if "rule" in r}
-    new_added_count = 0
-
-    for r in extracted_rules:
-        rt = r.get("rule", "").strip()
-        if rt and rt.lower() not in existing_texts:
-            slug = re.sub(r"[^a-zA-Z0-9_]+", "_", r.get("title", "rule")).strip("_") or "rule"
-            existing_rules.append({
-                "id": f"{slug}_{int(time.time())}",
-                "title": r.get("title", "視覺約束規範"),
-                "rule": rt
-            })
-            existing_texts.add(rt.lower())
-            new_added_count += 1
-            print(f"   ➕ 自動納入新規範: 【{r.get('title')}】", flush=True)
-
-    guardrails_data["rules"] = existing_rules
-    guardrails_data["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-
-    with open(guardrails_file, "w", encoding="utf-8") as f:
-        json.dump(guardrails_data, f, ensure_ascii=False, indent=2)
-
-    # 3. 儲存本次執行紀錄
-    active_guardrails_file = DIR_EVALUATIONS / "active_guardrails.json"
-    with open(active_guardrails_file, "w", encoding="utf-8") as f:
-        json.dump({
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "source_report": str(eval_result.get("report_path", "")),
-            "new_rules_added": new_added_count,
-            "total_rules": len(existing_rules),
-            "status": "synchronized"
-        }, f, ensure_ascii=False, indent=2)
-
-    print(f"📝 規則庫已更新 (新增 {new_added_count} 條，累計 {len(existing_rules)} 條約束)", flush=True)
-
-    # 4. 自動遞增網站版本號並同步 Git 推播至遠端 GitHub
-    try:
-        new_version = bump_project_version(PROJECT_ROOT)
-        subprocess.run(
-            ["git", "-C", str(PROJECT_ROOT), "add", "guardrails.json", "app.py", "app.js", "index.html"],
-            check=True
-        )
-        cmd_status = subprocess.run(
-            ["git", "-C", str(PROJECT_ROOT), "status", "--porcelain"],
-            capture_output=True, text=True
-        )
-        if cmd_status.stdout.strip():
-            print(f"📦 正在將系統版本 {new_version} 及最新約束規範提交至 GitHub 儲存庫...", flush=True)
-            commit_msg = f"feat(autopilot): self-evolve to {new_version} (+{new_added_count} rules) ({time.strftime('%Y-%m-%d %H:%M')})"
-            subprocess.run(
-                ["git", "-C", str(PROJECT_ROOT), "commit", "-m", commit_msg],
-                check=True
-            )
-            subprocess.run(
-                ["git", "-C", str(PROJECT_ROOT), "push", "origin", "main"],
-                check=True
-            )
-            print(f"🚀 ✅ 網站版本已全自動升級至 {new_version} 並推播至 GitHub 遠端儲存庫！", flush=True)
-        else:
-            print("✅ 提示詞約束規則庫已是最新狀態，無需重複推播。", flush=True)
-    except Exception as g_err:
-        print(f"⚠️ 自動 Git 推播略過: {g_err}（本機規則庫已成功更新）", flush=True)
+    DIR_EVALUATIONS.mkdir(parents=True, exist_ok=True)
+    pending = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "source_report": str(eval_result.get("report_path", "")),
+        "rules": extract_rules_from_report(report),
+        "status": "pending_review",
+    }
+    path = DIR_EVALUATIONS / f"pending_rules_{time.time_ns()}.json"
+    path.write_text(json.dumps(pending, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"個案修正建議已保存：{path}；全域規則與網站版本維持不變。", flush=True)
 
 
 def print_final_score_summary(eval_result: dict) -> None:

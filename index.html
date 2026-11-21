@@ -84,7 +84,7 @@
           </span>
           <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-[#E9EFEA] text-[#4E6152] font-mono border border-[#C4D1C6] font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap shrink-0" title="系統當前版本號">
             <span class="w-1.5 h-1.5 rounded-full bg-[#768A7A]"></span>
-            <span id="system-version-badge">v6.36.0</span>
+            <span id="system-version-badge">v6.37.0</span>
           </span>
         </div>
       </div>
@@ -573,10 +573,10 @@
             </div>
           </div>
 
-          <!-- 右：Pantone 莫蘭迪色票與結構拆解 (5 cols) -->
+          <!-- 右：原稿色票與結構拆解 (5 cols) -->
           <div class="md:col-span-5 flex flex-col space-y-3.5 text-left">
             <h3 class="font-serif-tc text-base sm:text-lg font-bold text-[#322E2B]">
-              Pantone 莫蘭迪色票與結構拆解
+              原稿色票與結構拆解
             </h3>
             <p class="text-xs text-[#68615B] leading-relaxed">
               上傳任何您喜愛的簡報後，系統將即時提煉其視覺基因、色票比例與排版規則，直接轉換為 NotebookLM 專用指令：
@@ -807,21 +807,26 @@
               <div class="flex items-center justify-between text-[11px] font-medium text-[#68615B] px-0.5 font-mono">
                 <span class="flex items-center gap-1.5 text-[#322E2B]">
                   <i data-lucide="palette" class="w-3.5 h-3.5 text-[#68615B]"></i>
-                  PANTONE SWATCH SYSTEM
+                  HEX 色票與用途
                 </span>
                 <span id="white-space-metric" class="text-[10px] text-[#68615B] bg-white/[0.04] px-2 py-0.5 rounded font-mono border border-[#322E2B]/[0.08]">
-                  留白比例: 70%
+                  留白比例: 未量測
                 </span>
               </div>
               <div id="color-palette-container" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <!-- 動態插入 Pantone 色卡 -->
               </div>
               <div class="p-2.5 rounded-lg bg-[#F3EFEA] border border-[#322E2B]/[0.08] text-[11px] text-[#68615B] leading-relaxed mt-1 font-mono">
-                排版規範約束：提示詞已鎖定幾何插槽（左右分割、階梯流程與時程軸），精確排除視覺雜訊。
+                影像取色為近似值；請依來源頁檢查顏色用途與各頁型規格。
               </div>
             </div>
           </div>
         </div>
+
+        <details class="studio-panel p-3 text-xs text-[#68615B]">
+          <summary class="cursor-pointer font-semibold">風格來源與適用範圍</summary>
+          <pre id="design-profile-evidence" class="whitespace-pre-wrap mt-2 leading-relaxed font-sans"></pre>
+        </details>
 
         <!-- 提示詞與指令中心 (頁籤整合區) -->
         <div class="studio-panel overflow-hidden">
@@ -1640,7 +1645,7 @@
             <span class="text-[10px] text-[#4E6152] font-mono">產出落地</span>
           </div>
           <p class="text-[#68615B] pl-7 text-[11px]">
-            點擊右下角 <strong class="text-zinc-950 bg-zinc-100 px-1.5 py-0.5 rounded font-medium">立即生成</strong>！NotebookLM 將直接產出完整的投影片文件，嚴格遵循每頁零重複約束與專屬視覺手冊，可直接在線上全螢幕播放或匯出分享！
+            點擊右下角 <strong class="text-zinc-950 bg-zinc-100 px-1.5 py-0.5 rounded font-medium">立即生成</strong>！NotebookLM 將直接產出完整的投影片文件，依專屬視覺手冊與內容選擇版型；生成後請比對原稿確認效果，可直接在線上全螢幕播放或匯出分享！
           </p>
         </div>
       </div>
@@ -1788,7 +1793,7 @@
     </button>
   </div>
 
-  <script src="app.js?v=6.36.0"></script>
+  <script src="app.js?v=6.37.0"></script>
   <script>
     lucide.createIcons();
   </script>

@@ -26,3 +26,13 @@ jobs:
     - name: Test Python imports and app load
       run: |
         python -c "import app; print('App successfully loaded!')"
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
+    - name: Test source style rules and storyboard regressions
+      run: |
+        node --check app.js
+        node --test tests/style-profile.test.cjs
+        python -m unittest discover -s tests -p test_style_rules.py -v

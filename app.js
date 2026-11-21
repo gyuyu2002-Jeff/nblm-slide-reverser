@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.36.0";
+const APP_VERSION = "v6.37.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -320,84 +320,66 @@ let generatedPromptCustom = "";
 
 // 自訂頁面內容元件：版型規格庫
 const DEFAULT_LAYOUT_OPTIONS = [
-  { id: "A", name: "版型 A：深墨藍古銅雙細框封面主視覺", desc: "深墨藍底，外圍距邊界16px配古銅金(#C29B53)雙細線典雅框，特大純白超粗主標題，下方為駝金導言，右下角演講者資訊" },
-  { id: "B", name: "版型 B：五層同心圓引線對應＋橫向進程軸", desc: "5層同心圓（核心駝金點➔深藍環➔外金環），3條45度折線引線箭頭指向要點，下半部4節點圖示橫向進程軸" },
-  { id: "C", name: "版型 C：3D 立體階梯思維遞進", desc: "3~5層深墨藍立體階梯方塊，踏板標註步進數字（1-30, 31-60...），引線箭頭指向右側要點" },
-  { id: "D", name: "版型 D：三欄獨立線框卡片", desc: "3欄垂直並排微圓角卡片，細灰駝邊框，每欄頂部配深墨藍圖示徽章與粗體標題" },
-  { id: "E", name: "版型 E：概念拼圖/雙欄對比轉化", desc: "左右雙欄對比（左側未解困境，右側駝金咬合拼圖），中央大型駝金推進箭頭" },
-  { id: "F", name: "版型 F：公式化運算決策圖解", desc: "橫向公式運算卡片（[指標A] ✖ [指標B] ✖ [指標C] ＝ [最終目標]），下方深墨藍總結" },
-  { id: "G", name: "版型 G：個人經歷/里程碑垂直時間軸", desc: "垂直時間軸，深墨藍圓形節點與古銅金微光，標註年份與職務里程碑" },
-  { id: "H", name: "版型 H：問答與結尾總結頁", desc: "深墨藍底，外圍古銅金細雙框，中央純白大字總結與金色標語" }
+  { id: "A", name: "依內容選擇原稿版型", desc: "依新內容選擇已觀察的原稿版型，沿用其字體、色彩及元件形狀；不足的資料不可編造。" }
 ];
+let currentDesignProfile = { rules: [], layouts: [] };
+let customStoryboardSlides = [{ layout: "A", topic: "" }];
 
-// 自訂頁面內容元件：預設故事板
-let customStoryboardSlides = [
-  { layout: "A", topic: "企業 AI 導入九十天行動方案：總覽與核心定位" },
-  { layout: "B", topic: "三大核心資安鐵律與紅線（五層同心圓三引線對應）" },
-  { layout: "C", topic: "九十天三階段穩健推進時程（1-30天盤點、31-60天試辦、61-90天擴大）" },
-  { layout: "F", topic: "啟動跨部門擴充之決策公式（正確率95% ✖ 採用率70% ✖ 零資安事件）" },
-  { layout: "D", topic: "常態化長效治理架構（權限控管、人機審核、防呆機制三卡片）" },
-  { layout: "H", topic: "總結：相信團隊的力量，穩健邁向治理下一步" }
-];
+function normalizeDesignProfile(profile) {
+  const text = value => typeof value === "string" ? value : "";
+  const pages = value => Array.isArray(value) ? value.filter(p => typeof p === "string" || Number.isInteger(p)) : [];
+  const rules = (Array.isArray(profile?.rules) ? profile.rules : [])
+    .filter(r => r && text(r.property) && text(r.value) && text(r.scope))
+    .map(r => ({ property: r.property, value: r.value, scope: r.scope,
+      source_pages: pages(r.source_pages), evidence: text(r.evidence) || "無法判定" }));
+  const seen = new Set();
+  const layouts = (Array.isArray(profile?.layouts) ? profile.layouts : [])
+    .filter(l => l && /^[A-Z]$/.test(l.id) && text(l.name) && text(l.description) && !seen.has(l.id) && seen.add(l.id))
+    .map(l => ({ id: l.id, name: l.name, desc: l.description, source_pages: pages(l.source_pages) }));
+  return { rules, layouts };
+}
+function getStoryboardLayouts() {
+  return currentDesignProfile.layouts.length ? currentDesignProfile.layouts : DEFAULT_LAYOUT_OPTIONS;
+}
+function formatDesignRules() {
+  return currentDesignProfile.rules.map(r =>
+    `- ${r.property}：${r.value}（適用：${r.scope}；來源：${r.source_pages.join("、") || "未提供"}；${r.evidence}）`
+  ).join("\n");
+}
+function selectAnalysisPages(pages, limit = 30) {
+  if (pages.length <= limit) return pages;
+  return Array.from({ length: limit }, (_, i) => pages[Math.round(i * (pages.length - 1) / (limit - 1))]);
+}
+
 let generatedSlideHtml = "";
 let currentProvider = localStorage.getItem("active_provider") || "gemini";
 let modalSelectedProvider = currentProvider;
 
-// [P0 核心智財保護] 系統逆向工程 Prompt 已黑盒子化加密，防止客戶端逆向與 F12 探測
-const _0xSEC_CAPSULE = "UL7n+rzC9b7i2r7n177izL3P1rP62L3uwL3A3r3q+7/667L8zLL84LPa3L/Ky7zE7Lz90b/i8bXm0gooPyk/NC47LjM1NHoWOyM1Ly56CD8sPygpP3cfND0zND8/KLXm07LS3b/j5L7nz7zUyL3T0r/q0r/07Lna2FC+5/q9wN6+5+W/y+e8wvW52sq/2dW97vq97sCy0t280cm8yOi97sC9xsW/9fyz2N6/1MW52su+5+W9zvKy2t++4tC/2Om9wN696vu/+uu99d6+5NG15tIKHhy52tsKCg4CerzSzLzQz7/n673T3bzS8L/GzLXm07Xm1r/k47/gz7zuxL/1xb/f7Lna1r3Gxb/1/L/j5L7nz7Pw8rzE7Lna27/047/D8r/78bLT6Lz/77za/bXm0r3z4L/l2bzV1bPY0HosKXq/9fy/5dmy0+i/+9B6LCl6vd77v/7MvPvctebTudrbvc/xv+LZvMfKsunwve7Rvcrcudrbv/7AstPosubwvMHlv+DVv9LNudrbs9r5vNT/ve3Av+PkvufPv8TRvN/Rudrbv/vNs+7TdbzVyL3P8bL9+b/TzL3u6r312rLS3bLT6L/n873p4b3v67na17Xm1r7i/LLn07L39b3Y4LLZ53pramp/er/l+r/1/L/q17Pn0L3A3noUNS4/ODU1MRYXer/q0r3O8rzVyr3+4LLzxLLS3bzUyL3T0rLy97Ly0rL81b313rna2FBQuMD6teLVudrKvMbas/HCv9TFv9PdtebAv/X8vuDRvOvYvML1udrbvcbFvfjgs9jev9TFtebSDigvP3cuNXcJNS8oOT96DDMpLzs2ehwzPj82My4jtebTudrLtebAUGt0eqrF1PK52spramp/er/l+r/1/LzVyr/VzL3P8b/i2bzHyrLp8Lna27LT6L/n87LS3b/+wLLT6LLm8LzB5bL81b313rnay7XmwFB6enp3er7hzr3u6rL92r/1xb3P8b/i2b/gz7LT6LLS3bL78rPH+L/j5L7nz7LY1r3K3LXmwFB6enp6end6stH/vdjgudrWvPPxvPrmve3AvffcsvLCvMb2ve7Dv+bvtebSCC82Pz56FDUuPzg1NTF6CjsqPyi15ta//Nh6eRxvHG4fHLXm07na17Xm1r/l37P60rzC1L344Lzyw7Ly4bna1L/f8r313b3s97zW273307Ltx7zq7r/j6bzt4L3b6rzz8bz65r3twLLS3b/t/L/b7r/M9Lz4x7/E2L3B7rPY0L3P1r3twLXm1qrFwPF6v8DuvfzbvMHlvNXBvdjgvcDgvMvgvdPBvcD0ve7Dudrbs/HIstLQv8PuvOXgv/jys+HEtebWqsXA8Xq/wO69/Nu/xvK88sOz+9a/wcGy/ci87eG/0Pq93vuzzca9wN56Fnq/xNG9we6y/ci8+9y97cC15tK4ztZ6uM7CtebTudrVtebbUHp6enp6d3qy0f+92OC52ta87euy0+iz4cu8x+W8x8qy6fC15tIZMjs2MTg1Oyg+tebWv/zYenlrY2sbax615tO52te15ta/5d+z+tK88sOy8uG52tS87eu92Pe92+qz4cu8x+W/4M+y0+iz39e9w+e96NO999y8yfy80fe/5PSy2Na9yty52tW52thQenp6enp3erLR/73Y4Lna1r/P3L/Rw7zAzLLr+73Tw73r6b3b6rXm0nkcbhxpHx+15tO52te80sy87eu87+2y4deyzde15ta96OS84My97/y/3eB6Eh8CerLT6L345rXm1r/A7r3827z34b3D57zSzL/S4L3G5rPxwrP557/I1rLE+L/f07zw4rzw9rPh2bna2FB6enp3erjC37nayr/+wLLT6LLm8LzB5bPK77/k0XpyFy82LjN3GTU2NSh6GSM5NjM0PXO52su15sCy0f+/1MW/xsy8ydu8xtO//sC98vS96NO/5/N1v+btsvDlstPotebSvuTRv/zYtebAvMXOvejTve7fudrbsszestfts8fIvez6udrbvMXOv8jWs+HZudrbssbGvPvZvPPCudrbvMPuvfPgss3XtebTtebWv8byvNXKvf7gsvPEvuL3v+Xfs/rSv+btv9LssvzVv/TAudrUv8rWvuLas/rbs8f4vcDevuL8v9LNvPbevufXudrbv+rXsvPrvPvcvNLMvPLDs/vWvffcv9LttebWv+Xfs/rSvuTHv+DVsubwvMHlvuLXv8rWstPovcHitebSv/zYtebAvPbea73o073u33q4xM56vPbeaLLM3rLX7b3s+nq4xM56vPbeabzFzrPh2Xq4xM56vPbebr3o07LN17Xm07Xm1qrFwPF6ve/Pv+rXv8DuvfzbvM/us/rbvNPavMbTvPbevufXv9vtvN3ss93Xsv7dv/vNvNLKv8rWvuLavfL0s/vVstPoudrVtebbUHp6end6uMLfudrKs/HCv9/Ts9nyvufXvejkvODMs9TMv/TAenISMz0yNjM9Mi56CjY7OT83PzQuehY1OTFzudrLtebAv+Xfs/rSvOLfvP/Av9fav9Lcs/HCv9/TvML1udrUv9nfv/jQvMzmv9fav/vQv+rVvPLDs/vWtebSCS84dzI/Oz4zND215tO+4tG8zOO9wN6yxPi/39O999y/0u2y0+i/4uy15tKqxcDxer/A7r3827/G8r7i0bzM47/f/bzM3bz077LK577g2L/7zbLE+L/f07333LXm07na1bXm1rPY3rzC9bna1LPP7b/V/77i973T47/0wHpoJGl6v9rRs83Gs9fvv/fNsvPEvcHuvNT/svTQvNXBvejTvffcv/fNstPotebSsvvWv9/9svTQstPotebWvuLXv9D6v+DPstPov/vQtebTudrVtebbUFBodHqqxcnKudrKv/Tjv8Pyv/vxstPovP/vvNr9stLds9jQvPvcsv35v9PMtebSuMLfs83Gs9fvvNDNv/7rvcbFvPriv+XZtebWv8DuvfzbvO3tvO3cvfPgv+XZstLdv/X8v+XZtebbtebTudrLtebAUHp6end6v+Xfs/rSs9rKs/rbvejkvODMs8vLv/TAvPXVvfL0v/Tjv8PystLdvfT3s/r3vcDeudrWv/vxstPovP/vvNr9tebSHDM2NnoKNTY7KDMuI7Xm07na17Xm1r7i/L/G8rzVyr3+4LLzxL7i97/18bz34bXmwFB6enp6end6cHByG3N6vfPgv+XZvNPRvePwvNXVs9jQv/Tjv8PyenISNTY2NS16FS8uNjM0P3p1ehQ1dxwzNjZzcHC15sC//Niz4cu8x+W+4tC9wN696NO/5/O809G94/C/6tey8+u8+9y15tIJKj8/OTJ6GC84ODY/KbXm07na27PB6LzG77zax73s97z73LXm0g4yNS89Mi56GTY1Lz4ptebTudrbvNPRvePwvfPgv+XZvejNvfT3s/r3tebWv+Xfs/rSv+btv9Lsv/XxvMLUudrUv9/9s9nyv/TWv9/yvd77v/vxstPotebSvcHuvNT/s9rVv93gvc/xv+LZv+DPstPotebTtebWv9nfv/7Mv8bXvuflvc7ys8HDve3Adb/M9L3twL/n87LT6LzV1bPY0LXm1rz73L/f/bzM3b/3zb3Y4L3uzr3D57zSzL3uzrPhy7Pxwr/q17z1zr/3zbXmwarFwPF6ve/Pv+rXv8Duvfzbv+rdvfPgv+XZv+rXsvPrvPvcvNLMvfPgv+XZs8HovMbvv/vNvOHlv/X8v+XZstPov/vQtebbudrVUHp6enp6d3pwcHIYc3q93vu//sy8+9y97s6999y/0u2/4M+8+Me89t6+59d6chg1KD4/KDY/KSl6GTU2Lzc0KXNwcLXmwLLR/7/Uxb/GzL3A3npperz23rzSzHpuerz23rzUyL3T0r/Z37/G8r/q1bzyw7P71r7i0bzM47/40LzG07/n87LT6LLE+L/f07333L/S7bXm1rz23r7n17/Bwb/L8r3e+7/+zLz73Lna27z23r7n177j0bPMyb3e+7/S3LPAzr3twLXm1r/l37P60r/m7b/S7L/18bzC1Lna1Lz23r7n17/+zL/G17/01r/f8r3e+7z73L3twLna27z23r7n177j0bPMyb3e+7/E2L3B7nW/19u/9828+ua97cC15sGqxcDxer3vz7/q17/A7r3827Ld8LL71r/Q+r7i0LPhy7LT6L3F87/n+L/+zLz73LzSzL/X27/3zb/S3LPAzr3twLXm27na1VB6enp6end6cHByGXN6vdfyvfHRve3AvPvcv9f7vdPdenV6v/X8v+XZvPLDvev+enIcKDs3Pz56GTsoPil6dXoJNTYzPnoKMzY2KXNwcLXmwL/Z37/G8r/Uxb/GzL344L/1/LzG07zT0b3j8LPhy73twL3F87/n+Lz73LXm0r/82Lz1zrLm2bL78npuerz23rPhy7z73LXm07zSzL/1/L/l2bPhy7LT6LLc+r/B0Lzyw73r/rXm0r/82HoJDhsdH3pqa7Xm07zD2LXm1rzT17zW3b/0wL3j8LL557/+zLz73LzSzL/1/L/l2b/78bLT6Lna2FBQaXR6qsXOzbnayrzzxbz46r3uwLzRybzI6LLS3bPa+bzU/73twL/j5L7nz77lx73GxbXm0rjC37/A7r3827/q3b/GzLL9+bPa2r/WzL3Y4L/GybPhxLzi37/M9LzSzLLv6rzy+bzB6L3twLXm27Xm07nay7XmwFB6enp3erjC37nayrzD2LPMybLh4rLS3bPa+bzU/73twL/j5L7nz7/E0bzf0bnay7XmwL/l37P60r3o5L344L/X2r/S3Lna1L/M9Lz4x3pjanq/4Py9we6y/ci86u6/4+m/xNi9we6y59O80MK+49GzwNS8+PW80MK97cC99Pez+ve15tIVKC4yNT01NDs2egkuPyoqPz56GygoNS16FjM0P3q4zta4ztq4zsq15tO52tWy0t252tS86fi87/C8wei97cC52tW15tuy0f+/1MW/xsy92OC9we6y/cizwNS8+PW80MK97cC15tK//Nh6CQ4bHR96amskam96vuLQvuLRvuD+s9b1s8DUvPj1vNDCve3AtebTtebWv+Xfs/rSvMLUvMzdsvzVv/TAudrUqsXA8Xq978+/6te/wO69/Nu9z/G80sqzwcOy2Puz4OGy0Ou+4P6/1dO86fi87/C97cC15tIcMz0vKD93YnoNOyw/tebTvNLMv8bJv+b9ve3AudrVtebbUHp6end6uMLfudrKv/79vNH2ssPFudrbvMzdvOrVv8bMstLdvuL3v+XZvM7kv+rev+XZvMPgv8bMudrLtebAstH/vMbTvNPRvePwv/79vNH2ssPFeiF6J7na22l6vcjqvuD+vczQvMzdvOrVv8bMtebSv+38vMzdv9Xpv8bMtebTudrbvuL3v/70vuDgvdPzv8rLv+38v9XpvcPmv+reemx6vM71vfPgv+XZvejNvfT3s/r3v+XZvMPgv8bMudrbbm96v+D8v+bPve3AtebSFj87Pj8oehYzND8ptebTtebWv+Xfs/rSv/TWvM/uvNXVsuXqv9/sv+PkvufPvMzjvufXudrbvfXas+HEvM/is93VtebSCS4/KncZNS80LnprYGt6v/TSvNvctebTstLdvfT3s/r3vfPgv+XZdb/1/L/l2b/r9rza/bna2FB6enp3erjC37nayr/7zbPu07/q1b7g4LLS3bL5x7P55LL9+b/TzLnay7XmwLLR/7/Uxb/GzL/W37/K8bzT0b3j8L/7zbPu07/q1b7g4LXm0gkuMzkxehwzPS8oPym15tO15ta/5d+z+tK81t28wtS52tS97s6z4cu/zPS97cC8+Me98+C/5dm8/++96vu/6tW+4OC15tKy4dq/4+O/3/2z2fK/9Na/3/K9z8O9w+ez2tW8wtS15taqxcDxer/A7r3827/q3bLg8bPxzr/7zbPhy7zSzL/78bzh5bPBxr7g2LPhy73twLXm1qrFwPF6v8DuvfzbvM7jvdjgveTUv+bVv9f7s9rAvuDgvdPztebTudrVtebWvuL8vejkvfjgv9LNv93gvNPRv9H4v9HPvufGtebSv/zYtebAstLTvNPRvNbdvuD0vd3SvOn7udrbs8HDvuDgvcbRv8bqv8bMudrbvMr2s9vRs/HCvczQvMHivevXudrbvcPnvMflsvLUsvHMudrbv/7AvuDgv8bJvPvWs8zRvMbZtebTudrYUFBudHqqxc7+udrKv+rbs8f4stLdv9/yvfXdvMzdv/fNs8HsvuDYvfjms8rvv+TRtebSAD8oNXcdMzg4PygzKTJ6fHofIjs5LnoOPyIuehY1OTG15tO52su15sBQenp6d3q/xvK9zvi/3eC9wN56FDUuPzg1NTEWF3q81cq9/uCy88S+4ve15ta/5d+z+tK/5u2/0uy/0Pq/3/+15sBQenp6enq52tSqxcDxudrKve/Pv+rXvMzdv/fNvOfOvO3ystLds8HsvuDYvfjms8rvv+TRudrLtebAvNDPv+frvdPdvc/xs8f4vuL3vcDevNPavMbTvMzdv/fNv+Xfs/rSemtqan96vdjgvOLfvMPqvPf5vfjgvcDevePbs/HOvuL3vMzdvNLMvNbdv/TAstHrvMzdtebWv8DuvPrmv9XMst3wvNXKvf7gsvPEvMzdvPvStebbve/Pv+rXv8Duvfzbv8byv+rbs8f4vuLhvPLDs/vWvuLRvMzjudrbsv3IssrnvNLMvNXIvc/xvM3bst3wsvvWvNfVs9r6vd77vN7VveTzvcDev9vnvOb4v/fNudrbvOPQv/fNvM/ivuDYvfjmsvPEv+fDvNLMv9vdv/fNv/vNs+7TtebbvuLhvPLDs/vWvuXHvNbbv8z0svvWvNLMvNbdv/TAs8HDsvvWvOLfvMPqv8vSvdXktebWvMbwvNbdv/TAvefov8rXvMPYv8Duvfzbst3wsvvWvO3hv9D6v+rXsvPrvPvcvefov8rXudrYudrVUHp6end6qsXA8Xqzw/6zx8S+5Ny84Mq999yy8sK/3+2/2MO8wtS9+OC8z+K8ycC15ta/yvy/092/wO69/Nu93vu+4ve9zsW8xtO97fKz2vq/7fK/xNF6EQoTer3v67Ly0r/+/bzP4r/3zbna2FBQsvHRvuH/vePbs/HOvuL3vMzdtebSv9Xqvdv5veXIvN/5vc7ysvDEtebTsubiv93gvuH/vuLRve/KvP3Rv9bMv/rrv8vQtebAUFB5eqrF1PJ6ver7v/rrs/jyvPrmvejkvODMs9rcv8rLv/rrv8vQUFB5eXprdHqz2sqz+tu909Kzx/i80cm8yOiy0t2/4+S+58+z8PK8xOx6cgk2Mz4/dzgjdwk2Mz4/eg41KjU2NT0jc1ABv+rXvuLQv9jpvcDevPXVs/rbvNDPv+frvdPds9rosvvWvejkvODMv+PkvufPvNHcsv35tebWv+X6v/X8v+rXvN3TvuLQv9jpv9/9v/TjvuPRvcbFv/X8ve7qvfXaB1B3enBwvfb2emt6s/rbvNHJvMjocHC15sBQenp3er3P8b/i2bLZ1rzD9bLS3bzHyrLp8LXmwHK96OS9+OC81dWy5eq/4M+y0+h6Eh8Cudrbve7Dv+bvvPPxvPrmve3AdbPhy7zH5b3o07333LLY1r3K3LLS3bLo+r/Ky738277h/nNQenp3er/047/D8rLS3b/j5L7nz7L5x7P55LXmwHKy8+m97uq81t2y8Ne/9OO/w/K8wvW52ta98+C/5dmzwcO97cC81dWz2NC93vu/+/Gy0+i52te52tu52ta93vu//sy8+9y97s6999y/0u2/4M+8+Me52tez2N68wvW52ta/9fy/5dmy0+i/+9C52te15ta+4f+/1dC99Pez+vd1vNDCve3Adb/7zbPu07/q1b7g4L/Rz77nxrLS3b3z4L/l2b/r9rza/XNQenp3erzM3b/3zb/r/r3uwLLS3bzUyL3T0rXmwHK/982z8c6z+PK8+ua52tu/982z3de52tuz+9Wy0+i/6te89c652tuz8cK/39Oz2fK+59ey0t2/6tez59C8zOO/5tVzUHKy0f+8xtO8we6//sCz+tuzx/i15tay8dG+5Me/4NWz2sqz+tu96OS9+OC80dyy/flzUFB5eXpodHq96OS9+OCy8vey8tK96eG97+uy/NW99d56ch4/KTM9NHoJIykuPzdzUHd6cHCy0+i/5/O96eG97+t6ch8iOzkuehI/InoKOzY/Li4/c3BwtebAUHp6d3q9z/G/4tmy2da8w/Wy0+i15sB5AgICAgICenK96OS84My81cq/1cy/4M+y0+iy0t297tG9ytxzUHp6d3q+4uG8zN2/982y0t297cC8+Mey0+i15sB5AgICAgICenK+4uGy/Nu88sOz+9ay0t2809G94/C97cC8+Mey0+hzUHp6d3q8+uK/5dm/5u2y8OWy0+i9wf56chs5OT80LilztebAv9LNv93gvNPavMbTvNXKv9XMv9LqvcDev+btsvDlstPoehIfArna27/K173y67LS3b/K3rLd8LLo+rLo9r3A3rL8zLL84LPZ8r7n17Xm0r/82LXmwLLM3rLX7b3s+np5bRwfaRlqerLo+rLo9r3z4L/l2bPB6LzG77z73Lna27zFzr3o073u33p5HG0bYhhierLo+rLo9r/+/bzR9rLDxbLS3b/q17Lz67z73L3307Xm01B3enBwv/Tjv8Pyv/vxstPostLds9jQvPvcsvzVv9PdcHC15sC8wtS9+OC/9MC95PO/6tey8+u8+9x1s8HovMbvdb/X+73T3XW99Pez+ve8wvW52ta98+C/5dm93vu/+/Gy0+i81dWz2NC52te52tu52ta93vu//sy8+9y/2d+88sOz+9a999y/0u252te80sy52ta/9fy/5dm/+/Gy0+i52tdQd3pwcL/3zb/E0bLS3bzUyL/X6r/r/r3uwHBwtebAvPLDs/vWv/fNs93Xudrbv9fav/vQv+rVvPLDs/vWvffcv9LtsvzVv9Pdudrbv9/9vMzdv/fNsu3HstLdsvvWv9/9s/HCv9/TvMzjv+bVUHd6cHC/4+S+58+y0t281ci9z/Gy8MS86c9wcLXmwLPa+bzU/73twL/E0bzf0bXm0r3B7rL9yLPA1Lz49bzQwr3twHosKXq8zuS/6t699Pez+ve15tO52tu//v280fayw8Wy/NW8+ua52tu/+82z7tO/6tW+4OCy0t299vyyw8W/4PFQUHl5eml0eqrFydF6FDUuPzg1NTEWF3q/6tK9zvK96vu/+uu81cq9/uCy88R6cr7g1r/K0r7i2rPBw7zy+7/m1bLm4r/d4HNQZHqy8dG/yta8w9i81cq+5MG+4f++4tG/3/O98vS88vu/5tW9wN6/9Na8z+56FzsoMT41LTR6vuH5vfjmv9fav/vQtebWsvTJvuflvc7ystrfv8byv9PXvfH1vuLas9fvst3wvc7rv9LdvNXBtebAUFB5eXl6vPL7v+bVemu15sC/3/K/xcWz+PK8+ua8xOy8/dG15tK81PKyzPy15sC/59K82v16aSRoanqz+tu15ta81cq/1cy8z+6+4eey0+i/5/O52tu/982/xNG52tu88sOy8Nay+cez+eSy0t2909K/xNG/4PG15ta+4eG83tW999yy8sK9wNy/1fW9we681P+//829zvK15tNQOjo6NzsoMT41LTRQudrKvuHhv9HDv/T5v8vQudrLtebAULLx0b/A7rz65r7kx7zJwLzSy77i0L/Y6b3A3r333LLywr7k3LzgyrXm0gk1Lyg5Pym15tO15ta81cq/1cyzzcaz1+++4NG/9fyy0t287sS/9cW15ta92OC80suy/NW/0Nm+4tq+4ee978q8/dG/wO6y9uO52tuy/Myy/OC/4+my+/u9wN6/6tK8//e96vu/+uu/3/2/9OO52thQtebSveLns/rbvM/ivc7rvNjyvPrjvMnAvffcsvLCv9/9v/TjvO3rv+D8st3wsvvWsvnbs93VtebWv+HgsvfqemkkaGp6s/rbv8fdv9X1tebWvPXVs/rbvcDcs/rSv8DuvPrms9vvv+TwvuLRv9LNs/jyvPrmsvzVvfXetebTUFC52sqqxdTyer/f8r/FxbL8zLL84LP48rz65rLS3bzHyrLp8LPUzL/0wLL81b313npyDDMpLzs2egkuIzY/enx6FzsuPygzOzZ6FjU5MXO52su15sBQa3R6vc/xv+LZv+DPstPostLdsvvys8f4ve7RvcrctebAAb3o5LzgzL/78b/f/7/gz7LT6HoSHwJ6stLdve7RvcrctebWvuL8v9D6vuLQsuj6v8rLvfzbvuH+tebWvuTRv/zYtebAvfzbvPf4vcDgvMvgs/HIve7DudrbvfzbvPf4v8PuvOXgv/jys+HEudrbvfzbvPf4v8HBsv3IehZ6v8TRvPvcve3AB1BodHqy0+i/5/O96eG97+uy0t2//sCy0+iy5vC8weWzyu+/5NG15sBQenp6d3q+4uG8zN2/982y0t297cC8+Mey0+i15sABEh8CerLS3bLp8LzexQdQenp6d3q/5u2y8OWy0+i9wf615sABv9LNv93gv8rev+btsvDlstPoehIfAnqy0t29zvKz2s4HUHp6end6uMLfudrKsu3yvPbev/7AstPosubwvMHlv+btv9LssvzVv9PdudrLtebAv8rWvuLas/rbs8f4vcDevuL8v9LNvPbevufXudrbv9f7vdPdvPLDs/vWvffcv9LtvNLMv+rXsvPrvOn7vOn7tebWv+Xfs/rSvuTHv+DVsubwvMHlvuLXv8rWstPovcHitebSv/zYtebAvejTve7ferjEznqyzN6y1+297Pp6uMTOerzFzrPh2Xq4xM56vMPuvfPgss3XtebTtebWqsXA8Xq978+/6te/wO69/Nu8z+6z+tu809q8xtO89t6+59e/2+283ey/+8280sq/yta+4tq98vSz+9Wy0+i15ttQenp6d3q4wt+52sqz8cK/39Oz2fK+59ez1My/9MC52su15sABvMLUvfjgsvzVv/TAssT4v9/Tvffcv9Ltv9nfv/jQvMzmv+rVvPLDs/vWvuLRvMzjtebSv8Duvfzbv/vNvNDjvMzmv9/9vMzdvPTvssrntebTtebWvNLMv9nfv+rds83Gs9fvv/fNsvPEsvTQvNXBvejTvffcv/fNstPoB1BpdHq/9OO/w/K/+/Gy0+i8/++82v2y0t2z2NC8+9yzyu+/5NG15tK4wt+zzcaz1++zwui//uu9xsW97t68x8W15tO15sBQenp6d3oBvMLUvfjgsvzVv/TAv+rXsvPrvPvcdbPB6LzG77z73HW96M299Pez+ve8wvW/yvy92OC52ta98+C/5dm93vu/+/Gy0+i81dWz2NC15tK/3/2z2fK9we681P+z2tW/3eC9z/G/4tm/4M+y0+i15taqxcDxer/A7r3827/78bzh5b/1/L/l2bLT6L/70LXm07na17Xm1r7h/7/V0L/+wLz23rzUyL3T0rzC9b/K/L3Y4Lna1r3e+7/+zLz73Lna273e+7/E2L3B7r/S3LPAzr3twLXm0qrFwPF6v8Duvfzbst3wsvvWv9D6s+HLvPvcvNLMv9fbv/fNve3AtebTudrXB1BudHq81ci9z/G52tuz2vm81P+97cCy0t2/982z8c6y/NW99d615sBQenp6d3oBvMLUvfjgsvzVv/TAv/vNs+7Tv+rVvuDgvML1v8r8vdjgudrWve7Os+HLv8z0ve3AvPjHvfPgv+XZv+rVvuDgtebSsuDxs/HOv9/9s9nyvc/DvcPnvuLXv/vNs+HLtebTudrXudrbvMPYs8zJsuHivML1v8r8vdjgudrWY2q/4Py9we6y/cizwNS8+PW80MK97cC99Pez+ve15tKqxcDxer/A7r38273P8bzSyrPBw7LY+7Pg4bLQ67zp+Lzv8L3twLXm07na17na27/3zbPxzrP48rz65gdQULnayqrFzv56ve/Pv+rXvMzdv/fNvOfOvO3ystLds8HsvuDYvfjms8rvv+TRtebSAD8oNXcdMzg4PygzKTJ6fHofIjs5LnoOPyIuehY1OTG15tO52su15sBQa3R6vNDPv+frvdPdvc/xs8f4vuL3vcDevNPavMbTvMzdv/fNv+Xfs/rSemtqan96vdjgvOLfvMPqvPf5vfjgvcDevMzdv/fNtebWv8DuvPrmv9XMst3wvuLRvMzjsvzVv9DZvuPRver7v/rrvMzdvPvStebbUGh0eqrFwPF6ve/Pv+rXv8Duvfzbv8byv+rbs8f4vuLhvPLDs/vWvuLRvMzjudrbsv3IssrnvNLMvNXIvc/xvM3bst3wsvvWvNfVs9r6vd77vN7VveTzvcDev9vnvOb4v/fNudrbvOPQv/fNvM/ivuDYvfjmsvPEv+fDvNLMv9vdv/fNv/vNs+7TtebbUGl0eqrFwPF6v8Duvfzbv+rdvNXKvf7gsvPEvuL3vcDevdPSv8TRvuH5ssPFudrbstPovfjmtebSeQICAgICArXm07zSzL/3zbzP4rPDyr/S7L/X6r/G8rzQz7/n673T3b3P8bPH+L7i0LXm21BQudrKqsXA8Xqz+tuzx/i909K/xNGzweyz3dey/t28xtqz8cK97t68x8W15tIWOyM1Ly56HjMsPygpMy4jenx6AD8oNXcIPyo/LjMuMzU0eggvNj+15tO52su15sBQa3R6vPXVvuLas/rbv8vSvdXkve/PvuLXs93Xsv7dtebAvc74v93gvcDevNDPv+frvdPdv9/9v/TjvuL3tebWvcHis97qs/rbs8f4udrKve/Pv+rXv8DuvfzbudrLv//Nvc7yvcHiv8rWvdPSv8TRtebBvM/uvuHnver7v/rrvuL3tebWvPXVvuLav9rRs/rbs8f4s9nnv+Xfs/rSv+TEvuLRvMzjudrKvdPSv8TRsvDEvOnPv+DxudrLvNbLs9vivNLwvd7svuLXv8rWvcDesvzMsvzgvNHJvMjove/KvP3Rv9HPvN/RsubwvMHltebbUGh0er/m7b/S7L/Rz7zf0bLm8LzB5bXmwL/X6b7k5b3B4rPe6rP627PH+L3A3r7i4bP71rzSzL/f/b/047Pd1b3B4r7m5rXm1r7jxb/l37P60r/m7b/S7LL00LzVwb/j5L7nz7zVyLz957LS3bL8zLL84L/L0r3V5LLm07PxzrXm1r/k47/gz7zHxr3vz7/X2b313b7i2r/k0b3A3r/X+73T3bzSzLz4x7/Szb/m1bL8zLL84L3M6L7j1bXm21BQudrKuMbYteLVer3q+7/667zM3b/3zb/13L/g/LPC6L3S3LP6yr30zbXm0r3s97zW27/L5r/K4rzexbXm1r/A7r3827zP+bzM3bz077LK57Xm07nay7XmwFBrdHq/wO68+ua84PW84Mq15sC809q8xtO/3/2/9OO/5d+z+tJ6a2pqf3q84Mqy3fC+5Ny84Mq999yy8sK15ta/wO69/Nu87eG/0Pq8xvC81cq/1dC9wN6//syz2fK81PKy8cy52thQaHR6v/fNvM/is8PKv9LstebAUHp6end6vNDPv+frvdPdvuLhvPLDs/vWtebAs8PKv/TAemIka256v/fNtebSve/KsvHMv9/SsvvWtebWv8z0svvWvOLfvMPqv8vSvdXktebTudrYUHp6end6v9P1vPLDs/vWdb/q1LLy2rXmwLPDyr/0wHprbyRob3q/98252thQenp6d3q/19q/+9B1v9f7vdPdvPLDs/vWtebAs8PKv/TAem4kYnq/98252thQenp6d3q8+Me/0s2y/Nuz4cS15sC89dW8+Mezw8q/9MB6a2gkaGp6v/fNtebSvPXVvPbedbz11b/X+73T3bzG2r/+wHpoJGl6s+HEtebTudrYUGl0eqrFwPF6suj6v8rLvNTIs8P+tebAs8P+s8fEvuTcvODKvffcsvLCvuL3v9/tv9jDvMLUvfjgve/rsvLSvM/ivMnAtebWv8r8v9PdudrKve/Pv+rXv8DuvfzbudrLvd77vuL3vc7FvMbTve3ys9r6v+3yv8TRehEKE3q97+uy8tK//v28z+K/98252thQULnayqrFycp6v+rSv+v2vdPSv8TRsvDEvOnPv+DxtebSvNXKv9XMst3wv9TFvfLlv8res/rbvcbFv/X8v+PkvufPvNHJvMjotebWsvHRvuTHv9/9v/Tjv+v2vNr9v9HPvN/RsubwvMHls9vivc7ytebTudrLtebAUHd6Ab3T0r/E0XobtebAdHR0B7XmwHKy8+my5eqy8+i909K/xNG+49G98+C/5dl1v/X8v+XZv/Tjv8Pyv+v2vNr9udrbvPbevufXvd77vPvcdbzG07z73LL81bz65rna273097P697zW3b/Ky7na27/7zbPu07/q1b7g4L/Rz77nxrLS3bLT6L/n87Lm8LzB5bP63L/g1XNQd3oBvdPSv8TRehi15sB0dHQHtebAcnR0dHNQd3oBvdPSv8TRehm15sB0dHQHtebAcnR0dHNQd3oBvdPSv8TReh615sB0dHQHtebAcnR0dHNQd3oBvdPSv8TReh+15sB0dHQHtebAcnR0dHNQcrLx0b/q3b/UxbzQz7/n673T3b7i97zT2rzG073X8r3T47P627PH+L3A3r3T0r/E0b/01rzP7rzVyr3f07/d4L7k3LXm1rLs0L3o5L344L/f7bPxzrLs0L//53NQULnayrPayrP6273q+7/667/f/b/047Lm4r/d4Lz65r/m1bXm0rLx0b7kx7z3/rz65r/m1bPayrP627Lm4r/d4LXm07nay7XmwFB3d3dQeXl5er329noCerP627XmwAGz+tuzx/i+4uGz+9YHtebSvNT7vc7yvdPSv8TRtebAARt1GHUZdR51H3R0dAe15ta4wt+/wO68+ua97t68x8W15sC909K/xNG978++4tey0t2/09ey5eq+4eG+58+z+tuzx/iz3dey/t215tNQd3q52sqqxdTyerL8zLL84LLS3b/j5L7nz7PUzL/0wLPf173n9Lnay7XmwHK8wtS9+OC81t2/9MCy8+iz+tu/4M+y0+i97tG9yty52tu/9OO/w/K98+C/5dl1v/X8v+XZv+v2vNr9udrbvMbTvd77v/7MvPvcudrbv/7AstPosubwvMHls/rcv+DVstLdvNXIvc/xv9HPvufGc1B3ernayqrFycd6ver7v/rrvMzdvPvSv9/9v/TjudrLtebAUHp6d3q+4uG88sOz+9a15sB0dHRQenp3erz64r/l2bPd17PhxLXmwLXm0r7kx7Pb4r/0wL3T0r/E0b/78b/18b/K3rzVyLz957zM3bz70rXm1r/A7rz65rPb77/00r/3zbzP4rPDyr/S7LLS3bPB7L7g2L345rPK77/k0bXm01A6OjpQUHl5eXq88vu/5tV6aLXmwLPayrP623prYGt6v+rXvPXOtebSs9vzv8rSvNnpsvzbemtqan96v9nVve76ve7As9jev9TFvdPjv/TAvNDPv+frvdPdvcDev8DuvPrmv/vxv/XxtebTUDo6Ojc7KDE+NS00ULnayr7h4b/Rw7/0+b/L0Lnay7XmwFCy8dG/wO68+ua+5Me8ycC80su+4tC/2Om9wN6999yy8sK+5Ny84Mq15tIJNS8oOT8ptebTtebWvNXKv9XMs83Gs9fvvuDRv/X8stLdvO7Ev/XFtebWv+rdvffcsvLCv9/9v/Tjv+X6v/X8v/vxv/Xxv9//vuLRv9LNudrKs9rKs/rbemtga3q80M+/5+u909281Mi909Ky0t28zN28+9K8xOy8/dG52su+4ve52thQtebSveLns/rbvM/ivc7rvNjyvPrjvMnAvffcsvLCv9/9v/TjvO3rv+D8st3wsvvWsvnbs93VtebWv+HgsvfqemkkaGp6s/rbv8fdv9X1tebWvPXVs/rbvcDcs/rSv8DuvPrms9vvv+TwvuLRv9LNs/jyvPrmsvzVvfXetebTUFC52sqqxcH7teLVer/f8r/FxbzQzb/+673GxbLS3bzM3b/3zbznzrzt8rzG2rPxwrPK77/k0bnay7XmwFBrdHq9z/G/4tm/4M+y0+iy0t297tG9ytyz1My/9MC15sABvejkvfjgv/vxv9//v9TFvfLlv+DPstPoehIfAnqy0t2y2da8w/W8+ua97cB1s+HLvMflve7RvcrctebWs8PevuLQsuj6v8rLvfzbvuH+B1BodHq/9OO/w/K98+C/5dl1v/X8v+XZstLds9jQvPvcs9TMv/TAtebAAbzC1L344LL81b/0wL/J8L7gwb/047/D8r/l37P60r3Y4Lna1r3z4L/l2b3e+7/78bLT6LzV1bPY0Lna17na27/J8L7gwbz23r7n17na1r/01r/f8r3e+7/+zLz73LLS3b/S3LPAzr3twLna17na27/J8L7gwbzyw73r/r3Y4Lna1r/1/L/l2b/78bLT6Lna1wdQaXR6v/7AstPosubwvMHlstLds/HCv9/Ts9nyvufXs9TMv/TAtebAAbzC1L344LL81b/0wL/K3rz23rLT6L/n87Lm8LzB5bP63L/g1bXm1r7h/7/V0LLE+L/f07333L/S7XW96NO999yy9NCy0+i9wN696OS9+OCz2fK+59cHUG50eqrFzv56s8HsvuDYvfjmstLdvMzdv/fNv/Xcv+D8s8LovdLcs/rKvfTNtebAvNPavMbTvMzdv/fNemtqan96vODKst3wvuTcvODKvffcsvLCtebSvuLhvPLDs/vWemIka256v/fNudrbv9P1vPLDs/vWemtvJGhver/3zbna27/X2r/70Lzyw7P71npuJGJ6v/fNudrbvPjHv9LNemtoJGhqer/3zbXm07na2KrFwPF6ve/Pv+rXv8Duvfzbv8byv+rbs8f4vPLDs/vWvuLRvMzjvNLMvNXIvc/xvM3bvNfVs9r6vd77vN7VveTzvcDev9vnvOb4v/fNvNLMvOPQv/fNvM/ivuDYvfjmtebbqsXA8Xq/wO69/Nu93vu+4ve9zsW8xtO97fKz2vq/7fK/xNF6EQoTerzP4r/3zbXm21BQudrKs9rKs/rbemtga3q96vu/+uu81Mi909Ky0t28zN28+9K8xOy8/dG15tK/6te83dO/1MW98uW/yt6z+tu15tO52su15sBQcrLx0b/A7rz65rz647zJwL/1/LPAwbLk8rL3wr/S6r3A3r/K3rP6273Gxb/1/LL8zLL84L3T47/k77PayrP627Lm4r/d4LXm1r313r7k0b/82L7i0bXmwHNQUHd3d1B5eXl6vNDPv+frvdPdemu15sABs/rbs8f4s/vEv8TRtebWv/zYtebAv+rbs8f4vuLhsvzMsvzgs/rbB1C52sqqxdTyerL8zLL84LP48rz65rLS3b/j5L7nz7PUzL/0wLPf173n9Lnay7XmwFB3er3P8b/i2bLZ1rzD9bXmwAG96OS9+OC/+/G/3/+y8+iz+tu/4M+y0+iy0t297tG9yty15ta/yvGy6Pq/ysu9/Nu+4f4HUHd6v/Tjv8PystLdvPriv+XZsvnHs/nktebAAb3o5L344LzW3b/0wL3z4L/l2XW/9fy/5dm/6/a82v252tu+59e95/S52tuz+9Wy0+h6Eh8Cudrbv/vNs+7TvNLMvNXIvc/xv9HPvufGB1B3er/3zbPxzrLS3bPxwr/f07zUyL/X6rXmwAG/982z8c6z+PK8+ua52tu/982y0+i/6te89c652tuz8cK/39O+59e95/S15ta/5u2/0uy/zPS+4tq84t+8w+q+4uG88sO52tu/wO69/Nu/2+e85vi/982+4Ni9+OYHULnayqrFycd6ver7v/rrvMzdvPvSv9/9v/Tjv9faudrLtebAUHd6vuLhvPLDs/vWtebAtebSvNXKv9XMvffcsvLCvPriv+XZvuLhs/vWtebWve/KsvHMv9/SsvvWtebWYiRrbr/3zbXm01B3er/T9bzyw7P71nW/6tSy8tq15sC15tK81cq/1cy96vu/+uu8+uK/5dm/9MC+59e15tZrbyRob7/3zbXm01BQcrLx0b7kx7/g1b/q17zd07/Uxb3q+7/6673A3r329npoudrbaXR0dHoUerP627Xm1rPayrP627/01rzP7rLm4r/d4Lz11b7i2rP6273A3rnayqrF1PJ6svzMsvzgs/jyvPrmstLdv+PkvufPs9TMv/TAs9/Xvef0udrLtebSvMLUvfjgv/XxvPfhvfPgv+XZdb/1/L/l2bna27zG073e+7/+zLz73Lna27zQwr3twHW99Pez+ve/4+S+58+52tu//sCy0+iy5vC8weWz+ty/4NW15tOy0t252sqqxcnHer3q+7/667zM3bz70r/f/b/047/X2rnay3NQOjo6UFB5eXpudHqqxcjhemtga3qz2N6/1MW+49F6Eg4XFnp1eg47MzYtMzQ+erzQz7/n673T3b3vyrz90b345npyv9X1vcHuvNT/sv7dsvnnvuflvc7yc1A6OjoyLjc2UGZ7d3d6v/TWvM/uudrbvuPkvO3yudrbv9X1vuH/vcHuvNT/v8byvdrVsvznv8PyvdfyvfHRs9vRsvvWvcDeehIOFxZ6vuH5vfjmtebWv9bfv8rxeg47MzYtMzQ+ehkJCXoZHhR6stLdv9/9stv1vPL5v+bVtebWa2pqf3q/5fq/9fyz3de91eS+4tCy5eq80M+/5+u90929wN69xsW/9fy/4+S+58+/xsyy/fm52tu98+C/5dl1v/X8v+XZv/Tjv8PystLdvdPSs8f4end3ZFA6OjpQUHd3d1C8xtq/5Na15tay8dG/0cO/5d+zw96+4tC+4tG8zOO9wN56EAkVFHq/19q/+9C15ta81cq+5MG/09e98fWy0+i9//Ky0t288sO96/6/68+9/uC15tKy8dG9+OC+5cd6EAkVFHqy8MS86c+/ytK86c++4s689t6+59e/9Na8z+615tO15sBQOjo6MCk1NFAhUHp6eCkuIzY/BTQ7Nz94YHp4vejkvODMs/jyvPrmvuL3vMzdv8rXvfLrenIfND02MykyegkuIzY/ehQ7Nz9zeHZQenp4Ljs9KXhgegF4vPriv+XZsvzMsvzgvdPjv+Tva3h2eni90+O/5O9oeHZ6eL3T47/k72l4dnp4vdPjv+Tvbnh2eni90+O/5O9veAd2UHp6eCo7Nj8uLj94YHoBUHp6enoheCg1Nj94YHp4vc/xv+LZstnWvMP1eHZ6eDI/Inhgenh5AgICAgICeHZ6eDQ7Nz94YHp4vejkvfjgs/vVstPov8rXvfLreCd2UHp6enoheCg1Nj94YHp4vuLhsvzbvMzdv/fNstLdve3AvPjHeHZ6eDI/Inhgenh5AgICAgICeHZ6eDQ7Nz94YHp4vejkvfjgs/vVstPov8rXvfLreCd2UHp6enoheCg1Nj94YHp4vPriv+XZv+btsvDlstPoemt4dnp4Mj8ieGB6eHkCAgICAgJ4dnp4NDs3P3hgeni96OS9+OCz+9Wy0+i/yte98ut4J3ZQenp6eiF4KDU2P3hgeni8+uK/5dm/5u2y8OWy0+h6aHh2engyPyJ4YHp4eQICAgICAnh2eng0Ozc/eGB6eL3o5L344LP71bLT6L/K173y63gndlB6enp6IXgoNTY/eGB6eLLmzr/Q87/m7bLw5bLT6HppeHZ6eDI/Inhgenh5AgICAgICeHZ6eDQ7Nz94YHp4vejkvfjgs/vVstPov8rXvfLreCd2UHp6enoheCg1Nj94YHp4subOv9Dzv+btsvDlstPoem54dnp4Mj8ieGB6eHkCAgICAgJ4dnp4NDs3P3hgeni96OS9+OCz+9Wy0+i/yte98ut4J1B6egd2UHp6eC0yMy4/BSkqOzk/BSg7LjM1eGB6eGxvf3h2UHp6eD4/NCkzLiN4YHp4ve/KvP3Rv9bMv8bMsv35v8TReFAnUDo6OlA=";
-
-function _0xgetDecryptedInstruction() {
-  try {
-    const binary = atob(_0xSEC_CAPSULE);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i) ^ 0x5A;
-    }
-    return new TextDecoder().decode(bytes);
-  } catch (e) {
-    return "";
-  }
-}
-
-// 動態約束規範快取（來自 Auto-Pilot 自動質檢回傳的 guardrails.json）
+// 前後端共同使用 guardrails.json，載入失敗時不回退到舊風格模板。
 let _dynamicGuardrailsCache = null;
-
+let _systemInstruction = "";
 async function loadDynamicGuardrails() {
   try {
     const res = await fetch("guardrails.json?v=" + Date.now());
-    if (res.ok) {
-      const data = await res.json();
-      if (data && Array.isArray(data.rules) && data.rules.length > 0) {
-        _dynamicGuardrailsCache = data.rules;
-        console.log(`[Guardrails] 成功動態加載 ${_dynamicGuardrailsCache.length} 條抗失真規範 (更新時間: ${data.updated_at || '最新'})`);
-
-        // 呈現版本與規則數
-        const badge = document.getElementById("system-version-badge");
-        if (badge) {
-          badge.textContent = `${APP_VERSION} (${_dynamicGuardrailsCache.length} 條規則)`;
-          if (badge.parentElement) {
-            badge.parentElement.title = `版本: ${APP_VERSION}\n約束規則數: ${_dynamicGuardrailsCache.length} 條\n同步時間: ${data.updated_at || '最新'}`;
-          }
-        }
-      }
+    if (!res.ok) throw new Error("規則載入失敗");
+    const data = await res.json();
+    if (typeof data.system_instruction !== "string" || !data.system_instruction.trim() || !Array.isArray(data.rules)) {
+      throw new Error("規則格式不完整");
     }
-  } catch (e) {
-    console.debug("[Guardrails] 動態約束載入略過:", e);
+    _systemInstruction = data.system_instruction;
+    _dynamicGuardrailsCache = data.rules;
+    const badge = document.getElementById("system-version-badge");
+    if (badge) badge.textContent = `${APP_VERSION} · 原稿優先規則 ${data.version}`;
+    return true;
+  } catch (err) {
+    console.warn("風格規則未載入，分析前將重試。", err);
+    return false;
   }
 }
-
 function getEffectiveSystemInstruction() {
-  const base = _0xgetDecryptedInstruction();
-  if (_dynamicGuardrailsCache && _dynamicGuardrailsCache.length > 0) {
-    const ruleLines = _dynamicGuardrailsCache
-      .filter(r => r.title && r.rule)
-      .map(r => `   - ★【${r.title.trim()}】：${r.rule.trim()}`);
-    if (ruleLines.length > 0) {
-      const block = "\n\n5. 🛡️【實證抗失真約束規範（來自真實 NotebookLM 閉環質檢自動更新）】:\n" + ruleLines.join("\n");
-      return base + block;
-    }
-  }
-  return base;
+  if (!_systemInstruction) throw new Error("風格規則尚未載入，請重新連線後分析。");
+  return _systemInstruction + "\n" + (_dynamicGuardrailsCache || [])
+    .filter(r => r && typeof r.rule === "string").map(r => r.rule).join("\n");
 }
 
 // 服務商配置
@@ -1551,7 +1533,7 @@ function setupEventListeners() {
   on("btn-add-custom-slide", "click", () => {
     const nextIdx = customStoryboardSlides.length + 1;
     customStoryboardSlides.push({
-      layout: "D",
+      layout: getStoryboardLayouts()[0].id,
       topic: `第 ${nextIdx} 頁自訂核心論點`
     });
     renderCustomStoryboardUI();
@@ -1625,7 +1607,7 @@ function setupEventListeners() {
         label.textContent = "已複製！";
         setTimeout(() => label.textContent = originalText, 2000);
       }
-      showToast("已複製 1:1 還原之 HTML / Tailwind 投影片代碼！", "success");
+      showToast("已複製 HTML / Tailwind 投影片重建草稿！", "success");
     });
   });
 
@@ -1752,7 +1734,7 @@ function getOptimalViewport(page) {
   return page.getViewport({ scale: scale });
 }
 
-// === 瀏覽器端純數學光學色彩萃取 (Optical Ground-Truth Color Extraction) ===
+// === 瀏覽器端縮圖近似取色（供模型判斷顏色用途） ===
 function extractDominantColorsFromImage(dataUri, maxSamples = 6) {
   return new Promise((resolve) => {
     if (!dataUri || !dataUri.startsWith("data:")) return resolve([]);
@@ -1829,7 +1811,12 @@ async function parsePdfClientSide(file) {
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const totalPages = pdf.numPages;
   const pages = [];
-  const maxPages = Math.min(totalPages, 30);
+  if (totalPages > 150) {
+    const error = new Error("PDF 超過 150 頁，請先拆分檔案。");
+    error.code = "PDF_PAGE_LIMIT";
+    throw error;
+  }
+  const maxPages = totalPages;
   for (let i = 1; i <= maxPages; i++) {
     const page = await pdf.getPage(i);
     const viewport = getOptimalViewport(page);
@@ -1848,11 +1835,6 @@ async function parsePdfClientSide(file) {
       pageText = "";
     }
     pages.push({ page: i, image: dataUrl, text: pageText });
-  }
-  if (totalPages > 30) {
-    setTimeout(() => {
-      showToast(`檢測到此簡報共有 ${totalPages} 頁，已為您自動載入前 30 頁核心版型`, "info");
-    }, 500);
   }
   return { total_pages: totalPages, preview_pages: pages };
 }
@@ -2422,7 +2404,7 @@ const DEMO_ANALYSIS_DATA = {
    - 【橫向時程】：4 階段橫向時間軸，每階段包含里程碑旗幟與檢查勾選框。
    - 【治理與生態】：中樞盾牌/核心大腦，6 向手繪輻射線環繞架構。
 4. 文案結構規範：每頁控制 1 個核心洞察標題，卡片內文字不超過 3 點，每點不超過 18 字，嚴禁文字牆。
-5. 🚫 頁面呈現零重複最高約束：每頁投影片呈現形態嚴格禁止重複！整份簡報中，必須從拓撲版型庫輪替選用不同版型（如：封面 ➔ 策略卡片 ➔ 階梯進程 ➔ 橫向時程 ➔ 輻射生態），相鄰頁面與全篇各頁絕不重複套用同一版型！
+5. 依內容選用來源版型；系列頁可重複相同結構，不為變化而強制輪替。
 
 請依序輸出各頁：[頁碼與標題] ➔ [建議手繪拓撲版型] ➔ [色彩標籤分配] ➔ [插槽文案內容] ➔ [手繪圖示塗鴉描述]。
 \`\`\`
@@ -2593,6 +2575,7 @@ async function handleFilesAdded(files) {
           try {
             pdfData = await parsePdfClientSide(file);
           } catch (e) {
+            if (e.code === "PDF_PAGE_LIMIT") throw e;
             console.warn("前端 PDF 渲染異常，嘗試後端:", e);
           }
         }
@@ -2600,10 +2583,9 @@ async function handleFilesAdded(files) {
           const formData = new FormData();
           formData.append("file", file);
           const resp = await fetch("/api/preview", { method: "POST", body: formData });
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data.status === "success") pdfData = data;
-          }
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.detail || "PDF 預覽失敗，請檢查檔案。");
+          if (data.status === "success") pdfData = data;
         }
 
         if (pdfData && pdfData.preview_pages && pdfData.preview_pages.length > 0) {
@@ -2617,40 +2599,41 @@ async function handleFilesAdded(files) {
           renderThumbnails();
           showToast(`已成功載入 ${file.name}（共 ${pdfData.preview_pages.length} 頁）`, "success");
         } else {
+          selectedFiles = selectedFiles.filter(item => item !== file);
           showToast(`無法擷取 ${file.name} 預覽，建議改傳投影片圖片`, "warning");
         }
       } catch (err) {
+        selectedFiles = selectedFiles.filter(item => item !== file);
+        showToast(err.message || "無法取得 PDF 縮圖", "error");
         console.warn("無法取得縮圖:", err);
       }
 
     } else if (ext === ".pptx") {
       showToast(`正在解析 PPTX：${file.name}...`, "info");
       try {
-        let pptxSuccess = false;
-        if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-          const formData = new FormData();
-          formData.append("file", file);
-          const resp = await fetch("/api/preview", { method: "POST", body: formData });
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data.status === "success" && data.preview_pages && data.preview_pages.length > 0) {
-              const pagesToAdd = data.preview_pages.map(p => ({
-                page: uploadedSlidePages.length + p.page,
-                image: p.image,
-                name: `${file.name} (P.${p.page})`,
-                text: p.text || ""
-              }));
-              uploadedSlidePages.push(...pagesToAdd);
-              renderThumbnails();
-              pptxSuccess = true;
-              showToast(`已成功載入 ${file.name}（共 ${data.preview_pages.length} 頁）`, "success");
-            }
-          }
+        if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+          throw new Error("純靜態環境請將 PPTX 匯出為 PDF 或投影片圖片後上傳。");
         }
-        if (!pptxSuccess) {
-          showToast("💡 提示：在純靜態環境，建議將 PPT 匯出為 PDF 或直接截圖上傳！", "info");
+        const formData = new FormData();
+        formData.append("file", file);
+        const resp = await fetch("/api/preview", { method: "POST", body: formData });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || "PPTX 預覽失敗，請檢查檔案。");
+        if (data.status !== "success" || !Array.isArray(data.preview_pages) || !data.preview_pages.length) {
+          throw new Error("PPTX 沒有可用的投影片預覽，請檢查檔案。");
         }
+        const pagesToAdd = data.preview_pages.map(p => ({
+          page: uploadedSlidePages.length + p.page,
+          image: p.image,
+          name: `${file.name} (P.${p.page})`,
+          text: p.text || ""
+        }));
+        uploadedSlidePages.push(...pagesToAdd);
+        renderThumbnails();
+        showToast(`已成功載入 ${file.name}（共 ${data.preview_pages.length} 頁）`, "success");
       } catch (err) {
+        selectedFiles = selectedFiles.filter(item => item !== file);
+        showToast(err.message || "無法取得 PPTX 縮圖", "error");
         console.warn("無法取得 PPTX 縮圖:", err);
       }
 
@@ -2705,11 +2688,12 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
 
   const parts = [];
   // 傳入全部投影片縮圖（支援至 30 頁多模態完整辨識）
-  for (const page of slideImages.slice(0, 30)) {
+  for (const page of slideImages) {
     if (page.image && page.image.startsWith("data:")) {
       const mimeMatch = page.image.match(/^data:([^;]+);base64,/);
       const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
       const b64 = page.image.replace(/^data:[^;]+;base64,/, "");
+      parts.push({ text: `來源頁：${page.name || `P.${page.page}`}（影像估計）` });
       parts.push({
         inlineData: {
           mimeType: mime,
@@ -2850,8 +2834,9 @@ async function callOpenAiDirectly(apiKey, selectedModel, slideImages, promptText
   const endpoint = "https://api.openai.com/v1/chat/completions";
   const content = [{ type: "text", text: promptText }];
 
-  for (const page of slideImages.slice(0, 30)) {
+  for (const page of slideImages) {
     if (page.image && page.image.startsWith("data:")) {
+      content.push({ type: "text", text: `來源頁：${page.name || `P.${page.page}`}（影像估計）` });
       content.push({
         type: "image_url",
         image_url: {
@@ -2938,7 +2923,7 @@ function startProgressPipeline() {
     // 階段 4：32 ~ 55 秒（82% ~ 93%），提示詞與還原代碼深度生成
     else if (elapsed < 55000) {
       currentPercent = Math.min(93, 82 + Math.floor(((elapsed - 32000) / 23000) * 11));
-      updatePipelineUi(currentPercent, 4, "正在深度編譯 NotebookLM 雙模式提示詞庫與 1:1 代碼...", elapsedSec);
+      updatePipelineUi(currentPercent, 4, "正在產生 NotebookLM 雙模式提示詞與重建草稿...", elapsedSec);
     }
     // 階段 4 深層延伸：55 秒以上（93% ~ 97%），微動呼吸避免卡死感
     else {
@@ -3070,9 +3055,23 @@ async function handleStartAnalyze() {
     selectedPagesParam = sortedNums.join(",");
   }
 
+  if (targetSlidePages.length > 30) {
+    targetSlidePages = selectAnalysisPages(targetSlidePages);
+    selectedPageIndices = new Set(targetSlidePages.map(page => uploadedSlidePages.indexOf(page) + 1));
+    pageSelectionMode = "custom";
+    updatePageSelectionModeUI();
+    selectedPagesParam = [...selectedPageIndices].join(",");
+    syncPageRangeInputFromSelection();
+    renderThumbnails();
+    showToast("本次均勻選取 30 頁（含首尾頁）；可重新選頁後分析。", "info");
+  }
+
   let data = null;
 
   try {
+    if (!_systemInstruction && !(await loadDynamicGuardrails())) {
+      throw new Error("無法載入風格規則，請檢查連線並重試。");
+    }
     // 1. 若非純靜態 GitHub Pages 且處於本地 localhost，先嘗試呼叫 Python 後端
     if (!isGitHubPages && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
       try {
@@ -3104,47 +3103,15 @@ async function handleStartAnalyze() {
         throw new Error("未檢測到有效投影片影像，請確認上傳了清晰的 PDF 或投影片圖片。");
       }
 
-      // 1. 本機光學色彩萃取 (Ground-Truth Optical Color Extraction)
-      let detectedHexList = [];
-      try {
-        const sampleSlides = targetSlidePages.slice(0, 4);
-        const colorBatches = await Promise.all(sampleSlides.map(s => extractDominantColorsFromImage(s.image, 5)));
-        detectedHexList = Array.from(new Set(colorBatches.flat())).slice(0, 8);
-      } catch (err) {
-        console.warn("本機色彩提取略過:", err);
-      }
-
-      let opticalColorPrompt = "";
-      if (detectedHexList.length > 0) {
-        opticalColorPrompt = `\n★【本機 Canvas 像素光學實測真實色票（Ground-Truth Palette）】：\n` +
-          `系統已自原稿影像中測得代表性真實物理色碼：${detectedHexList.join(", ")}。\n` +
-          `請優先以此真實色碼為基準，鎖定畫布底色、墨黑文字、卡片背景與視覺高光，為各色碼賦予明確的設計角色！\n`;
-      }
-
-      const promptText = "請詳細審視我上傳的簡報投影片，執行深度視覺拓撲與風格逆向鑑識工程。\n" +
-        opticalColorPrompt +
-        "【核心使命】：\n" +
-        "1. 必須逐頁精確拆解真實骨架，★絕對嚴禁將圖解簡化為普通圓點條列！若有同心圓引線對應（Leader Lines）、複合雙模組（靶心+進程軸並存）、時間軸、心智圖等，必須以機械級拓撲完整描述規格與箭頭指向。\n" +
-        "2. ★【全風格流派自適應鑑識 (Universal Style Archetypes)】：\n" +
-        "   - 先精準辨識原稿所屬流派：\n" +
-        "     * (1) 【科技極簡 / Apple Keynote 流派】：曜石黑/深色底、毛玻璃卡片、超大字級數據、便當盒網格 (Bento Grid)、光暈質感。\n" +
-        "     * (2) 【商業諮詢 / 麥肯錫 BCG 流派】：象牙米白/冷灰底、頂部執行摘要條、嚴格 2~4 欄對照卡片或矩陣表格、深海軍藍搭標籤。\n" +
-        "     * (3) 【瑞士國際主義 / 雜誌排版流派】：粗黑無襯線字體、不對稱網格、點陣底紋、醒目色塊撞色與大量通透留白。\n" +
-        "     * (4) 【日系無印 / 溫柔莫蘭迪流派】：燕麥米紙底色、低飽和灰調粉彩、極細邊框與溫潤圓角。\n" +
-        "     * (5) 【黑板粉筆 / 手繪筆記流派】：粉筆深炭黑/橫格線筆記本紙、空心描邊對話框、螢光筆刷底條、多色輪替、極簡線條塗鴉。\n" +
-        "     * (6) ★【先鋒客製 / 自由形態流派 (Custom / Hybrid Archetype)】：若原稿屬於賽博龐克霓虹、Y2K 酸性粗獷、復古舊報刊、分鏡條漫、學術論文壁報、遊戲 UI 等特殊風格，★嚴禁強行套入上述五類！必須直接啟動第一性原理自立專屬風格名稱，精準提煉其獨特材質（如 CRT 掃描線、網點陰影、金屬漸層、斜切倒角）與專屬負向禁令！\n" +
-        "3. ★【六大鑑識級抗失真鐵律（必須明確寫入產出的提示詞中）】：\n" +
-        "   - (A) 【容器填充極性精準鎖定】：嚴格區分『空心透明描邊框（內部無填色透出底色，嚴禁填滿實心粉彩）』、『無外框純筆刷底條（無外框與格線，僅副標下方刷色帶）』或『實心色塊卡片』。\n" +
-        "   - (B) 【畫布底紋與橫線防蒸發】：橫線筆記本紙必須維持水平淺灰橫格線 (#E5E3DC) 與邊界線；深色黑板維持均勻霧面炭黑 (#191A1D) 與粉筆擦拭肌理。\n" +
-        "   - (C) 【多色輪替與高光部位鎖定】：並列欄位/卡片標題依序輪替不同色相；螢光筆刷僅限小標題下方底色，嚴禁塗滿整段內文句子。\n" +
-        "   - (D) 【連接線幾何型態保真】：精準分辨 90 度直角階梯折線箭頭與平滑波浪軸；空心粗框箭頭內部留白無填色。\n" +
-        "   - (E) 【單頁內容預算鐵律 (Content Budgeting)】：每頁嚴格限制單一核心焦點！主標限 8~12 字，要點僅限 2~3 條且每條 15~30 字精華，嚴禁大段文字堆疊！\n" +
-        "   - (F) 【文字零亂碼鐵律】：嚴禁自行捏造無意義的偽漢字或湊字數假字。\n" +
-        "4. 產出的第 3 節 NotebookLM 提示詞必須同時完整輸出兩種模式代碼區塊：\n" +
-        "   - 【模式 1：學風格 · 做新簡報（推薦，含零重複版型約束與單頁內容預算）】\n" +
-        "   - 【模式 2：照原稿 · 一頁頁複刻（1:1 還原原稿獨立拓撲）】\n" +
-        "5. 產出一份可直接獨立運行的 HTML/Tailwind 1:1 還原投影片結構代碼。\n" +
-        "6. 請嚴格依照 SYSTEM INSTRUCTION 規定的章節與末尾 JSON 格式輸出。";
+      // 所選各頁各自取色，不讓封面或照片吞掉後段頁面的品牌色。
+      const colorBatches = await Promise.all(targetSlidePages.map(async page => ({
+        page: page.name || `P.${page.page}`,
+        colors: await extractDominantColorsFromImage(page.image, 5)
+      })));
+      const opticalColorPrompt = colorBatches.filter(batch => batch.colors.length)
+        .map(batch => `${batch.page}：${batch.colors.join(", ")}`).join("\n");
+      const promptText = "請依系統規則分析所附來源頁，先記錄原稿特徵與證據，再產生兩種完整提示詞及 design_profile。\n" +
+        "以下色票來自縮圖像素量化，僅為近似候選，並非精確物件色碼；請辨別背景、照片與品牌色，不可直接將高頻色視為強調色。\n" + opticalColorPrompt;
 
       if (currentProvider === "gemini") {
         data = await callGeminiDirectly(apiKey, model, targetSlidePages, promptText);
@@ -3163,7 +3130,7 @@ async function handleStartAnalyze() {
     const pageMsg = (pageSelectionMode === "custom" && uploadedSlidePages.length > 8)
       ? `已針對精選之 ${targetSlidePages.length} 頁`
       : "已針對整份簡報";
-    showToast(`風格逆向分析完成！${pageMsg}產生 1:1 幾何對比與雙模式提示詞`, "success");
+    showToast(`風格逆向分析完成！${pageMsg}產生原稿規格與雙模式提示詞`, "success");
 
   } catch (err) {
     stopProgressPipeline();
@@ -3193,6 +3160,10 @@ function renderAnalysisResult(data, options = {}) {
   generatedNblmPrompt = currentPromptMode === "global" ? generatedPromptGlobal : generatedPromptSlide;
   generatedSlideHtml = extractSlideHtml(generatedReportMarkdown);
 
+  const meta = data.structured_meta || fallbackExtractMeta(generatedReportMarkdown);
+  currentDesignProfile = normalizeDesignProfile(meta.design_profile);
+  customStoryboardSlides = [{ layout: getStoryboardLayouts()[0].id, topic: "" }];
+
   // 渲染當前模式提示詞
   switchPromptMode(currentPromptMode);
 
@@ -3220,8 +3191,6 @@ function renderAnalysisResult(data, options = {}) {
   // 預設切換至 NotebookLM 提示詞頁籤
   switchResultTab("nblm");
 
-  const meta = data.structured_meta || fallbackExtractMeta(generatedReportMarkdown);
-  
   document.getElementById("result-style-name").textContent = meta.style_name || "簡報視覺風格解析報告";
 
   const autoBadge = document.getElementById("result-auto-badge");
@@ -3239,23 +3208,17 @@ function renderAnalysisResult(data, options = {}) {
 
   const tagsContainer = document.getElementById("result-tags-container");
   tagsContainer.innerHTML = "";
-  (meta.tags || ["麥肯錫架構", "純2D扁平", "三欄線框卡片", "同心圓模型"]).forEach(tag => {
+  (meta.tags || []).forEach(tag => {
     const span = document.createElement("span");
     span.className = "px-2 py-0.5 text-[11px] rounded bg-[#F3EFEA] text-[#68615B] border border-[#322E2B]/10 font-mono";
     span.textContent = `# ${tag}`;
     tagsContainer.appendChild(span);
   });
 
-  if (meta.white_space_ratio) {
-    document.getElementById("white-space-metric").textContent = `留白比例: ${meta.white_space_ratio}`;
-  }
-
-  const finalPalette = meta.palette || [
-    {"role": "畫布背景", "hex": "#F3EFEA", "name": "Oatmeal Linen"},
-    {"role": "主標題與邊框", "hex": "#322E2B", "name": "Warm Charcoal"},
-    {"role": "核心強調色", "hex": "#768A7A", "name": "Sage Green"},
-    {"role": "次要輔助色", "hex": "#C8A7A3", "name": "Dusty Rose"}
-  ];
+  document.getElementById("white-space-metric").textContent = `留白比例: ${meta.white_space_ratio || "未量測"}`;
+  const evidence = document.getElementById("design-profile-evidence");
+  if (evidence) evidence.textContent = formatDesignRules() || "此紀錄沒有逐項來源規格；可重新分析原稿取得。";
+  const finalPalette = Array.isArray(meta.palette) ? meta.palette.filter(c => c && /^#[0-9a-f]{6}$/i.test(c.hex)) : [];
   renderColorPalette(finalPalette);
 
   const markdownContainer = document.getElementById("full-report-markdown");
@@ -3398,8 +3361,8 @@ function renderCustomStoryboardUI() {
     row.className = "custom-slide-item flex items-center gap-2 p-2 rounded-lg bg-[#F3EFEA] border border-white/[0.06] hover:border-white/15 transition-all";
     row.setAttribute("data-slide-idx", idx);
 
-    const optionsHtml = DEFAULT_LAYOUT_OPTIONS.map(opt => 
-      `<option value="${opt.id}" ${opt.id === slide.layout ? "selected" : ""}>${opt.name}</option>`
+    const optionsHtml = getStoryboardLayouts().map(opt =>
+      `<option value="${opt.id}" ${opt.id === slide.layout ? "selected" : ""}>${escapeStoryboardText(opt.name)}</option>`
     ).join("");
 
     row.innerHTML = `
@@ -3411,7 +3374,7 @@ function renderCustomStoryboardUI() {
           </select>
         </div>
         <div class="md:col-span-7">
-          <input type="text" value="${slide.topic || ""}" class="custom-slide-topic w-full bg-[#14181F] border border-white/[0.1] rounded px-2 py-1 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-amber-400/50" placeholder="指定文案主題（例如：三大核心資安鐵律）">
+          <input type="text" value="${escapeStoryboardText(slide.topic || "")}" class="custom-slide-topic w-full bg-[#14181F] border border-white/[0.1] rounded px-2 py-1 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-amber-400/50" placeholder="指定文案主題（例如：三大核心資安鐵律）">
         </div>
       </div>
       <button type="button" class="btn-remove-custom-slide text-zinc-500 hover:text-rose-400 p-1 transition-colors cursor-pointer shrink-0" title="移除此頁">
@@ -3454,36 +3417,30 @@ function renderCustomStoryboardUI() {
   if (window.lucide) window.lucide.createIcons();
 }
 
+function escapeStoryboardText(value) {
+  return String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
 function generateCustomStoryboardPrompt() {
-  const slides = customStoryboardSlides;
+  const rules = formatDesignRules();
+  const inherited = rules || generatedPromptGlobal;
+  if (!inherited) return "請先完成風格解析，再建立自訂故事板。";
   let markdown = `【任務宣告】：
-請嚴格依據我上傳的筆記來源（Sources），提取關鍵事實與洞察，將筆記內容【精準對號入座】填入下列我指定的每一頁版型結構中：
-（★最高鐵律：嚴格遵循每一頁指定的幾何拓撲，絕不偏離版型設定）
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【🎨 精確全域色彩系統規範 (Executive Color System)】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. 畫布底色：內頁採用【溫潤暖象牙米灰 (#F4F3EE)】，封面與結尾採用【深邃墨夜海軍藍 (#0D2235)】，★嚴禁使用冰冷死白。
-2. 核心強調色：【低飽和啞光駝金 / 沉穩古銅赭金 (#C29B53)】。
-   🚫【絕對色彩禁令】：嚴禁使用高飽和鮮黃、檸檬黃、香蕉黃 (#FFCC00 / #FFFF00)，所有金色皆必須帶有深駝與古銅褐感。
-3. 色彩比重：60% 暖米灰底 + 30% 深墨藍 + 10% 啞光駝金（僅限細節點綴，嚴禁整大片塗抹）。
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【🎯 自訂逐頁版型與內容指派故事板（嚴格對號入座）】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+依來源筆記填入以下故事板，只沿用本次原稿風格，不添加無來源數據。
+【本次風格規格】：
+${inherited}
+【自訂內容指派】：
+以下故事板取代前面的頁數與內容順序；視覺規格僅在其適用頁型或元件生效。
+允許系列頁重複版型，按內容調整節點及文字容量，不強制固定留白或全篇字數。
 `;
-
-  slides.forEach((s, idx) => {
-    const layoutObj = DEFAULT_LAYOUT_OPTIONS.find(l => l.id === s.layout) || DEFAULT_LAYOUT_OPTIONS[0];
-    markdown += `---
-### 第 ${idx + 1} 頁：[${s.topic || `第 ${idx + 1} 頁主題`}]（強制採用：${layoutObj.name}）
-- 【🎨 視覺幾何拓撲規格】：${layoutObj.desc}
-- 【📝 筆記內容提取與指定指派】：
-  - 核心指派主題：${s.topic || "請依上傳來源提取最切合該版型的核心重點"}
-  - 填入約束：嚴格依據選定之幾何插槽（如引線指向、階梯踏板、公式運算元或獨立卡片）逐項填入短語（每點限定 10~18 字以內，維持極佳呼吸感）。
-\n`;
+  const layouts = getStoryboardLayouts();
+  customStoryboardSlides.forEach((slide, idx) => {
+    const layout = layouts.find(l => l.id === slide.layout) || layouts[0];
+    markdown += `\n### 第 ${idx + 1} 頁（版型 ${layout.id}：${layout.name}）
+- 視覺配置：${layout.desc}
+- 來源頁：${(layout.source_pages || []).join("、") || "未提供；依已解析風格選用"}
+- 內容主題：${slide.topic || "依來源筆記選取重點"}
+`;
   });
-
   return markdown;
 }
 
@@ -3739,14 +3696,14 @@ function renderColorPalette(palette) {
   palette.forEach(color => {
     const card = document.createElement("div");
     card.className = "group studio-swatch-card p-2 flex flex-col justify-between cursor-pointer";
-    card.title = `點擊複製 Pantone 色碼：${color.hex}`;
+    card.title = `點擊複製 HEX 色碼：${color.hex}`;
     
     card.innerHTML = `
       <div class="relative w-full h-8 sm:h-9 rounded-md border border-white/10 mb-2 shadow-inner overflow-hidden" style="background-color: ${color.hex}">
         <span class="absolute top-1 right-1 bg-black/75 backdrop-blur-sm text-[8px] font-mono text-zinc-300 px-1 py-0.2 rounded border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">COPY</span>
       </div>
       <div>
-        <div class="text-[10px] font-medium text-[#68615B] truncate leading-tight">${color.role || color.name}</div>
+        <div class="text-[10px] font-medium text-[#68615B] truncate leading-tight">${escapeStoryboardText(color.role || color.name || "用途未確認")}</div>
         <div class="text-[11px] font-mono font-semibold text-[#322E2B] flex items-center justify-between mt-0.5">
           <span>${color.hex}</span>
           <i data-lucide="copy" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400"></i>
@@ -3756,7 +3713,7 @@ function renderColorPalette(palette) {
 
     card.addEventListener("click", () => {
       navigator.clipboard.writeText(color.hex);
-      showToast(`已複製 Pantone 色碼: ${color.hex}`, "success");
+      showToast(`已複製 HEX 色碼: ${color.hex}`, "success");
     });
 
     container.appendChild(card);
@@ -3778,6 +3735,7 @@ function fallbackExtractMeta(markdown) {
         const candidate = JSON.parse(jsonBlocks[i][1].trim());
         if (candidate && (candidate.style_name || Array.isArray(candidate.palette))) {
           return {
+            design_profile: candidate.design_profile,
             style_name: candidate.style_name || "簡報視覺色彩與排版拓撲",
             tags: Array.isArray(candidate.tags) && candidate.tags.length > 0
               ? candidate.tags
@@ -3785,7 +3743,7 @@ function fallbackExtractMeta(markdown) {
             palette: Array.isArray(candidate.palette) && candidate.palette.length > 0
               ? candidate.palette
               : undefined,
-            white_space_ratio: candidate.white_space_ratio || "65%"
+            white_space_ratio: candidate.white_space_ratio || "未量測"
           };
         }
       } catch (_) {}
@@ -3795,17 +3753,17 @@ function fallbackExtractMeta(markdown) {
     const styleLineMatch = markdown.match(/(?:風格定義|核心風格名稱|視覺風格)[：:]\s*\**([^\n*]+)/);
     const extractedStyleName = styleLineMatch ? styleLineMatch[1].trim() : null;
 
-    const hexMatches = markdown.match(/#[0-9a-fA-F]{6}/g) || ["#FAF8F5", "#181A1B", "#FEE054", "#BAE6FD", "#FED7AA", "#FEF08A", "#BBF7D0", "#E9D5FF"];
+    const hexMatches = markdown.match(/#[0-9a-fA-F]{6}/g) || [];
     const uniqueHex = Array.from(new Set(hexMatches)).slice(0, 8);
     return {
       style_name: extractedStyleName || "簡報視覺色彩與排版拓撲",
       tags: ["版面骨架", "色彩系統", "幾何插槽", "NotebookLM對齊"],
       palette: uniqueHex.map((hex, idx) => ({
-        role: idx === 0 ? "畫布底色" : idx === 1 ? "線條與主文" : idx === 2 ? "核心強調色" : `功能標籤 ${idx - 2}`,
+        role: "報告提及色碼（用途未確認）",
         hex: hex,
         name: "提取色"
       })),
-      white_space_ratio: "65%"
+      white_space_ratio: "未量測"
     };
   }
 
@@ -3813,7 +3771,7 @@ function fallbackExtractMeta(markdown) {
     style_name: "簡報視覺色彩與排版拓撲",
     tags: ["版面骨架", "色彩系統", "幾何插槽", "NotebookLM對齊"],
     palette: [],
-    white_space_ratio: "65%"
+    white_space_ratio: "未量測"
   };
 }
 
@@ -3996,10 +3954,11 @@ function openSavedStylesDB() {
 /**
  * 自動修復與升級舊版保存紀錄：
  * 1. 從 markdownReport 末尾 JSON 還原真實風格標題、精確色票名稱與標籤（修正舊版「簡報視覺色彩與排版拓撲」泛稱問題）
- * 2. 為既有提示詞注入 v6.36 鑑識級抗失真與文字潔淨鐵律（修正空心對話框被填滿、橫線蒸發、單色重複、時間軸變8字曲線與封面亂碼問題）
+ * 2. 保留使用者保存的提示詞，不注入推測的視覺規則。
  */
 function upgradeSavedStyleRecord(item) {
   if (!item || typeof item !== "object") return { record: item, changed: false };
+  if (item.schemaVersion >= 2 || item.designProfile !== undefined) return { record: item, changed: false };
   let changed = false;
 
   if (item.markdownReport) {
@@ -4033,68 +3992,7 @@ function upgradeSavedStyleRecord(item) {
     }
   }
 
-  const upgradePromptText = (promptStr, isSlideMode = false) => {
-    if (!promptStr || typeof promptStr !== "string") return promptStr;
-    if (promptStr.includes("【🛡️ 全域抗失真與文字潔淨最高鐵律")) return promptStr;
-
-    let updated = promptStr;
-    const isChalkboard = /黑板|#191A1D|Chalkboard/i.test(updated) || /黑板|Chalkboard/i.test(item.title || "");
-    const isNotebook = /筆記本|#F9F7F1|橫線|Notebook Doodle/i.test(updated) || /筆記本|Notebook/i.test(item.title || "");
-
-    if (isChalkboard) {
-      // 修正黑板風：強制對話框與雲朵為空心透明描邊框（嚴禁填滿實心色塊）
-      updated = updated.replace(
-        /所有對話框與幾何容器皆採用「雙重或多重手繪粉筆線條」描邊/g,
-        "所有對話框、雲朵框與幾何容器皆強制採用「空心透明無填色（Hollow Transparent Interior，內部直接透出 #191A1D 深黑板底色，呈現純白粉筆字）+ 外圍雙重粉彩粉筆線條描邊」；🚫【絕對容器禁令】：除橫幅標籤條與便利貼外，嚴禁將對話氣泡或雲朵框填滿實心粉彩色塊！"
-      );
-      const chalkGuardrail = `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【🛡️ 全域抗失真與文字潔淨最高鐵律（Anti-Distortion Lock）】\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n1. 【容器空心極性鎖定】：全篇對話框（Speech Bubbles）、雲朵框與波浪框一律為「空心透明黑板底 + 雙線粉彩粉筆外框 + 內部純白粉筆字」，嚴禁填滿實心粉彩色塊（僅標題膠囊橫幅與便利貼塊可為實心粉彩底配深黑字）！\n2. 【色彩輪替強制令】：同頁多個對話框或步驟節點必須強制依序輪替不同粉彩色相（珊瑚紅 #F27D72 ➔ 薄荷綠 #A3D9C9 ➔ 奶油黃 #F4D068 ➔ 丁香紫 #C6B4E8 ➔ 粉藍 #8AB8E6），嚴禁整頁使用單一配色。\n3. 【零亂碼與文字潔淨鐵律】：封面頁、結尾頁與所有插畫氣泡內僅允許清晰可讀的繁體中文重點，絕對嚴禁生成任何無意義偽漢字亂碼或微縮假字。\n`;
-      if (updated.includes("【🎨 視覺設計規範")) {
-        updated = updated.replace("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【🎨 視覺設計規範", `${chalkGuardrail}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【🎨 視覺設計規範`);
-      } else {
-        updated += chalkGuardrail;
-      }
-    } else if (isNotebook) {
-      // 修正手繪塗鴉筆記本風：修正橫線蒸發、無框欄位被加粗黑框、單色重複、時間軸 90 度直角階梯折線、空心火柴人與封面亂碼
-      updated = updated.replace(
-        /波浪曲折蛇行軸線 \(Serpentine Wave\)/g,
-        "單條 90 度直角階梯折線箭頭（Orthogonal 90-Degree Stepped Line，呈「┌─┐」方角垂直與水平折轉，🚫嚴禁畫成 8 字形雙波浪交叉曲線！）"
-      );
-      updated = updated.replace(
-        /一條粗黑手繪線條如波浪般上下曲折橫貫畫面中央，形成 4 個波峰\/波谷轉折點/g,
-        "單條粗黑手繪線條以「90度直角階梯折線（Orthogonal Stepped Line）」上下方角折轉橫貫畫面中央，形成 4 個直角階梯轉折點（🚫嚴禁畫成 8 字形雙波浪交叉線）"
-      );
-      const notebookGuardrail = `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【🛡️ 全域抗失真與文字潔淨最高鐵律（Anti-Distortion Lock）】\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n1. 【筆記本橫線防蒸發鐵律】：每一頁（P.1~結尾）背景必須全程清晰可見「水平橫線筆記本格線 (#E5E3DC) + 左側單條垂直裝訂線」，絕對嚴禁退化為無橫線空白米色紙、泛黃牛皮紙，且嚴禁添加墨水噴濺髒污（Ink Splatters）或四角落直角引號框（┌ ┘）！\n2. 【無外框筆刷欄 vs 獨立線框卡嚴格區分】：開放式筆刷欄位（如三欄展開、四欄目標、放射心智圖分支）採用「無外框、無分隔線」設計（僅在小標題下方刷一筆彩色螢光筆條），嚴禁私自加上粗黑矩形外框或「+」字格線！僅明確指定為獨立手繪框的頁面才畫黑框。\n3. 【多色螢光筆輪替與塗抹部位鎖定】：同一頁並排的 3~6 個小標題或數字圓圈，必須強制依序輪替不同螢光筆色（櫻花粉 #FF9CEE ➔ 螢光青 #70F3EA ➔ 亮黃 #FFE382 ➔ 水藍 #73C2FB），嚴禁同頁全塗同一顏色！且螢光筆僅限襯於「小標題或編號下方」，絕對嚴禁將黃色螢光筆塗抹在下方正文的句子上！\n4. 【空心火柴人與空心粗框箭頭】：所有極簡火柴人（Stick Figures）軀幹必須為「空心無填色線條（Hollow Unfilled Torso）」，嚴禁將小人身體塗黑；流程粗箭頭必須為「空心粗黑框箭頭（Hollow Outlined Arrow）」，嚴禁填滿死黑實心箭頭。\n5. 【零亂碼與封面潔淨鐵律】：封面頁與結尾頁僅輸出主標題與明確副標，絕對嚴禁在主標題下方生成任何無意義偽漢字亂碼（如「未成項传惠行」等假字）！\n`;
-      if (updated.includes("【🎨 視覺設計規範")) {
-        updated = updated.replace("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【🎨 視覺設計規範", `${notebookGuardrail}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【🎨 視覺設計規範`);
-      } else {
-        updated += notebookGuardrail;
-      }
-    } else {
-      const generalGuardrail = `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【🛡️ 全域抗失真與文字潔淨最高鐵律（Anti-Distortion Lock）】\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n1. 【容器填充極性鎖定】：嚴格遵循原稿容器之「空心描邊」、「無外框筆刷欄」或「實心色塊」屬性，嚴禁將空心框填滿實心色塊或替無框欄位私自加上粗黑外框。\n2. 【多色強調色輪替】：同頁並排之多個欄位標題或步驟節點必須依序輪替色票中的不同強調色，嚴禁單色重複，且嚴禁將螢光筆塗抹於正文長句上。\n3. 【零亂碼與文字潔淨鐵律】：封面與各頁插畫內絕對嚴禁生成任何無意義偽漢字亂碼或模糊微縮假字。\n`;
-      if (updated.includes("【🎨 視覺設計規範")) {
-        updated = updated.replace("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【🎨 視覺設計規範", `${generalGuardrail}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【🎨 視覺設計規範`);
-      } else {
-        updated += generalGuardrail;
-      }
-    }
-    return updated;
-  };
-
-  if (item.globalPrompt) {
-    const newGlobal = upgradePromptText(item.globalPrompt, false);
-    if (newGlobal !== item.globalPrompt) {
-      item.globalPrompt = newGlobal;
-      changed = true;
-    }
-  }
-  if (item.slidePrompt) {
-    const newSlide = upgradePromptText(item.slidePrompt, true);
-    if (newSlide !== item.slidePrompt) {
-      item.slidePrompt = newSlide;
-      changed = true;
-    }
-  }
-
+  // 僅恢復原紀錄的中繼資料，不依關鍵字改寫任何版本的已保存提示詞。
   return { record: item, changed };
 }
 
@@ -4263,6 +4161,7 @@ async function handlePostAnalysisSave(data, meta, finalPalette, options = {}) {
   const styleId = `style_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   const record = {
     id: styleId,
+    schemaVersion: 2,
     title: meta.style_name || `簡報風格 (${dateLabel})`,
     isFavorite: false,
     createdAtMs: Date.now(),
@@ -4272,7 +4171,8 @@ async function handlePostAnalysisSave(data, meta, finalPalette, options = {}) {
     slides: compressedSlides,
     palette: finalPalette,
     tags: meta.tags || [],
-    whiteSpaceRatio: meta.white_space_ratio || "65%",
+    whiteSpaceRatio: meta.white_space_ratio || "未量測",
+    designProfile: meta.design_profile,
     markdownReport: generatedReportMarkdown,
     globalPrompt: generatedPromptGlobal,
     slidePrompt: generatedPromptSlide,
@@ -4299,6 +4199,13 @@ function updateSaveToolbarButtonState() {
     btn.className = "px-3 py-1.5 text-xs font-semibold bg-[#F4EAE8] hover:bg-[#EBDAD7] text-[#8F6561] rounded-lg border border-[#DFC9C6] flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm";
     textEl.textContent = "加入收藏 · 自訂名稱";
   }
+}
+
+function safeSavedPalette(palette) {
+  return Array.isArray(palette) ? palette.filter(c => c && typeof c.hex === "string" && /^#[0-9a-f]{6}$/i.test(c.hex)) : [];
+}
+function safeSavedImage(value) {
+  return typeof value === "string" && /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[a-z0-9+/]+={0,2}$/i.test(value) ? value : "";
 }
 
 function renderSavedStylesList() {
@@ -4357,12 +4264,13 @@ function renderSavedStylesList() {
         : "bg-[#F3EFEA]/90 hover:bg-[#EAE3DC]/80 border-[#322E2B]/[0.09]"
     }`;
 
-    const paletteDots = (item.palette || []).slice(0, 4).map(c =>
-      `<span class="w-3 h-3 rounded-full border border-[#322E2B]/15 shrink-0" style="background-color: ${c.hex || '#C8A7A3'};" title="${c.role || ''}: ${c.hex || ''}"></span>`
+    const paletteDots = safeSavedPalette(item.palette).slice(0, 4).map(c =>
+      `<span class="w-3 h-3 rounded-full border border-[#322E2B]/15 shrink-0" style="background-color: ${c.hex || '#C8A7A3'};" title="${escapeStoryboardText(c.role || "")}: ${c.hex || ''}"></span>`
     ).join("");
 
-    const thumbHtml = item.coverImage
-      ? `<img src="${item.coverImage}" alt="${item.title}" class="w-full h-full object-cover">`
+    const coverImage = safeSavedImage(item.coverImage);
+    const thumbHtml = coverImage
+      ? `<img src="${coverImage}" alt="${escapeStoryboardText(item.title || "")}" class="w-full h-full object-cover">`
       : `<div class="w-full h-full flex items-center justify-center text-[10px] font-mono text-[#968E86]">16:9</div>`;
 
     card.innerHTML = `
@@ -4371,15 +4279,15 @@ function renderSavedStylesList() {
         <div class="btn-load-saved-style relative w-24 aspect-video rounded-lg overflow-hidden bg-[#EAE3DC] border border-[#D9CEC2] shrink-0 cursor-pointer group" title="點擊載入原始圖片樣式與提示詞">
           ${thumbHtml}
           <span class="absolute bottom-1 right-1 px-1.5 py-0.2 rounded bg-[#322E2B]/80 text-[#FAF8F5] font-mono text-[9px]">
-            ${item.pageCount || 1} 頁
+            ${Number.isInteger(item.pageCount) && item.pageCount > 0 ? item.pageCount : 1} 頁
           </span>
         </div>
 
         <!-- 右側：標題、色票與快捷操作 -->
         <div class="min-w-0 flex-1 space-y-1">
           <div class="flex items-start justify-between gap-1">
-            <button type="button" class="btn-load-saved-style text-left text-xs font-bold text-[#322E2B] hover:text-[#4E6152] truncate cursor-pointer flex-1" title="${item.title}">
-              ${item.title}
+            <button type="button" class="btn-load-saved-style text-left text-xs font-bold text-[#322E2B] hover:text-[#4E6152] truncate cursor-pointer flex-1" title="${escapeStoryboardText(item.title || "")}">
+              ${escapeStoryboardText(item.title || "")}
             </button>
             <button type="button" class="btn-toggle-fav shrink-0 px-1.5 py-0.5 rounded text-[10px] font-mono border cursor-pointer transition-colors ${
               item.isFavorite
@@ -4394,7 +4302,7 @@ function renderSavedStylesList() {
             <div class="flex items-center gap-1">
               ${paletteDots}
             </div>
-            <span class="text-[10px] font-mono text-[#968E86] truncate">${item.dateLabel || ""}</span>
+            <span class="text-[10px] font-mono text-[#968E86] truncate">${escapeStoryboardText(item.dateLabel || "")}</span>
           </div>
 
           <!-- 底部操作列 -->
@@ -4528,7 +4436,8 @@ function loadSavedStyleIntoWorkspace(styleId) {
       style_name: item.title,
       palette: item.palette,
       tags: item.tags,
-      white_space_ratio: item.whiteSpaceRatio
+      white_space_ratio: item.whiteSpaceRatio,
+      design_profile: item.designProfile || fallbackExtractMeta(item.markdownReport || "").design_profile
     }
   };
 
@@ -4553,13 +4462,13 @@ function openSaveStyleModal(targetId = null) {
   const favCheck = document.getElementById("check-save-style-fav");
 
   if (previewImg) {
-    previewImg.src = item.coverImage || "";
+    previewImg.src = safeSavedImage(item.coverImage);
   }
   if (pageInfo) {
-    pageInfo.textContent = `包含 ${item.pageCount || 1} 頁原始簡報縮圖 · 保存於 ${item.dateLabel || "剛剛"}`;
+    pageInfo.textContent = `包含 ${Number.isInteger(item.pageCount) && item.pageCount > 0 ? item.pageCount : 1} 頁原始簡報縮圖 · 保存於 ${item.dateLabel || "剛剛"}`;
   }
   if (swatchesEl) {
-    swatchesEl.innerHTML = (item.palette || []).map(c =>
+    swatchesEl.innerHTML = safeSavedPalette(item.palette).map(c =>
       `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono border border-[#322E2B]/15 flex items-center gap-1 bg-[#FAF8F5]">
         <span class="w-2.5 h-2.5 rounded-full" style="background-color:${c.hex || '#768A7A'}"></span>
         <span>${c.hex || ''}</span>
