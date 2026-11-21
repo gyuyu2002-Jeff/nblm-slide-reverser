@@ -453,3 +453,24 @@ test('adding a second layout preserves draft fields and assigns separate source 
   assert.equal(vm.runInContext('currentQuality.ready',ctx),true);
   assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(currentRawProfile.layouts.map(l=>[l.id,l.name,l.source_pages]))',ctx)),[['A','封面草稿',['P.1']],['B','四欄內頁',['P.9']]]);
 });
+
+
+test('Gemini auto analysis and connection test reach the validated model before unavailable legacy models', async () => {
+  const ctx = context();
+  const calls = [];
+  ctx.performance = { now: () => 0 };
+  ctx.fetch = async (url) => {
+    const model = url.match(/models\/([^:]+):/)[1];
+    calls.push(model);
+    return model === 'gemini-3.5-flash-lite'
+      ? { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: report }] } }] }) }
+      : { ok: false, status: 404, json: async () => ({ error: { message: 'model not found' } }) };
+  };
+  vm.runInContext('getEffectiveSystemInstruction = () => "test";', ctx);
+  const result = await vm.runInContext('callGeminiDirectly("test-placeholder", "auto", [], "analyze")', ctx);
+  assert.equal(result.model_used, 'gemini-3.5-flash-lite');
+  const connection = await vm.runInContext('testApiKeyConnection("gemini", "test-placeholder")', ctx);
+  assert.equal(connection.ok, true);
+  assert.equal(connection.model, result.model_used);
+  assert.deepEqual(calls, ['gemini-3.5-flash-lite', 'gemini-3.5-flash-lite']);
+});

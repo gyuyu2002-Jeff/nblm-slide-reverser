@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.39.0";
+const APP_VERSION = "v6.39.1";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -699,8 +699,8 @@ async function testApiKeyConnection(provider, apiKey) {
   const startTime = performance.now();
 
   if (provider === "gemini") {
-    // 優先以最穩定、高響應的現代 Gemini Flash 模型發起快速輕量 ping
-    const testModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
+    // 連線測試與分析優先使用已完成實測的模型
+    const testModels = ["gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
     let lastErr = null;
 
     for (const model of testModels) {
@@ -2804,13 +2804,13 @@ async function handleFilesAdded(files) {
 
 // === 4. 純瀏覽器端 AI 直連呼叫引擎 (支援 GitHub Pages Serverless) ===
 async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText) {
-  // 建立高穩定性模型候選清單（最新 2.5 Flash 優先，具備 1M context 與極高多模態視覺精度）
+  // 明確指定的模型優先，其餘依候選清單備援
   const candidateModels = [];
   if (selectedModel && selectedModel !== "auto") {
     candidateModels.push(selectedModel);
   }
-  // 候選優先級：gemini-2.5-flash ➔ gemini-2.5-flash-lite ➔ gemini-2.0-flash ➔ gemini-flash-latest
-  const defaultList = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-flash-latest"];
+  // 自動模式優先使用已完成來源規格實測的模型
+  const defaultList = ["gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-flash-latest"];
   for (const m of defaultList) {
     if (!candidateModels.includes(m)) {
       candidateModels.push(m);

@@ -173,6 +173,22 @@ class StyleRulesTests(unittest.TestCase):
         self.assertIn("P.2：近白像素 0.0%；近黑像素 100.0%", prompt)
         self.assertIn("不代表精確品牌色或物件色", prompt)
 
+    def test_gemini_auto_reaches_validated_model_without_legacy_retries(self):
+        from unittest.mock import Mock
+        def reply(**kwargs):
+            if kwargs['model'] != 'gemini-3.5-flash-lite':
+                raise RuntimeError('404 model not found')
+            return SimpleNamespace(text='test')
+        generate = Mock(side_effect=reply)
+        fake = SimpleNamespace(models=SimpleNamespace(generate_content=generate))
+        with patch.object(app.genai, 'Client', return_value=fake), TestClient(app.app) as client:
+            response = client.post('/api/analyze', headers={'x-api-key': 'test-placeholder'},
+                                   data={'provider': 'gemini', 'model': 'auto'},
+                                   files=[('files', ('sample.pdf', self.pdf_bytes(1), 'application/pdf'))])
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['model_used'], 'gemini-3.5-flash-lite')
+        self.assertEqual(generate.call_count, 1)
+
     def test_provider_busy_is_reported_as_unavailable_not_bad_file(self):
         from unittest.mock import Mock
         fake = SimpleNamespace(models=SimpleNamespace(generate_content=Mock(side_effect=RuntimeError("503 UNAVAILABLE: high demand"))))
