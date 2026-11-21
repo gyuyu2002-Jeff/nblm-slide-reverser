@@ -1,4 +1,4 @@
-const APP_VERSION = "v6.38.0";
+const APP_VERSION = "v6.39.0";
 console.log(`[NBLM Slide Reverser] Running version: ${APP_VERSION}`);
 
 // =========================================================================
@@ -317,6 +317,125 @@ let generatedPromptGlobal = "";
 let generatedPromptSlide = "";
 let currentPromptMode = "global"; // "global" | "slide" | "custom"
 let generatedPromptCustom = "";
+let currentRawProfile = {};
+let currentAnalysisContext = {};
+let currentQuality = { ready: false, issues: [] };
+let analysisRevision = 0;
+let currentPendingSave = null;
+
+function refreshQuality() {
+  const compiled = StyleQuality.compile(currentRawProfile, currentAnalysisContext);
+  currentQuality = compiled.quality;
+  if (currentQuality.ready) {
+    generatedPromptGlobal = compiled.globalPrompt;
+    generatedPromptSlide = compiled.slidePrompt;
+  } else {
+    generatedPromptGlobal = generatedPromptSlide = "待核對：請先補齊下方來源規格。原始模型輸出保留於完整分析報告。";
+  }
+  generatedNblmPrompt = currentPromptMode === "slide" ? generatedPromptSlide : generatedPromptGlobal;
+  currentDesignProfile = normalizeDesignProfile(currentRawProfile);
+  for (const id of ["btn-copy-nblm", "btn-copy-and-open-nblm"]) {
+    const button = document.getElementById(id);
+    if (button) button.disabled = !currentQuality.ready;
+  }
+}
+
+function renderQualityPanel() {
+  const panelRevision = analysisRevision;
+  const panel = document.getElementById("quality-panel");
+  if (!panel) return;
+  panel.replaceChildren();
+  const heading = document.createElement("h3");
+  heading.textContent = currentQuality.ready ? "規格檢核通過 · 視覺細節仍需對照原稿" : `待核對 · ${currentQuality.issues.length} 項規格問題`;
+  panel.appendChild(heading);
+  const summary = document.createElement("ul");
+  currentQuality.issues.forEach(issue => { const li = document.createElement("li"); li.textContent = issue.message; summary.appendChild(li); });
+  panel.appendChild(summary);
+  const details = document.createElement("details");
+  const title = document.createElement("summary");
+  title.textContent = "逐頁核對與個案修正（只修改這份收藏）";
+  details.appendChild(title);
+  const fields = [];
+  const field = (parent, label, value, options) => {
+    const wrapper = document.createElement("label"); wrapper.textContent = label;
+    const input = document.createElement(options ? "select" : "input");
+    if (options) options.forEach(([value, name]) => { const option = document.createElement("option"); option.value = value; option.textContent = name; input.appendChild(option); });
+    input.value = value || ""; wrapper.appendChild(input); parent.appendChild(wrapper); return input;
+  };
+  const layouts = Array.isArray(currentRawProfile.layouts) ? currentRawProfile.layouts.filter(l => l && /^[A-Z]$/.test(l.id)) : [];
+  if (!layouts.length) layouts.push({ id: "A", name: "", description: "", source_pages: [] });
+  const layoutFields = layouts.map(layout => ({ layout, name: field(details, `版型 ${layout.id} 名稱`, layout.name), input: field(details, `版型 ${layout.id} 配置`, layout.description) }));
+  const extraLayouts = document.createElement("div"); details.appendChild(extraLayouts);
+  const addLayout = document.createElement("button"); addLayout.type = "button"; addLayout.textContent = "＋新增版型";
+  addLayout.disabled = new Set(layouts.map(l => l.id)).size >= 26;
+  addLayout.addEventListener("click", () => {
+    if (panelRevision !== analysisRevision) return;
+    const id = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").find(id => !layouts.some(l => l.id === id));
+    if (!id) return;
+    const layout = { id, name: "", description: "", source_pages: [] }; layouts.push(layout);
+    layoutFields.push({ layout, name: field(extraLayouts, `版型 ${id} 名稱`, ""), input: field(extraLayouts, `版型 ${id} 配置`, "") });
+    fields.forEach(f => { const option = document.createElement("option"); option.value = id; option.textContent = `${id} 待命名`; f.layout.appendChild(option); });
+    addLayout.disabled = layouts.length >= 26;
+  });
+  details.appendChild(addLayout);
+  const layoutHint = document.createElement("p"); layoutHint.textContent = "新增後請為來源頁指定版型；套用時只保存已指派的版型。"; details.appendChild(layoutHint);
+  const ruleFields = (Array.isArray(currentRawProfile.rules) ? currentRawProfile.rules : []).filter(r => r && typeof r === "object").map(rule => ({ rule,
+    value: field(details, `${rule.property || "其他規則"}（清空即移除）`, rule.value),
+    scope: field(details, "規則適用範圍", rule.scope),
+    sources: field(details, "規則來源頁，以逗號分隔", (Array.isArray(rule.source_pages) ? rule.source_pages : []).join(","))
+  }));
+  const ids = (Array.isArray(currentAnalysisContext.source_pages) ? currentAnalysisContext.source_pages : []).map(StyleQuality.pageId).filter(Boolean);
+  ids.forEach(id => {
+    const existing = (Array.isArray(currentRawProfile.pages) ? currentRawProfile.pages : []).find(p => StyleQuality.pageId(p?.source_page) === id) || {};
+    const row = document.createElement("div"); row.className = "quality-page-row";
+    const label = document.createElement("strong"); label.textContent = id; row.appendChild(label);
+    const original = uploadedSlidePages.find(p => StyleQuality.pageId(p.page) === id);
+    if (original && safeSavedImage(original.image)) { const img = document.createElement("img"); img.src = original.image; img.alt = `${id} 原稿`; row.appendChild(img); }
+    const mapped = layouts.find(l => (Array.isArray(l.source_pages) ? l.source_pages : []).map(StyleQuality.pageId).includes(id));
+    fields.push({ id, existing,
+      layout: field(row, "版型", existing.layout_id || mapped?.id, [["", "待選擇"], ...layouts.map(l => [l.id, `${l.id} ${l.name}`])]),
+      background: field(row, "主要背景", existing.background, [["unknown", "待核對"], ["light", "淺色"], ["dark", "深色"], ["mixed", "混合"]]),
+      scope: field(row, "背景範圍（含照片／頁腳）", existing.background_description),
+      bg: field(row, "背景估計色 #RRGGBB", existing.background_color),
+      fg: field(row, "主文字估計色 #RRGGBB", existing.text_color),
+      material: field(row, "圖像材質", existing.material),
+      reason: field(row, "若與像素取樣不同，填寫已核對原因", currentAnalysisContext.confirmations?.[id]?.reason)
+    });
+    details.appendChild(row);
+  });
+  const apply = document.createElement("button"); apply.type = "button"; apply.textContent = "套用本份修正並重新檢核";
+  apply.addEventListener("click", async () => {
+    await currentPendingSave;
+    if (panelRevision !== analysisRevision) return;
+    layoutFields.forEach(({layout, name, input}) => { layout.name = name.value.trim(); layout.description = input.value.trim(); });
+    currentRawProfile.rules = ruleFields.filter(f => f.value.value.trim()).map(f => ({ ...f.rule, value: f.value.value.trim(), scope: f.scope.value.trim(), source_pages: f.sources.value.split(/[,，、]/).map(v => v.trim()).filter(Boolean) }));
+    currentRawProfile.pages = fields.map(f => ({ source_page: f.id, layout_id: f.layout.value,
+      background: f.background.value, background_description: f.scope.value.trim(),
+      background_color: f.bg.value.trim(), text_color: f.fg.value.trim(), material: f.material.value.trim() }));
+    layouts.forEach(l => { l.source_pages = currentRawProfile.pages.filter(p => p.layout_id === l.id).map(p => p.source_page); });
+    currentRawProfile.layouts = layouts.filter(l => l.source_pages.length);
+    currentAnalysisContext.confirmations = {};
+    fields.forEach((f, i) => {
+      if (f.reason.value.trim()) {
+        const p = currentRawProfile.pages[i];
+        currentAnalysisContext.confirmations[f.id] = { reason: f.reason.value.trim(), signature: JSON.stringify([p.background, p.background_description, p.background_color]) };
+      }
+    });
+    refreshQuality(); renderQualityPanel(); switchPromptMode(currentPromptMode);
+    const evidence = document.getElementById("design-profile-evidence");
+    if (evidence) evidence.textContent = formatDesignRules();
+    const record = savedStylesCache.find(item => item.id === currentActiveStyleId);
+    if (record) {
+      record.designProfile = structuredClone(currentRawProfile);
+      record.analysisContext = structuredClone(currentAnalysisContext);
+      record.globalPrompt = generatedPromptGlobal; record.slidePrompt = generatedPromptSlide;
+      record.caseEdited = true;
+      try { await saveStyleRecordToStorage(record); showToast("本份修正已保存", "success"); }
+      catch (_) { showToast("修正已套用，但收藏保存失敗；請匯出備份。", "warning"); }
+    }
+  });
+  details.appendChild(apply); panel.appendChild(details);
+}
 
 // 自訂頁面內容元件：版型規格庫
 const DEFAULT_LAYOUT_OPTIONS = [
@@ -1546,6 +1665,7 @@ function setupEventListeners() {
 
   // 複製按鈕（動態對應當前所選模式與使用者自訂頁數/手動微調內容）
   on("btn-copy-nblm", "click", () => {
+    if (!currentQuality.ready) return showToast("請先完成來源規格核對", "warning");
     const codeEl = document.getElementById("nblm-prompt-code");
     const liveText = (codeEl?.innerText || codeEl?.textContent || "").trim();
     let promptToCopy = "";
@@ -1565,13 +1685,14 @@ function setupEventListeners() {
         label.textContent = "已複製！";
         setTimeout(() => label.textContent = originalText, 2000);
       }
-      const modeName = currentPromptMode === "global" ? "【模式 1：學風格 · 做新簡報】" : "【模式 2：參考原稿 · 逐頁排版】";
+      const modeName = currentPromptMode === "global" ? "【模式 1：學風格 · 做新簡報】" : currentPromptMode === "slide" ? "【模式 2：參考原稿 · 逐頁排版】" : "【自訂頁面故事板】";
       showToast(`已成功複製 ${modeName} 提示詞！請前往 NotebookLM 右側工作室「簡報」貼上`, "success");
     });
   });
 
   // 直達工作流按鈕：複製並開啟 NotebookLM
   on("btn-copy-and-open-nblm", "click", () => {
+    if (!currentQuality.ready) return showToast("請先完成來源規格核對", "warning");
     const codeEl = document.getElementById("nblm-prompt-code");
     const liveText = (codeEl?.innerText || codeEl?.textContent || "").trim();
     let promptToCopy = "";
@@ -2325,11 +2446,27 @@ async function pasteClipboardToInput(inputId) {
 }
 
 // === 示範資料：手繪筆記塗鴉風 (Sketchnote) 完整逆向成果 ===
+const DEMO_LAYOUTS = [
+  ["封面", "左側人物與燈泡手繪圖，中間大標題加黃色筆刷底線，下方副標題。"],
+  ["四欄策略", "上方標題與副標；下方四欄並排，上方圖示、中段彩色筆刷標籤、下方條列。"],
+  ["垂直階段", "左側人物推齒輪，中間三個矩形階段以向下箭頭串聯，右側括號與階段說明。"],
+  ["橫向檢驗", "三個手繪矩形以水平箭頭串聯，每框含水藍色筆刷標題與條列，頂端置標題。"],
+  ["中心放射", "中央人物與盾牌，六條箭頭放射連接周圍彩色筆刷標籤與短文。"]
+].map(([name, description], i) => ({id: String.fromCharCode(65 + i), name, description, source_pages: [`P.${i + 1}`]}));
 const DEMO_ANALYSIS_DATA = {
   status: "success",
+  analysis_context: { source_pages: DEMO_LAYOUTS.map(l => l.source_pages[0]) },
   auto_reason: "免金鑰實例示範 · 5 頁手繪筆記塗鴉風",
   model_used: "Gemini 2.5 Flash (手繪筆記拓撲提煉實例)",
   structured_meta: {
+    design_profile: {
+      layouts: DEMO_LAYOUTS,
+      pages: DEMO_LAYOUTS.map(l => ({source_page: l.source_pages[0], layout_id: l.id, background: "light",
+        background_description: "全頁米白橫線信紙底，炭黑文字，局部彩色筆刷標籤。",
+        background_color: "#FAF8F5", text_color: "#181A1B", material: "手繪線條人物、圖示與筆刷"})),
+      rules: [{property: "字體與裝飾", value: "標題粗重黑體，正文清楚分層；局部筆刷底線與手繪輪廓。",
+        scope: "此示範五頁", source_pages: DEMO_LAYOUTS.map(l => l.source_pages[0]), evidence: "示範圖像觀察"}]
+    },
     style_name: "企業手繪筆記塗鴉風 (Sketchnote & Doodle System)",
     tags: [
       "手繪筆記風",
@@ -2527,6 +2664,9 @@ function loadDemoPresentation() {
   ];
   selectedFiles = [];
   currentComparisonPage = 0;
+  pageSelectionMode = "all";
+  selectedPageIndices = new Set([1, 2, 3, 4, 5]);
+  updatePageSelectionModeUI();
 
   renderThumbnails();
   closeOnboardingModal(true);
@@ -2684,7 +2824,7 @@ async function callGeminiDirectly(apiKey, selectedModel, slideImages, promptText
       const mimeMatch = page.image.match(/^data:([^;]+);base64,/);
       const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
       const b64 = page.image.replace(/^data:[^;]+;base64,/, "");
-      parts.push({ text: `來源頁：${page.name || `P.${page.page}`}（影像估計）` });
+      parts.push({ text: `來源頁：${`P.${page.page}`}（影像估計）` });
       parts.push({
         inlineData: {
           mimeType: mime,
@@ -2827,7 +2967,7 @@ async function callOpenAiDirectly(apiKey, selectedModel, slideImages, promptText
 
   for (const page of slideImages) {
     if (page.image && page.image.startsWith("data:")) {
-      content.push({ type: "text", text: `來源頁：${page.name || `P.${page.page}`}（影像估計）` });
+      content.push({ type: "text", text: `來源頁：${`P.${page.page}`}（影像估計）` });
       content.push({
         type: "image_url",
         image_url: {
@@ -3100,7 +3240,7 @@ async function handleStartAnalyze() {
 
       // 所選各頁各自取色，不讓封面或照片吞掉後段頁面的品牌色。
       const colorBatches = await Promise.all(targetSlidePages.map(async page => ({
-        page: page.name || `P.${page.page}`,
+        page: `P.${page.page}`,
         ...await extractImageEvidence(page.image, 5)
       })));
       const opticalColorPrompt = colorBatches.filter(batch => batch.colors.length)
@@ -3115,6 +3255,13 @@ async function handleStartAnalyze() {
       } else {
         throw new Error("Anthropic API 因官方安全跨域規範限制，純前端靜態站點請選擇 Google Gemini（推薦，免費且極速）或 OpenAI！");
       }
+    }
+
+    if (!data.analysis_context) {
+      data.analysis_context = {
+        source_pages: targetSlidePages.map(p => `P.${p.page}`),
+        pixel_evidence: await Promise.all(targetSlidePages.map(async p => ({ source_page: `P.${p.page}`, ...await extractImageEvidence(p.image, 5) })))
+      };
     }
 
     // 推進到 100% 並短暫停留以呈現完成回饋
@@ -3142,6 +3289,8 @@ async function handleStartAnalyze() {
 
 // === 5. 結果渲染邏輯 (雙欄並排與多頁籤) ===
 function renderAnalysisResult(data, options = {}) {
+  analysisRevision++;
+  if (!options.fromSavedId) currentActiveStyleId = null;
   generatedReportMarkdown = data.markdown_report || "";
   
   document.getElementById("panel-idle").classList.add("hidden");
@@ -3156,7 +3305,11 @@ function renderAnalysisResult(data, options = {}) {
   generatedSlideHtml = extractSlideHtml(generatedReportMarkdown);
 
   const meta = data.structured_meta || fallbackExtractMeta(generatedReportMarkdown);
-  currentDesignProfile = normalizeDesignProfile(meta.design_profile);
+  currentRawProfile = meta.design_profile && typeof meta.design_profile === "object" && !Array.isArray(meta.design_profile) ? structuredClone(meta.design_profile) : {};
+  currentAnalysisContext = structuredClone(data.analysis_context || {});
+  currentAnalysisContext.palette = safeSavedPalette(meta.palette);
+  refreshQuality();
+  renderQualityPanel();
   customStoryboardSlides = [{ layout: getStoryboardLayouts()[0].id, topic: "" }];
 
   // 渲染當前模式提示詞
@@ -3225,7 +3378,7 @@ function renderAnalysisResult(data, options = {}) {
 
   // 自動保存每次分析完的提示詞與原始圖片樣式至本機收藏庫
   if (typeof handlePostAnalysisSave === "function") {
-    handlePostAnalysisSave(data, meta, finalPalette, options);
+    currentPendingSave = handlePostAnalysisSave(data, meta, finalPalette, options);
   }
 
   lucide.createIcons();
@@ -3416,8 +3569,9 @@ function escapeStoryboardText(value) {
   return String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 function generateCustomStoryboardPrompt() {
-  const rules = formatDesignRules();
-  const inherited = rules || generatedPromptGlobal;
+  if (!currentQuality.ready) return "待核對：請先補齊來源規格，再建立自訂故事板。";
+  const compiled = StyleQuality.compile(currentRawProfile, currentAnalysisContext);
+  const inherited = compiled.globalPrompt;
   if (!inherited) return "請先完成風格解析，再建立自訂故事板。";
   let markdown = `【任務宣告】：
 依來源筆記填入以下故事板，只沿用本次原稿風格，不添加無來源數據。
@@ -3430,7 +3584,7 @@ ${inherited}
   const layouts = getStoryboardLayouts();
   customStoryboardSlides.forEach((slide, idx) => {
     const layout = layouts.find(l => l.id === slide.layout) || layouts[0];
-    markdown += `\n### 第 ${idx + 1} 頁（版型 ${layout.id}：${layout.name}）
+    markdown += `\n### 第 ${idx + 1} 頁（版型 ${compiled.layoutIds[layout.id]}：${layout.name}）
 - 視覺配置：${layout.desc}
 - 來源頁：${(layout.source_pages || []).join("、") || "未提供；依已解析風格選用"}
 - 內容主題：${slide.topic || "依來源筆記選取重點"}
@@ -3718,16 +3872,20 @@ function renderColorPalette(palette) {
 
 function stripTrailingMetaJson(markdown) {
   if (!markdown || typeof markdown !== "string") return "";
-  return markdown.replace(/```json\s*\{[\s\S]*?"style_name"[\s\S]*?"palette"[\s\S]*?\}\s*```\s*$/i, "").trim();
+  let report = markdown;
+  for (const block of StyleQuality.metadataBlocks(markdown).reverse()) {
+    if (block.value?.design_profile) report = report.slice(0, block.start) + report.slice(block.end);
+  }
+  return report.trim();
 }
 
 function fallbackExtractMeta(markdown) {
   if (markdown && typeof markdown === "string") {
     // 1. 優先解析 Gemini / OpenAI 報告末尾產出的結構化 JSON 區塊
-    const jsonBlocks = [...markdown.matchAll(/```json\s*([\s\S]*?)```/gi)];
+    const jsonBlocks = StyleQuality.metadataBlocks(markdown);
     for (let i = jsonBlocks.length - 1; i >= 0; i--) {
       try {
-        const candidate = JSON.parse(jsonBlocks[i][1].trim());
+        const candidate = jsonBlocks[i].value;
         if (candidate && (candidate.style_name || Array.isArray(candidate.palette))) {
           return {
             design_profile: candidate.design_profile,
@@ -4136,8 +4294,14 @@ async function handlePostAnalysisSave(data, meta, finalPalette, options = {}) {
     return;
   }
 
+  const revision = analysisRevision;
+  const savedState = {
+    designProfile: structuredClone(currentRawProfile), analysisContext: structuredClone(currentAnalysisContext),
+    markdownReport: generatedReportMarkdown, globalPrompt: generatedPromptGlobal, slidePrompt: generatedPromptSlide
+  };
+
   const activeSlides = getActiveComparisonSlides();
-  const slidesToSave = activeSlides.slice(0, 12);
+  const slidesToSave = activeSlides;
   const compressedSlides = [];
   for (let i = 0; i < slidesToSave.length; i++) {
     const s = slidesToSave[i];
@@ -4167,18 +4331,17 @@ async function handlePostAnalysisSave(data, meta, finalPalette, options = {}) {
     palette: finalPalette,
     tags: meta.tags || [],
     whiteSpaceRatio: meta.white_space_ratio || "未量測",
-    designProfile: meta.design_profile,
-    markdownReport: generatedReportMarkdown,
-    globalPrompt: generatedPromptGlobal,
-    slidePrompt: generatedPromptSlide,
+    ...savedState,
     modelUsed: data.model_used || "",
     autoReason: data.auto_reason || ""
   };
 
-  currentActiveStyleId = styleId;
   await saveStyleRecordToStorage(record);
-  updateSaveToolbarButtonState();
-  renderSavedStylesList();
+  if (revision === analysisRevision) {
+    currentActiveStyleId = styleId;
+    updateSaveToolbarButtonState();
+    renderSavedStylesList();
+  }
 }
 
 function updateSaveToolbarButtonState() {
@@ -4334,15 +4497,7 @@ function renderSavedStylesList() {
     if (copyBtn) {
       copyBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        const rawPrompt = (currentPromptMode === "slide" ? item.slidePrompt : item.globalPrompt) || item.globalPrompt || item.markdownReport || "";
-        const promptToCopy = applyTargetPageCountToPrompt(rawPrompt, userTargetPageCount);
-        if (!promptToCopy) {
-          showToast("此紀錄無有效提示詞內容", "warning");
-          return;
-        }
-        navigator.clipboard.writeText(promptToCopy).then(() => {
-          showToast(`已複製「${item.title}」的 NotebookLM 提示詞！`, "success");
-        });
+        copySavedStylePrompt(item);
       });
     }
 
@@ -4402,6 +4557,23 @@ function renderSavedStylesList() {
   if (window.lucide) window.lucide.createIcons();
 }
 
+async function copySavedStylePrompt(item) {
+  if (currentPromptMode === "custom") {
+    showToast("自訂故事板請使用右側工作區的複製按鈕；收藏快捷複製支援全域與逐頁模式。", "warning");
+    return;
+  }
+  const compiled = StyleQuality.compile(item.designProfile, { ...item.analysisContext, palette: item.palette });
+  if (!compiled.quality.ready) {
+    showToast("請先載入此收藏並完成來源規格核對", "warning");
+    return;
+  }
+  const prompt = currentPromptMode === "slide" ? compiled.slidePrompt : compiled.globalPrompt;
+  try {
+    await navigator.clipboard.writeText(applyTargetPageCountToPrompt(prompt, userTargetPageCount));
+    showToast(`已複製「${item.title}」的 NotebookLM 提示詞！`, "success");
+  } catch (_) { showToast("無法存取剪貼簿，請載入此收藏後手動複製。", "warning"); }
+}
+
 // 點擊左側已保存風格卡片 -> 立即在右側還原原始圖片樣式、色票與提示詞（免呼叫 API）
 function loadSavedStyleIntoWorkspace(styleId) {
   const item = savedStylesCache.find(it => it.id === styleId);
@@ -4410,18 +4582,15 @@ function loadSavedStyleIntoWorkspace(styleId) {
     return;
   }
 
-  // 還原原始投影片縮圖至工作台，讓右側 16:9 Stage 與翻頁器完整顯示原始圖片樣式
-  if (item.slides && item.slides.length > 0) {
-    selectedFiles = [];
-    uploadedSlidePages = item.slides.map((s, idx) => ({
-      page: s.page || (idx + 1),
-      image: s.image,
-      text: s.text || ""
-    }));
-    pageSelectionMode = "all";
-    selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
-    renderThumbnails();
-  }
+  selectedFiles = [];
+  const savedSlides = Array.isArray(item.slides) ? item.slides : [];
+  uploadedSlidePages = savedSlides.map((s, idx) => ({
+    page: s.page || (idx + 1), image: s.image, text: s.text || ""
+  }));
+  pageSelectionMode = "all";
+  selectedPageIndices = new Set(uploadedSlidePages.map((_, i) => i + 1));
+  updatePageSelectionModeUI();
+  renderThumbnails();
 
   const mockData = {
     markdown_report: item.markdownReport || "",
@@ -4429,6 +4598,7 @@ function loadSavedStyleIntoWorkspace(styleId) {
     slide_prompt: item.slidePrompt || "",
     model_used: item.modelUsed || "已保存紀錄",
     auto_reason: item.autoReason || `保存於 ${item.dateLabel || ""}`,
+    analysis_context: item.analysisContext || { source_pages: savedSlides.map((s, i) => `P.${s.page || i + 1}`) },
     structured_meta: {
       style_name: item.title,
       palette: item.palette,
@@ -4439,7 +4609,10 @@ function loadSavedStyleIntoWorkspace(styleId) {
   };
 
   renderAnalysisResult(mockData, { fromSavedId: item.id });
-  showToast(`已載入「${item.title}」的原始圖片樣式與提示詞！`, "success");
+  const missingImages = (Array.isArray(item.analysisContext?.source_pages) ? item.analysisContext.source_pages : [])
+    .filter(id => !uploadedSlidePages.some(s => StyleQuality.pageId(s.page) === StyleQuality.pageId(id)));
+  if (missingImages.length) showToast(`此舊收藏缺少 ${missingImages.length} 頁縮圖；重新分析只會使用目前 ${uploadedSlidePages.length} 張，請重新上傳原稿以補齊。`, "warning");
+  else showToast(`已載入「${item.title}」的原始圖片樣式與提示詞！`, "success");
 }
 
 function openSaveStyleModal(targetId = null) {

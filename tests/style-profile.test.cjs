@@ -8,10 +8,11 @@ const config = JSON.parse(fs.readFileSync(path.join(root, 'guardrails.json'), 'u
 const source = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const profile = {
   rules: [
-    { property: '強調色', value: '#5649EC', scope: '目錄選取項及內容框線', source_pages: ['P.8', 'P.17'], evidence: '物件取值' },
+    { property: '強調色', value: '#5649EC', scope: '目錄選取項及內容框線', source_pages: ['P.17'], evidence: '物件取值' },
     { property: '容器', value: '直角、細框、無陰影', scope: '內容卡片', source_pages: ['P.17'], evidence: '影像估計' },
-    { property: '字體', value: '無襯線黑體', scope: '全篇', source_pages: ['P.1'], evidence: '影像估計' },
+    { property: '字體', value: '無襯線黑體', scope: '全篇', source_pages: ['P.17'], evidence: '影像估計' },
   ],
+  pages: [{source_page:'P.17', layout_id:'D', background:'light', background_description:'白底主畫布，深色細頁腳', background_color:'#FFFFFF', text_color:'#111111', material:'線性圖示'}],
   layouts: [{ id: 'D', name: '三欄原稿卡片', description: '三欄直角紫色細框，照片在上方', source_pages: ['P.17'] }],
 };
 const report = '## 3. 📋 NotebookLM 專用簡報提示詞\n### 模式 1\n```markdown\n【任務宣告】：紫色風格\n```\n### 模式 2\n```markdown\n【任務宣告】：逐頁版型\n```\n## 4. HTML\n```json\n' + JSON.stringify({ style_name: '原稿', palette: [], design_profile: profile }) + '\n```';
@@ -20,7 +21,7 @@ function context() {
   const elements = new Map();
   const element = () => {
     const classes = new Set();
-    return { textContent: '', innerHTML: '', children: [], classList: {
+    return { textContent: '', innerHTML: '', children: [], listeners: {}, addEventListener(name, fn) { this.listeners[name] = fn; }, replaceChildren() { this.children = []; }, classList: {
       add(name) { classes.add(name); }, remove(name) { classes.delete(name); },
       contains(name) { return classes.has(name); }, toggle() {},
     }, appendChild(child) { this.children.push(child); }, querySelectorAll: () => [], querySelector: () => null };
@@ -28,6 +29,7 @@ function context() {
   const ctx = {
     console: { log() {}, warn() {} }, localStorage: { getItem: () => null },
     document: { addEventListener() {}, getElementById(id) { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); }, querySelectorAll: () => [], createElement: element },
+    StyleQuality: require('../style-quality.js'), structuredClone,
     window: {}, setInterval() {}, setTimeout() {}, marked: { parse: x => x }, DOMPurify: { sanitize: x => x }, lucide: { createIcons() {} },
     fetch: async () => ({ ok: true, json: async () => config }), report,
   };
@@ -39,7 +41,7 @@ function context() {
 
 test('custom mode uses newly analyzed profile and source layouts, including when already active', () => {
   const ctx = context();
-  vm.runInContext('currentPromptMode = "custom"; renderAnalysisResult({ markdown_report: report });', ctx);
+  vm.runInContext('currentPromptMode = "custom"; renderAnalysisResult({ markdown_report: report, analysis_context: {source_pages:["P.17"]} });', ctx);
   const prompt = vm.runInContext('generatedPromptCustom', ctx);
   assert.match(prompt, /#5649EC/);
   assert.match(prompt, /直角、細框、無陰影/);
@@ -51,18 +53,19 @@ test('custom mode uses newly analyzed profile and source layouts, including when
 
 test('loading another saved style clears stale profile; legacy styles keep their own prompt', () => {
   const ctx = context();
-  vm.runInContext('renderAnalysisResult({ markdown_report: report }); savedStylesCache = [{ id: "old", title: "舊收藏", globalPrompt: "【任務宣告】：使用 #123456 冷色風格", tags: [], palette: [] }]; loadSavedStyleIntoWorkspace("old"); switchPromptMode("custom");', ctx);
+  vm.runInContext('renderAnalysisResult({ markdown_report: report, analysis_context: {source_pages:["P.17"]} }); savedStylesCache = [{ id: "old", title: "舊收藏", globalPrompt: "【任務宣告】：使用 #123456 冷色風格", tags: [], palette: [] }]; loadSavedStyleIntoWorkspace("old"); switchPromptMode("custom");', ctx);
   const prompt = vm.runInContext('generatedPromptCustom', ctx);
-  assert.match(prompt, /#123456/);
+  assert.match(prompt, /待核對/);
+  assert.match(vm.runInContext('savedStylesCache[0].globalPrompt', ctx), /#123456/);
   assert.doesNotMatch(prompt, /#5649EC|駝金/);
   assert.equal(vm.runInContext('currentDesignProfile.rules.length', ctx), 0);
 });
 
 test('saved profile survives mode switching without selecting hardcoded fallback layout D', () => {
   const ctx = context();
-  ctx.savedProfile = { ...profile, layouts: [{ ...profile.layouts[0], id: 'Q' }] };
-  vm.runInContext('savedStylesCache = [{ id: "new", title: "新收藏", designProfile: savedProfile, globalPrompt: "【任務宣告】：global", slidePrompt: "【任務宣告】：slide", tags: [], palette: [] }]; loadSavedStyleIntoWorkspace("new"); switchPromptMode("slide"); switchPromptMode("global"); switchPromptMode("custom");', ctx);
-  assert.match(vm.runInContext('generatedPromptCustom', ctx), /版型 Q/);
+  ctx.savedProfile = { ...profile, pages:profile.pages.map(p=>({...p,layout_id:'Q'})), layouts: [{ ...profile.layouts[0], id: 'Q' }] };
+  vm.runInContext('savedStylesCache = [{ id: "new", title: "新收藏", designProfile: savedProfile, analysisContext: {source_pages:["P.17"]}, globalPrompt: "【任務宣告】：global", slidePrompt: "【任務宣告】：slide", tags: [], palette: [] }]; loadSavedStyleIntoWorkspace("new"); switchPromptMode("slide"); switchPromptMode("global"); switchPromptMode("custom");', ctx);
+  assert.match(vm.runInContext('generatedPromptCustom', ctx), /版型 A/);
   assert.match(vm.runInContext('generatedPromptCustom', ctx), /#5649EC/);
 });
 
@@ -254,7 +257,7 @@ test('valid model hex values normalize with a hash while CSS injection stays rej
 });
 
 test('legacy static entry ships the same public assets and rules as the root entry', () => {
-  for (const name of ['app.js', 'index.html', 'style.css', 'guardrails.json', 'favicon.svg', 'favicon.ico', 'favicon-16x16.png', 'favicon-32x32.png', 'apple-touch-icon.png']) {
+  for (const name of ['app.js', 'index.html', 'style.css', 'style-quality.js', 'guardrails.json', 'favicon.svg', 'favicon.ico', 'favicon-16x16.png', 'favicon-32x32.png', 'apple-touch-icon.png']) {
     assert.deepEqual(fs.readFileSync(path.join(root, 'static', name)), fs.readFileSync(path.join(root, name)), name);
   }
 });
@@ -317,4 +320,136 @@ test('saved images without original files use direct analysis instead of an empt
   await vm.runInContext('handleStartAnalyze()', ctx);
   assert.equal(backendCalls, 0);
   assert.equal(directCalls, 1);
+});
+
+test('malformed imported arrays stay blocked without crashing the correction panel',()=>{
+  const ctx=context();
+  vm.runInContext(`currentRawProfile={layouts:[{id:'A',name:'bad',source_pages:{}}],pages:{}};currentAnalysisContext={source_pages:{}};refreshQuality();renderQualityPanel();`,ctx);
+  assert.equal(vm.runInContext('currentQuality.ready',ctx),false);
+  assert.equal(ctx.document.getElementById('btn-copy-nblm').disabled,true);
+});
+test('an asynchronous save preserves its own profile and cannot steal the newly opened record',async()=>{
+  const ctx=context();
+  // Restore the production save function overridden by the general DOM harness.
+  vm.runInContext(source.slice(source.indexOf('async function handlePostAnalysisSave('),source.indexOf('function updateSaveToolbarButtonState(')),ctx);
+  let release;
+  ctx.compression=new Promise(resolve=>release=resolve);
+  ctx.saved=[];
+  vm.runInContext(`
+    getActiveComparisonSlides=()=>[{originalPage:17,image:'image'}];
+    compressSlideImageForSave=()=>compression;
+    saveStyleRecordToStorage=async record=>saved.push(record);
+    currentRawProfile={name:'first'};currentAnalysisContext={source_pages:['P.17']};
+    generatedPromptGlobal='first prompt';
+    pending=handlePostAnalysisSave({}, {style_name:'first'}, []);
+    analysisRevision++;currentActiveStyleId='second';currentRawProfile={name:'second'};generatedPromptGlobal='second prompt';
+  `,ctx);
+  release('compressed');await ctx.pending;
+  assert.equal(ctx.saved[0].designProfile.name,'first');
+  assert.equal(ctx.saved[0].globalPrompt,'first prompt');
+  assert.equal(vm.runInContext('currentActiveStyleId',ctx),'second');
+});
+test('a pending correction is discarded if the user opens another record while save is pending',async()=>{
+  const ctx=context();
+  vm.runInContext('renderAnalysisResult({markdown_report:report,analysis_context:{source_pages:["P.17"]}})',ctx);
+  let release;ctx.pending=new Promise(resolve=>release=resolve);
+  vm.runInContext('currentPendingSave=pending',ctx);
+  const panel=ctx.document.getElementById('quality-panel');
+  const apply=panel.children.at(-1).children.at(-1);
+  const completion=apply.listeners.click();
+  vm.runInContext('analysisRevision++;currentRawProfile={name:"second"}',ctx);
+  release();await completion;
+  assert.equal(vm.runInContext('currentRawProfile.name',ctx),'second');
+});
+
+test('a complete JSON block missing only its closing fence is recovered, but truncated JSON is not',()=>{
+  const ctx=context();ctx.complete='```json\n'+JSON.stringify({style_name:'EOF',palette:[],design_profile:profile});
+  assert.equal(vm.runInContext('fallbackExtractMeta(complete).design_profile.pages.length',ctx),1);
+  ctx.truncated=ctx.complete.slice(0,-3);
+  assert.equal(vm.runInContext('fallbackExtractMeta(truncated).design_profile',ctx),undefined);
+});
+
+test('metadata can appear before or after the readable report without leaking JSON into it',()=>{
+  const ctx=context();ctx.meta='```json\n'+JSON.stringify({design_profile:profile})+'\n```';
+  assert.equal(ctx.stripTrailingMetaJson(ctx.meta+'\nReport'),'Report');
+  assert.equal(ctx.stripTrailingMetaJson('Report\n'+ctx.meta),'Report');
+});
+
+test('five-page demo satisfies the same source gate and enables copying',()=>{
+  const ctx=context();
+  vm.runInContext('renderAnalysisResult(DEMO_ANALYSIS_DATA)',ctx);
+  assert.equal(vm.runInContext('currentQuality.ready',ctx),true);
+  assert.equal(vm.runInContext('currentRawProfile.pages.length',ctx),5);
+  assert.equal(ctx.document.getElementById('btn-copy-nblm').disabled,false);
+});
+test('saved quick-copy rejects invalid and legacy records and recompiles valid records',async()=>{
+  const ctx=context();const writes=[];ctx.navigator={clipboard:{writeText:async s=>writes.push(s)}};
+  ctx.valid={designProfile:profile,analysisContext:{source_pages:['P.17']},globalPrompt:'forged prompt',palette:[]};
+  for(const expression of ['copySavedStylePrompt({globalPrompt:"old unverified"})','copySavedStylePrompt({...valid,analysisContext:{source_pages:["P.99"]}})']) await vm.runInContext(expression,ctx);
+  assert.equal(writes.length,0);
+  await vm.runInContext('copySavedStylePrompt(valid)',ctx);
+  assert.equal(writes.length,1);assert.match(writes[0],/三欄原稿卡片/);assert.doesNotMatch(writes[0],/forged/);
+});
+test('saving all analyzed thumbnails preserves a fifteenth non-contiguous source page',async()=>{
+  const ctx=context();
+  vm.runInContext(source.slice(source.indexOf('async function handlePostAnalysisSave('),source.indexOf('function updateSaveToolbarButtonState(')),ctx);
+  ctx.saved=[];
+  vm.runInContext(`getActiveComparisonSlides=()=>Array.from({length:15},(_,i)=>({originalPage:(i+1)*2,image:'img'}));
+    compressSlideImageForSave=async img=>img;saveStyleRecordToStorage=async r=>saved.push(r);
+    updateSaveToolbarButtonState=()=>{};renderSavedStylesList=()=>{};renderThumbnails=()=>{};`,ctx);
+  await vm.runInContext('handlePostAnalysisSave({}, {}, [])',ctx);
+  assert.equal(ctx.saved[0].slides.length,15);assert.equal(ctx.saved[0].slides.at(-1).page,30);
+  ctx.item=ctx.saved[0];vm.runInContext('savedStylesCache=[item];loadSavedStyleIntoWorkspace(item.id)',ctx);
+  assert.equal(vm.runInContext('uploadedSlidePages.length',ctx),15);
+  assert.equal(vm.runInContext('uploadedSlidePages.at(-1).page',ctx),30);
+});
+test('legacy image pages restore editable source scope and no-image records clear stale slides',()=>{
+  const ctx=context();vm.runInContext('renderThumbnails=()=>{};savedStylesCache=[{id:"legacy",slides:[{page:17,image:""}]},{id:"empty"}];loadSavedStyleIntoWorkspace("legacy")',ctx);
+  assert.deepEqual(Array.from(vm.runInContext('currentAnalysisContext.source_pages',ctx)),['P.17']);
+  const details=ctx.document.getElementById('quality-panel').children.at(-1);
+  assert.ok(details.children.some(e=>e.textContent==='版型 A 名稱'));
+  vm.runInContext('loadSavedStyleIntoWorkspace("empty")',ctx);
+  assert.equal(vm.runInContext('uploadedSlidePages.length',ctx),0);
+});
+test('leading complete JSON without a closing fence is read without consuming the following report',()=>{
+  const ctx=context();const data={style_name:'lead',palette:[],design_profile:profile};
+  ctx.leading='```json\n'+JSON.stringify(data)+'\n## 1. Evidence\n```markdown\nPrompt\n```';
+  assert.equal(ctx.fallbackExtractMeta(ctx.leading).style_name,'lead');
+  assert.match(ctx.stripTrailingMetaJson(ctx.leading),/^## 1. Evidence/);
+  assert.match(ctx.stripTrailingMetaJson(ctx.leading),/```markdown/);
+});
+
+test('a user can repair a missing layout using the blank editor without an API request',async()=>{
+  const ctx=context();vm.runInContext('currentRawProfile={};currentAnalysisContext={source_pages:["P.4"]};refreshQuality();renderQualityPanel()',ctx);
+  const details=ctx.document.getElementById('quality-panel').children.at(-1);
+  const set=(parent,label,value)=>{parent.children.find(e=>e.textContent===label).children[0].value=value;};
+  set(details,'版型 A 名稱','手動原稿版型');set(details,'版型 A 配置','左文右圖');
+  const row=details.children.find(e=>e.className==='quality-page-row');
+  set(row,'版型','A');set(row,'主要背景','light');set(row,'背景範圍（含照片／頁腳）','白底主畫布');
+  set(row,'背景估計色 #RRGGBB','#FFFFFF');set(row,'主文字估計色 #RRGGBB','#111111');set(row,'圖像材質','照片');
+  await details.children.at(-1).listeners.click();
+  assert.equal(vm.runInContext('currentQuality.ready',ctx),true);
+  assert.match(vm.runInContext('generatedPromptGlobal',ctx),/手動原稿版型/);
+});
+
+test('saved quick-copy does not silently switch custom stories to the global prompt',async()=>{
+  const ctx=context();const writes=[],notices=[];ctx.navigator={clipboard:{writeText:async s=>writes.push(s)}};ctx.notices=notices;
+  ctx.item={designProfile:profile,analysisContext:{source_pages:['P.17']},palette:[]};
+  vm.runInContext('currentPromptMode="custom";showToast=message=>notices.push(message)',ctx);
+  await vm.runInContext('copySavedStylePrompt(item)',ctx);
+  assert.equal(writes.length,0);assert.match(notices[0],/自訂故事板/);
+});
+test('adding a second layout preserves draft fields and assigns separate source pages without API calls',async()=>{
+  const ctx=context();vm.runInContext('currentRawProfile={};currentAnalysisContext={source_pages:["P.1","P.9"]};refreshQuality();renderQualityPanel()',ctx);
+  const details=ctx.document.getElementById('quality-panel').children.at(-1);
+  const set=(parent,label,value)=>{parent.children.find(e=>e.textContent===label).children[0].value=value;};
+  set(details,'版型 A 名稱','封面草稿');set(details,'版型 A 配置','左標題右圖');
+  details.children.find(e=>e.textContent==='＋新增版型').listeners.click();
+  const extra=details.children.find(e=>e.children.some(c=>c.textContent==='版型 B 名稱'));
+  set(extra,'版型 B 名稱','四欄內頁');set(extra,'版型 B 配置','四欄圖示與條列');
+  const rows=details.children.filter(e=>e.className==='quality-page-row');
+  rows.forEach((row,i)=>{set(row,'版型',i?'B':'A');set(row,'主要背景','light');set(row,'背景範圍（含照片／頁腳）','白底');set(row,'背景估計色 #RRGGBB','#FFFFFF');set(row,'主文字估計色 #RRGGBB','#111111');set(row,'圖像材質','照片');});
+  await details.children.at(-1).listeners.click();
+  assert.equal(vm.runInContext('currentQuality.ready',ctx),true);
+  assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(currentRawProfile.layouts.map(l=>[l.id,l.name,l.source_pages]))',ctx)),[['A','封面草稿',['P.1']],['B','四欄內頁',['P.9']]]);
 });

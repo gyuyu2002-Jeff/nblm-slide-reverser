@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -57,13 +57,14 @@
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
   </script>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=6.38.0">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=6.38.0">
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=6.38.0">
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=6.38.0">
-  <link rel="shortcut icon" href="favicon.ico?v=6.38.0">
-  <meta name="theme-color" content="#F3EFEA">
-  <link rel="stylesheet" href="style.css?v=6.38.0">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=6.39.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=6.39.0">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=6.39.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=6.39.0">
+  <link rel="shortcut icon" href="favicon.ico?v=6.39.0">
+  <meta name="theme-color" content="#101417">
+  <meta name="color-scheme" content="dark">
+  <link rel="stylesheet" href="style.css?v=6.39.0">
 </head>
 <body class="studio-canvas-bg text-[#322E2B] min-h-screen flex flex-col font-sans selection:bg-[#C8A7A3]/30 selection:text-[#322E2B] antialiased">
 
@@ -73,7 +74,7 @@
       <div class="flex items-center gap-3.5 min-w-0">
         <!-- 品牌莫蘭迪標誌 (方案 A：層疊色票 × 構圖網格) -->
         <div class="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shrink-0 transition-transform hover:scale-105">
-          <img src="favicon.svg?v=6.38.0" alt="簡報風格逆向工作坊 Logo" class="w-full h-full block">
+          <img src="favicon.svg?v=6.39.0" alt="簡報風格逆向工作坊 Logo" class="w-full h-full block">
         </div>
         <div class="flex flex-wrap items-center gap-2.5 min-w-0">
           <h1 class="font-serif-tc text-base sm:text-lg font-bold text-[#322E2B] tracking-tight flex items-center gap-2 whitespace-nowrap">
@@ -84,7 +85,7 @@
           </span>
           <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-[#E9EFEA] text-[#4E6152] font-mono border border-[#C4D1C6] font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap shrink-0" title="系統當前版本號">
             <span class="w-1.5 h-1.5 rounded-full bg-[#768A7A]"></span>
-            <span id="system-version-badge">v6.38.0</span>
+            <span id="system-version-badge">v6.39.0</span>
           </span>
         </div>
       </div>
@@ -547,7 +548,7 @@
               <span>SLIDE TOPOLOGY SPECIMEN</span>
               <span>16 : 9 · GOLDEN RATIO</span>
             </div>
-            <div class="aspect-video bg-[#FAF6F2] rounded-xl border border-[#322E2B]/[0.08] p-4 sm:p-5 grid grid-cols-12 gap-3.5 shadow-sm">
+            <div class="source-artwork aspect-video bg-[#FAF6F2] rounded-xl border border-[#322E2B]/[0.08] p-4 sm:p-5 grid grid-cols-12 gap-3.5 shadow-sm">
               <div class="col-span-7 flex flex-col justify-between text-left">
                 <div>
                   <div class="text-[9px] font-mono tracking-widest uppercase text-[#8F6561] font-bold">01 · EXECUTIVE SUMMARY</div>
@@ -585,19 +586,19 @@
             <!-- 4 張莫蘭迪色票小卡 -->
             <div class="grid grid-cols-4 gap-2">
               <div class="bg-white rounded-xl overflow-hidden border border-[#322E2B]/10 shadow-sm">
-                <div class="h-9 bg-[#C8A7A3]"></div>
+                <div class="source-artwork h-9 bg-[#C8A7A3]"></div>
                 <div class="p-1.5 font-mono text-[9.5px] text-[#68615B] text-center">#C8A7A3</div>
               </div>
               <div class="bg-white rounded-xl overflow-hidden border border-[#322E2B]/10 shadow-sm">
-                <div class="h-9 bg-[#768A7A]"></div>
+                <div class="source-artwork h-9 bg-[#768A7A]"></div>
                 <div class="p-1.5 font-mono text-[9.5px] text-[#68615B] text-center">#768A7A</div>
               </div>
               <div class="bg-white rounded-xl overflow-hidden border border-[#322E2B]/10 shadow-sm">
-                <div class="h-9 bg-[#B5A392]"></div>
+                <div class="source-artwork h-9 bg-[#B5A392]"></div>
                 <div class="p-1.5 font-mono text-[9.5px] text-[#68615B] text-center">#B5A392</div>
               </div>
               <div class="bg-white rounded-xl overflow-hidden border border-[#322E2B]/10 shadow-sm">
-                <div class="h-9 bg-[#F3EFEA]"></div>
+                <div class="source-artwork h-9 bg-[#F3EFEA]"></div>
                 <div class="p-1.5 font-mono text-[9.5px] text-[#68615B] text-center">#F3EFEA</div>
               </div>
             </div>
@@ -823,6 +824,7 @@
           </div>
         </div>
 
+        <section id="quality-panel" class="studio-panel p-4 text-sm" aria-live="polite"></section>
         <details class="studio-panel p-3 text-xs text-[#68615B]">
           <summary class="cursor-pointer font-semibold">風格來源與適用範圍</summary>
           <pre id="design-profile-evidence" class="whitespace-pre-wrap mt-2 leading-relaxed font-sans"></pre>
@@ -1002,7 +1004,7 @@
       <div class="flex items-center gap-2 flex-wrap">
         <span>© 2026 簡報風格逆向解析 (NBLM Slide Reverser)</span>
         <span class="px-2 py-0.5 rounded-full font-mono text-[10px] bg-[#E9EFEA] text-[#4E6152] border border-[#C4D1C6] font-semibold">
-          v6.38.0
+          v6.39.0
         </span>
         <span class="text-zinc-700 hidden sm:inline">·</span>
         <span class="text-[#68615B]">非 Google 或 NotebookLM 官方專案</span>
@@ -1789,7 +1791,8 @@
     </button>
   </div>
 
-  <script src="app.js?v=6.38.0"></script>
+  <script src="style-quality.js?v=6.39.0"></script>
+  <script src="app.js?v=6.39.0"></script>
   <script>
     lucide.createIcons();
   </script>

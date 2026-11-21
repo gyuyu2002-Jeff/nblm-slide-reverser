@@ -3,32 +3,32 @@
 
 :root {
   /* 燕麥米基底 (Oatmeal & Warm Linen) */
-  --bg-oatmeal: #F3EFEA;
-  --bg-linen: #EAE3DC;
-  --surface-cream: #FAF8F5;
-  --surface-white: #FFFFFF;
+  --bg-oatmeal: #101417;
+  --bg-linen: #20272B;
+  --surface-cream: #191F23;
+  --surface-white: #222A2F;
 
   /* 莫蘭迪主色票：灰粉 (Rose Clay) + 鼠尾草綠 (Sage) + 燕麥暖駝 (Oat Taupe) */
-  --rose-clay: #C8A7A3;
-  --rose-deep: #8F6561;
-  --rose-tint: #F4EAE8;
-  --rose-border: #DFC9C6;
+  --rose-clay: #C9A59E;
+  --rose-deep: #D7ADA7;
+  --rose-tint: #302729;
+  --rose-border: #594347;
 
-  --sage-main: #768A7A;
-  --sage-deep: #4E6152;
-  --sage-tint: #E9EFEA;
-  --sage-border: #C4D1C6;
+  --sage-main: #547961;
+  --sage-deep: #A2C9AC;
+  --sage-tint: #22352C;
+  --sage-border: #425C4A;
 
-  --oat-taupe: #B5A392;
-  --oat-deep: #6E5E4F;
-  --oat-tint: #F1ECE6;
-  --oat-border: #D9CEC2;
+  --oat-taupe: #BFAE95;
+  --oat-deep: #D2BFA5;
+  --oat-tint: #2B2925;
+  --oat-border: #4C4841;
 
   /* 書寫墨色 (Warm Charcoal Ink) */
-  --ink-primary: #322E2B;
-  --ink-secondary: #68615B;
-  --ink-muted: #968E86;
-  --border-hairline: rgba(50, 46, 43, 0.09);
+  --ink-primary: #EDF1F2;
+  --ink-secondary: #BAC3C8;
+  --ink-muted: #98A5AD;
+  --border-hairline: rgba(205, 220, 228, 0.16);
 }
 
 body {
@@ -398,3 +398,90 @@ code, pre, .font-mono {
 .morandi-step-02 p {
   color: #4A5C4F !important;
 }
+
+/* Dark application shell; source images, inline palette swatches and iframe documents keep their own colors. */
+:root { color-scheme: dark; }
+.studio-canvas-bg { background-image: none; }
+.studio-panel, .card-soft-shadow, .studio-stage-frame { border-color: var(--border-hairline); box-shadow: 0 10px 28px #0003; }
+.studio-stage-frame { background: #111619; }
+.studio-dropzone { background: #1D2428; border-color: #89736F; }
+.studio-dropzone:hover { background: #272D32; border-color: #D7ADA7; box-shadow: none; }
+.morandi-step-card { box-shadow: none; }
+.morandi-step-02 { background: var(--sage-tint) !important; border-color: var(--sage-border) !important; }
+.morandi-step-02 h3, .morandi-step-02 span.font-mono, .morandi-step-02 p { color: var(--ink-primary) !important; }
+.btn-morandi-sage { background: #4B7057; }
+.btn-morandi-sage:hover:not(:disabled) { background: #5A8067; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #53616A; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #73828B; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+input, select, textarea { color-scheme: dark; }
+input::placeholder, textarea::placeholder { color: #98A5AD; }
+:focus-visible { outline: 2px solid #A2C9AC; outline-offset: 3px; }
+#quality-panel h3 { font-weight: 700; margin-bottom: .75rem; }
+#quality-panel ul { color: #E6BC8B; padding-left: 1.25rem; list-style: disc; }
+#quality-panel summary { cursor: pointer; margin: 1rem 0; }
+#quality-panel label { display: flex; flex-direction: column; gap: .3rem; font-size: .75rem; margin: .5rem 0; }
+#quality-panel input, #quality-panel select { padding: .5rem; background: #111619; border: 1px solid #46525B; border-radius: .4rem; color: #EDF1F2; width: 100%; }
+#quality-panel button { padding: .6rem 1rem; margin-top: .75rem; border-radius: .5rem; background: #4B7057; color: white; }
+.quality-page-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .5rem 1rem; padding: 1rem 0; border-top: 1px solid #354149; }
+.quality-page-row strong, .quality-page-row img { grid-column: 1 / -1; }
+.quality-page-row img { width: 100%; max-height: 220px; object-fit: contain; }
+@media(max-width:600px) { .quality-page-row { grid-template-columns: minmax(0,1fr); } }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="bg-[#E9EFEA]"] { background-color: #22352C; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="bg-[#E9EFEA]/70"] { background-color: #22352C; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="bg-[#E9EFEA]/75"] { background-color: #22352C; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="bg-[#EAE3DC]"] { background-color: #252E33; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="bg-[#F1ECE6]"] { background-color: #24292C; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="bg-[#F3EFEA]"] { background-color: #101417; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="bg-[#F3EFEA]/60"] { background-color: #101417; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="bg-[#F3EFEA]/80"] { background-color: #101417; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="bg-[#F3EFEA]/90"] { background-color: #101417; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="bg-[#F4EAE8]"] { background-color: #302729; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="bg-[#FAF8F5]"] { background-color: #191F23; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#322E2B]"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#322E2B]/10"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#322E2B]/15"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#322E2B]/[0.06]"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#322E2B]/[0.07]"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#322E2B]/[0.08]"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#322E2B]/[0.09]"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#322E2B]/[0.12]"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#322E2B]/[0.14]"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#322E2B]/[0.15]"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#586B5C]"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#D9CEC2]"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="border-[#D9CEC2]/40"] { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="focus:bg-[#FAF8F5]"]:focus { background-color: #191F23; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:bg-[#D9CEC2]"]:hover { background-color: #41484C; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:bg-[#E9EFEA]"]:hover { background-color: #22352C; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:bg-[#EAE3DC]"]:hover { background-color: #252E33; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:bg-[#EAE3DC]/80"]:hover { background-color: #252E33; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:bg-[#EBDAD7]"]:hover { background-color: #443236; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:bg-[#F1ECE6]"]:hover { background-color: #24292C; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:bg-[#F4EAE8]"]:hover { background-color: #302729; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:border-[#D9CEC2]"]:hover { border-color: #42515A; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:text-[#322E2B]"]:hover { color: #EDF1F2; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:text-[#4E6152]"]:hover { color: #B3D5BB; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:text-[#68615B]"]:hover { color: #BAC3C8; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:text-[#6E5E4F]"]:hover { color: #D2BFA5; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:text-[#8F6561]"]:hover { color: #D7ADA7; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="placeholder:text-[#968E86]"]::placeholder { color: #98A5AD; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="selection:text-[#322E2B]"]::selection { color: #EDF1F2; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="text-[#322E2B]"] { color: #EDF1F2; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="text-[#4E6152]"] { color: #B3D5BB; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="text-[#68615B]"] { color: #BAC3C8; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="text-[#6E5E4F]"] { color: #D2BFA5; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="text-[#8F5A3C]"] { color: #E6BC8B; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="text-[#8F6561]"] { color: #D7ADA7; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="text-[#8F6561]/90"] { color: #D7ADA7; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="text-[#968E86]"] { color: #98A5AD; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="text-[#FAF8F5]"] { color: #F6F8F9; }
+html[data-theme="dark"] .bg-white:not(.source-artwork, .source-artwork *), html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="bg-white/60"] { background-color: #222A2F; }
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:bg-white"]:hover { background-color: #303B42; }
+html[data-theme="dark"] .text-zinc-600, html[data-theme="dark"] .text-zinc-500 { color: #98A5AD; }
+html[data-theme="dark"] .text-black { color: #EDF1F2; }
+
+.source-artwork { color: #322E2B; }
+.source-artwork [class~="text-[#322E2B]"] { color: #322E2B; }
+
+html[data-theme="dark"] :not(.source-artwork, .source-artwork *)[class~="hover:bg-[#DCE6DE]"]:hover { background-color: #2C4438; }

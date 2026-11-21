@@ -41,5 +41,5 @@ jobs:
     - name: Test source style rules and storyboard regressions
       run: |
         node --check app.js
-        node --test tests/style-profile.test.cjs
+        node --test tests/style-profile.test.cjs tests/style-quality.test.cjs
         python -m unittest discover -s tests -p test_style_rules.py -v

@@ -43,6 +43,20 @@ class StyleRulesTests(unittest.TestCase):
                                    files=[('files', upload) for upload in uploads])
         return response, calls
 
+    def test_metadata_is_found_before_report_even_with_missing_fence(self):
+        value = {'style_name': 'escaped " brace }', 'palette': [], 'design_profile': {'pages': []}}
+        encoded = json.dumps(value)
+        for suffix in ['','\n```','\n## Evidence\n```markdown\nPrompt\n```']:
+            self.assertEqual(app.extract_style_metadata('```JSON\n' + encoded + suffix), value)
+        self.assertIsNone(app.extract_style_metadata('```json\n' + encoded[:-2]))
+        self.assertEqual(app.extract_style_metadata('```json\n' + encoded + '\n```\n```json\n{"unrelated": 1}\n```'), value)
+
+    def test_quality_module_route_serves_the_same_public_file(self):
+        with TestClient(app.app) as client:
+            response = client.get('/style-quality.js')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, (ROOT / 'style-quality.js').read_bytes())
+
     def test_multiple_pdfs_use_a_single_global_thirty_page_budget(self):
         pdf = self.pdf_bytes(40)
         response, calls = self.analyze_uploads([('a.pdf', pdf, 'application/pdf'), ('b.pdf', pdf, 'application/pdf')])
@@ -50,8 +64,8 @@ class StyleRulesTests(unittest.TestCase):
         parts = calls[0]['messages'][1]['content']
         labels = [p['text'] for p in parts if p['type'] == 'text' and p['text'].startswith('來源頁：')]
         self.assertEqual(len(labels), 30)
-        self.assertEqual(labels[0], '來源頁：a.pdf P.1')
-        self.assertEqual(labels[-1], '來源頁：b.pdf P.40')
+        self.assertEqual(labels[0], '來源頁：P.1')
+        self.assertEqual(labels[-1], '來源頁：P.80')
 
     def test_selection_above_three_hundred_is_not_discarded(self):
         pdf = self.pdf_bytes(120)
@@ -59,7 +73,12 @@ class StyleRulesTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         parts = calls[0]['messages'][1]['content']
         labels = [p['text'] for p in parts if p['type'] == 'text' and p['text'].startswith('來源頁：')]
-        self.assertEqual(labels, ['來源頁：c.pdf P.61', '來源頁：c.pdf P.120'])
+        self.assertEqual(labels, ['來源頁：P.301', '來源頁：P.360'])
+        context = response.json()['analysis_context']
+        self.assertEqual(context['source_pages'], ['P.301', 'P.360'])
+        self.assertEqual([p['source_page'] for p in context['pixel_evidence']], ['P.301', 'P.360'])
+        self.assertTrue(all(p['lightRatio'] > .99 for p in context['pixel_evidence']))
+
 
     def test_unselected_pptx_and_image_never_enter_the_model_request(self):
         from PIL import Image
@@ -120,8 +139,8 @@ class StyleRulesTests(unittest.TestCase):
             parts = calls[0]['messages'][1]['content']
             labels = [p['text'] for p in parts if p['type'] == 'text' and p['text'].startswith('來源頁：')]
             self.assertEqual(len(labels), 30)
-            self.assertEqual(labels[0], f'來源頁：sample.pdf P.{first}')
-            self.assertEqual(labels[-1], '來源頁：sample.pdf P.40')
+            self.assertEqual(labels[0], f'來源頁：P.{first}')
+            self.assertEqual(labels[-1], '來源頁：P.40')
 
     def test_pptx_preview_and_analysis_include_last_page(self):
         presentation = pptx.Presentation()
@@ -150,8 +169,8 @@ class StyleRulesTests(unittest.TestCase):
         response, calls = self.analyze_uploads(uploads)
         self.assertEqual(response.status_code, 200, response.text)
         prompt = calls[0]["messages"][1]["content"][0]["text"]
-        self.assertIn("light.png：近白像素 100.0%", prompt)
-        self.assertIn("dark.png：近白像素 0.0%；近黑像素 100.0%", prompt)
+        self.assertIn("P.1：近白像素 100.0%", prompt)
+        self.assertIn("P.2：近白像素 0.0%；近黑像素 100.0%", prompt)
         self.assertIn("不代表精確品牌色或物件色", prompt)
 
     def test_provider_busy_is_reported_as_unavailable_not_bad_file(self):
@@ -219,8 +238,8 @@ class StyleRulesTests(unittest.TestCase):
         content = calls[0]['messages'][1]['content']
         self.assertEqual(sum(part['type'] == 'image_url' for part in content), 8)
         labels = [part['text'] for part in content if part['type'] == 'text']
-        self.assertIn('來源頁：sample.pdf P.9', labels)
-        self.assertNotIn('來源頁：sample.pdf P.8', labels)
+        self.assertIn('來源頁：P.9', labels)
+        self.assertNotIn('來源頁：P.8', labels)
         self.assertIn('design_profile', response.json()['structured_meta'])
 
     def test_case_feedback_does_not_change_global_rules_or_publish(self):

@@ -1,6 +1,7 @@
 import os
 import io
 import json
+import re
 import base64
 import logging
 import time
@@ -18,6 +19,17 @@ from google import genai
 from google.genai import types
 import openai
 import anthropic
+
+def extract_style_metadata(text):
+    for marker in reversed(list(re.finditer(r"```json\s*", text, re.I))):
+        try:
+            value, _ = json.JSONDecoder().raw_decode(text[marker.end():])
+            if isinstance(value, dict) and (value.get("style_name") or isinstance(value.get("palette"), list)):
+                return value
+        except (ValueError, TypeError):
+            continue
+    return None
+
 
 # ==================== 安全防護配置 ====================
 MAX_UPLOAD_SIZE = 25 * 1024 * 1024       # 單一檔案最大 25MB
@@ -236,7 +248,7 @@ async def file_preview(request: Request, file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail="檔案預覽處理失敗，請確認檔案格式是否正確或未損毀。")
 
 
-def describe_image_pixels(content: bytes) -> str:
+def measure_image_pixels(content: bytes) -> dict:
     """提供逐頁影像取樣證據；不將高頻色宣稱為品牌或畫布物件色。"""
     with Image.open(io.BytesIO(content)) as source:
         image = source.convert("RGB")
@@ -248,7 +260,11 @@ def describe_image_pixels(content: bytes) -> str:
         palette = image.quantize(colors=5).convert("RGB").getcolors(maxcolors=96 * 96)
         ranked = sorted(palette, reverse=True)[:5]
         candidates = ", ".join("#%02X%02X%02X 約 %.0f%%" % (*color, count * 100 / total) for count, color in ranked)
-        return f"近白像素 {light:.1%}；近黑像素 {dark:.1%}；量化候選：{candidates}"
+        return {"lightRatio": light, "darkRatio": dark, "candidates": candidates}
+
+def describe_image_pixels(content: bytes) -> str:
+    sample = measure_image_pixels(content)
+    return f"近白像素 {sample['lightRatio']:.1%}；近黑像素 {sample['darkRatio']:.1%}；量化候選：{sample['candidates']}"
 
 
 def parse_selected_pages_str(pages_str: Optional[str]) -> Optional[set]:
@@ -460,15 +476,15 @@ async def analyze_style(
                 pptx_res = process_pptx_presentation(group["content"], target_pages=local_pages)
                 pptx_summaries.append(pptx_res["structure_summary"])
                 for page in pptx_res["preview_pages"]:
-                    standard_images.append((page["bytes"], "image/jpeg", f"{group['name']} P.{page['page']}"))
+                    standard_images.append((page["bytes"], "image/jpeg", f"P.{page_offset - group['pages'] + page['page']}"))
                 # 不附加整個壓縮檔的媒體，避免將未選投影片的素材送進模型。
             elif group["kind"] == "pdf":
                 with fitz.open(stream=group["content"], filetype="pdf") as doc:
                     for page_num in sorted(local_pages):
                         pix = doc.load_page(page_num - 1).get_pixmap(dpi=150)
-                        standard_images.append((pix.tobytes("jpeg"), "image/jpeg", f"{group['name']} P.{page_num}"))
+                        standard_images.append((pix.tobytes("jpeg"), "image/jpeg", f"P.{page_offset - group['pages'] + page_num}"))
             else:
-                standard_images.append((group["content"], group["mime"], group["name"]))
+                standard_images.append((group["content"], group["mime"], f"P.{page_offset}"))
 
         # 組裝 Prompt 提示詞
         user_prompt_text = (
@@ -601,14 +617,8 @@ async def analyze_style(
             )
             analysis_text = response.content[0].text if response.content else ""
 
-        # 提取末端的 JSON 資料（如果有的話）
-        parsed_json = None
-        if "```json" in analysis_text:
-            try:
-                json_part = analysis_text.split("```json")[-1].split("```")[0].strip()
-                parsed_json = json.loads(json_part)
-            except Exception as j_err:
-                logger.warning(f"解析 JSON 失敗: {j_err}")
+        # JSON may precede the report and may omit only its Markdown closing fence.
+        parsed_json = extract_style_metadata(analysis_text)
 
         return {
             "status": "success",
@@ -618,7 +628,9 @@ async def analyze_style(
             "markdown_report": analysis_text,
             "structured_meta": parsed_json,
             "analyzed_pages": analyzed_pages,
-            "total_pages": total_detected_pages
+            "total_pages": total_detected_pages,
+            "analysis_context": {"source_pages": [label for _, _, label in standard_images],
+                "pixel_evidence": [{"source_page": label, **measure_image_pixels(content)} for content, _, label in standard_images]}
         }
 
     except HTTPException:
@@ -648,6 +660,10 @@ async def analyze_style(
 @app.get("/index.html", include_in_schema=False)
 def frontend_index():
     return FileResponse(os.path.join(os.path.dirname(__file__), "index.html"))
+
+@app.get("/style-quality.js", include_in_schema=False)
+def frontend_quality_script():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "style-quality.js"))
 
 @app.get("/app.js", include_in_schema=False)
 def frontend_script():
